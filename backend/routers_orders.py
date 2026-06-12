@@ -6,9 +6,6 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr, Field
-from emergentintegrations.payments.stripe.checkout import (
-    StripeCheckout, CheckoutSessionRequest,
-)
 from db import db
 from auth import require_permission
 from invoice_pdf import generate_invoice_pdf
