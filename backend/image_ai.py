@@ -7,7 +7,6 @@ import os
 import base64
 import logging
 import uuid
-from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
 
 logger = logging.getLogger(__name__)
 
