@@ -1,0 +1,252 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@200;300;400;500;600;700&family=Dancing+Script:wght@500;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    /* Storefront defaults (dark luxury) */
+    --ldd-black: #0A0A0A;
+    --ldd-cream: #FAF8F5;
+    --ldd-gold: #C5A059;
+    --ldd-gold-soft: rgba(197, 160, 89, 0.2);
+    --ldd-red: #8C211E;
+    --ldd-olive: #4A5D23;
+    --ldd-oak: #3B2B20;
+}
+
+@layer base {
+    :root {
+        --background: 0 0% 98%;
+        --foreground: 0 0% 4%;
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 4%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 4%;
+        --primary: 0 0% 4%;
+        --primary-foreground: 38 50% 95%;
+        --secondary: 35 18% 95%;
+        --secondary-foreground: 0 0% 4%;
+        --muted: 35 18% 95%;
+        --muted-foreground: 25 10% 35%;
+        --accent: 39 47% 56%;
+        --accent-foreground: 0 0% 4%;
+        --destructive: 0 75% 40%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 25 12% 88%;
+        --input: 25 12% 88%;
+        --ring: 39 47% 56%;
+        --radius: 0.25rem;
+    }
+    .dark {
+        --background: 0 0% 4%;
+        --foreground: 38 50% 95%;
+        --card: 0 0% 6%;
+        --card-foreground: 38 50% 95%;
+        --popover: 0 0% 6%;
+        --popover-foreground: 38 50% 95%;
+        --primary: 39 47% 56%;
+        --primary-foreground: 0 0% 4%;
+        --secondary: 25 25% 14%;
+        --secondary-foreground: 38 50% 95%;
+        --muted: 25 25% 14%;
+        --muted-foreground: 38 20% 70%;
+        --accent: 39 47% 56%;
+        --accent-foreground: 0 0% 4%;
+        --destructive: 0 60% 45%;
+        --destructive-foreground: 38 50% 95%;
+        --border: 39 30% 20%;
+        --input: 39 30% 20%;
+        --ring: 39 47% 56%;
+    }
+}
+
+@layer base {
+    * { @apply border-border; }
+    html, body, #root { @apply min-h-screen; }
+    body {
+        margin: 0;
+        font-family: 'Outfit', system-ui, sans-serif;
+        background: var(--ldd-cream);
+        color: var(--ldd-black);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+    h1, h2, h3, h4, h5, h6, .font-serif {
+        font-family: 'Cormorant Garamond', serif;
+        font-weight: 400;
+        letter-spacing: -0.01em;
+    }
+    .font-script {
+        font-family: 'Dancing Script', cursive;
+    }
+    .font-mono-data {
+        font-family: 'JetBrains Mono', monospace;
+    }
+    .label-eyebrow {
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 0.22em;
+        font-weight: 500;
+    }
+}
+
+/* Storefront — dark luxury surface */
+.ldd-storefront {
+    background: var(--ldd-black);
+    color: var(--ldd-cream);
+}
+.ldd-storefront ::selection {
+    background: var(--ldd-gold);
+    color: var(--ldd-black);
+}
+
+.gold { color: var(--ldd-gold); }
+.bg-gold { background: var(--ldd-gold); }
+
+.grain::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.08;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+.ldd-btn-gold {
+    background: var(--ldd-gold);
+    color: var(--ldd-black);
+    padding: 14px 28px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-size: 12px;
+    border-radius: 999px;
+    transition: transform 250ms cubic-bezier(.2,.7,.2,1), background 250ms ease, color 250ms ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+.ldd-btn-gold:hover {
+    background: var(--ldd-cream);
+    color: var(--ldd-black);
+    transform: translateY(-2px);
+}
+
+.ldd-btn-ghost {
+    background: transparent;
+    color: var(--ldd-cream);
+    border: 1px solid rgba(250, 248, 245, 0.25);
+    padding: 13px 26px;
+    border-radius: 999px;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    transition: all 250ms ease;
+}
+.ldd-btn-ghost:hover {
+    border-color: var(--ldd-gold);
+    color: var(--ldd-gold);
+}
+
+.product-card-img {
+    transition: transform 900ms cubic-bezier(.2,.7,.2,1), filter 600ms ease;
+    will-change: transform;
+}
+.product-card:hover .product-card-img {
+    transform: scale(1.06);
+    filter: brightness(1.05);
+}
+
+.ldd-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--ldd-gold-soft), transparent);
+}
+
+.hero-gradient {
+    background: linear-gradient(to top, rgba(10,10,10,0.92) 0%, rgba(10,10,10,0.5) 45%, rgba(10,10,10,0.2) 100%);
+}
+
+.fade-up {
+    animation: fadeUp 900ms cubic-bezier(.2,.7,.2,1) both;
+}
+@keyframes fadeUp {
+    0% { opacity: 0; transform: translateY(24px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+.nav-link {
+    position: relative;
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    padding: 6px 0;
+}
+.nav-link::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 1px;
+    background: var(--ldd-gold);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 350ms ease;
+}
+.nav-link:hover::after { transform: scaleX(1); }
+
+/* Cart drawer */
+.cart-backdrop {
+    background: rgba(10, 10, 10, 0.7);
+    backdrop-filter: blur(8px);
+}
+
+/* CMS — light swiss */
+.ldd-cms {
+    background: var(--ldd-cream);
+    color: var(--ldd-black);
+    font-family: 'Outfit', sans-serif;
+}
+.ldd-cms .cms-card {
+    background: #fff;
+    border: 1px solid rgba(10,10,10,0.08);
+    border-radius: 4px;
+}
+.ldd-cms .cms-table th {
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: #666;
+}
+.ldd-cms .mono { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 4px;
+    color: rgba(250,248,245,0.7);
+    font-size: 13px;
+    transition: all 180ms ease;
+}
+.sidebar-link:hover {
+    color: var(--ldd-gold);
+    background: rgba(255,255,255,0.04);
+}
+.sidebar-link.active {
+    color: var(--ldd-black);
+    background: var(--ldd-gold);
+}
+
+.scroll-marquee {
+    display: flex;
+    gap: 60px;
+    animation: marquee 50s linear infinite;
+    white-space: nowrap;
+}
+@keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}

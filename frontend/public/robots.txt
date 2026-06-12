@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /cuenta
+Disallow: /cuenta/
+Disallow: /checkout
+Disallow: /checkout/
+Disallow: /cart
+
+Sitemap: https://lasdosdoncellasibericos.es/sitemap.xml
