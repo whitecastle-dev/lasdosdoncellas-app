@@ -19,11 +19,11 @@ email-validator==2.3.0
 fastapi==0.110.1
 flake8==7.3.0
 google-ai-generativelanguage==0.6.15
-google-api-core==2.31.0
+google-api-core
 google-api-python-client==2.197.0
 google-auth==2.54.0
 google-auth-httplib2==0.4.0
-google-generativeai==0.8.6
+google-generativeai
 googleapis-common-protos==1.75.0
 grpcio==1.81.1
 grpcio-status==1.71.2
@@ -50,7 +50,7 @@ pathspec==1.1.1
 platformdirs==4.10.0
 pluggy==1.6.0
 proto-plus==1.28.0
-protobuf==5.29.6
+protobuf==4.21.0
 pyasn1==0.6.3
 pyasn1_modules==0.4.2
 pycodestyle==2.14.0
