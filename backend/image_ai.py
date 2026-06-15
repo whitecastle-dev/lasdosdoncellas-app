@@ -3,11 +3,12 @@ import os
 import base64
 import logging
 import google.generativeai as genai
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
 # He seleccionado el modelo que aparecía en tu lista y que encaja con el nombre que usabas
-NANO_BANANA_MODEL = "gemini-3.1-flash-image-preview"
+NANO_BANANA_MODEL = "gemini-2.0-flash"
 
 ENHANCE_PROMPT = (
     "Take the product in this image and create an editorial, ultra-premium "
@@ -54,3 +55,6 @@ async def enhance_product_image(image_bytes: bytes) -> bytes:
     except Exception as e:
         logger.exception("Error en la mejora de imagen con Gemini")
         raise e
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+async def enhance_product_image(image_bytes: bytes) -> bytes:
