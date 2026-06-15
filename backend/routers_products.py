@@ -3,7 +3,7 @@ import uuid
 import asyncio
 from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from pydantic import BaseModel, Field
 from db import db
 from auth import require_permission, get_current_user
@@ -12,19 +12,16 @@ from image_ai import enhance_product_image
 
 router = APIRouter(prefix="/api", tags=["catalog"])
 
-
 # ---------- Categories ----------
 class CategoryIn(BaseModel):
     name: str
     slug: str
     description: Optional[str] = None
 
-
 @router.get("/categories")
 async def list_categories():
     cats = await db.categories.find({}, {"_id": 0}).sort("name", 1).to_list(1000)
     return cats
-
 
 @router.post("/categories")
 async def create_category(payload: CategoryIn, _=Depends(require_permission("products.write"))):
@@ -37,12 +34,10 @@ async def create_category(payload: CategoryIn, _=Depends(require_permission("pro
     doc.pop("_id", None)
     return doc
 
-
 @router.delete("/categories/{cat_id}")
 async def delete_category(cat_id: str, _=Depends(require_permission("products.delete"))):
     await db.categories.delete_one({"id": cat_id})
     return {"ok": True}
-
 
 # ---------- Products ----------
 class ProductIn(BaseModel):
@@ -59,14 +54,13 @@ class ProductIn(BaseModel):
     stock: int = 0
     low_stock_threshold: int = 5
     weight_grams: Optional[int] = None
-    origin: Optional[str] = None  # Denominación de origen
+    origin: Optional[str] = None
     curing_months: Optional[int] = None
     breed: Optional[str] = None
-    feed: Optional[str] = None  # bellota, cebo, recebo
-    images: List[str] = Field(default_factory=list)  # list of storage paths
+    feed: Optional[str] = None
+    images: List[str] = Field(default_factory=list)
     is_featured: bool = False
     is_active: bool = True
-
 
 def _product_with_image_urls(prod: dict) -> dict:
     prod.pop("_id", None)
@@ -78,7 +72,6 @@ def _product_with_image_urls(prod: dict) -> dict:
             urls.append(f"/api/files/{p}")
     prod["image_urls"] = urls
     return prod
-
 
 @router.get("/products")
 async def list_products(
@@ -115,14 +108,12 @@ async def list_products(
     products = [_product_with_image_urls(p) async for p in cursor]
     return products
 
-
 @router.get("/products/{product_id}")
 async def get_product(product_id: str):
     prod = await db.products.find_one({"id": product_id})
     if not prod:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return _product_with_image_urls(prod)
-
 
 @router.post("/products")
 async def create_product(payload: ProductIn, _=Depends(require_permission("products.write"))):
@@ -135,7 +126,6 @@ async def create_product(payload: ProductIn, _=Depends(require_permission("produ
     doc["updated_at"] = now
     await db.products.insert_one(doc)
     return _product_with_image_urls(doc)
-
 
 @router.patch("/products/{product_id}")
 async def update_product(product_id: str, payload: ProductIn, _=Depends(require_permission("products.write"))):
@@ -152,14 +142,12 @@ async def update_product(product_id: str, payload: ProductIn, _=Depends(require_
     updated = await db.products.find_one({"id": product_id})
     return _product_with_image_urls(updated)
 
-
 @router.delete("/products/{product_id}")
 async def delete_product(product_id: str, _=Depends(require_permission("products.delete"))):
     res = await db.products.delete_one({"id": product_id})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return {"ok": True}
-
 
 # ---------- Product image upload (with AI enhancement) ----------
 @router.post("/products/{product_id}/images")
@@ -176,7 +164,6 @@ async def upload_product_image(
     if not original_bytes:
         raise HTTPException(status_code=400, detail="Archivo vacío")
 
-    # Forzamos obligatoriamente el paso por Nano Banana
     enhanced_bytes = await enhance_product_image(original_bytes)
 
     final_bytes = enhanced_bytes
@@ -187,7 +174,6 @@ async def upload_product_image(
     result = await asyncio.to_thread(put_object, path, final_bytes, final_content_type)
     stored_path = result["path"]
 
-    # store metadata
     await db.product_images.insert_one({
         "id": str(uuid.uuid4()),
         "product_id": product_id,
@@ -208,7 +194,6 @@ async def upload_product_image(
         "url": f"/api/files/{stored_path}",
         "ai_enhanced": True,
     }
-
 
 @router.delete("/products/{product_id}/images")
 async def delete_product_image(
