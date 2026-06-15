@@ -166,7 +166,6 @@ async def upload_product_image(
     if not original_bytes:
         raise HTTPException(status_code=400, detail="Archivo vacío")
 
-    # Intentamos mejorar con IA, si falla no lanzamos excepción
     try:
         enhanced_bytes = await enhance_product_image(original_bytes)
         ai_success = True
@@ -195,4 +194,24 @@ async def upload_product_image(
 
     await db.products.update_one(
         {"id": product_id},
-        {"$push": {"images": stored_path}, "$set
+        {
+            "$push": {"images": stored_path}, 
+            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+        },
+    )
+
+    return {
+        "storage_path": stored_path,
+        "url": f"/api/files/{stored_path}",
+        "ai_enhanced": ai_success,
+    }
+
+@router.delete("/products/{product_id}/images")
+async def delete_product_image(
+    product_id: str,
+    storage_path: str = Query(...),
+    _=Depends(require_permission("products.write")),
+):
+    await db.products.update_one({"id": product_id}, {"$pull": {"images": storage_path}})
+    await db.product_images.delete_many({"storage_path": storage_path})
+    return {"ok": True}
