@@ -1,67 +1,30 @@
-"""Emergent Object Storage helpers."""
 import os
-import logging
-import requests
+import cloudinary
+import cloudinary.uploader
+from fastapi import HTTPException
 
-logger = logging.getLogger(__name__)
+# Configuración única
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET")
+)
 
-STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
-APP_NAME = os.environ.get("APP_NAME", "lasdosdoncellas")
-EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
-
-_storage_key: str | None = None
-
-
-def init_storage() -> str:
-    global _storage_key
-    if _storage_key:
-        return _storage_key
-    resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_KEY}, timeout=30)
-    resp.raise_for_status()
-    _storage_key = resp.json()["storage_key"]
-    return _storage_key
-
-
-def reset_storage_key():
-    global _storage_key
-    _storage_key = None
-
-
-def put_object(path: str, data: bytes, content_type: str) -> dict:
-    key = init_storage()
-    resp = requests.put(
-        f"{STORAGE_URL}/objects/{path}",
-        headers={"X-Storage-Key": key, "Content-Type": content_type},
-        data=data,
-        timeout=120,
-    )
-    if resp.status_code == 403:
-        reset_storage_key()
-        key = init_storage()
-        resp = requests.put(
-            f"{STORAGE_URL}/objects/{path}",
-            headers={"X-Storage-Key": key, "Content-Type": content_type},
-            data=data,
-            timeout=120,
+def upload_to_cloudinary(file_bytes, product_id):
+    try:
+        # Subir a carpeta de productos
+        response = cloudinary.uploader.upload(
+            file_bytes, 
+            folder=f"products/{product_id}"
         )
-    resp.raise_for_status()
-    return resp.json()
+        # Devolvemos un formato compatible con lo que tu app espera
+        return {
+            "url": response["secure_url"],
+            "path": response["public_id"]
+        }
+    except Exception as e:
+        raise Exception(f"Error en Cloudinary: {str(e)}")
 
-
-def get_object(path: str) -> tuple[bytes, str]:
-    key = init_storage()
-    resp = requests.get(
-        f"{STORAGE_URL}/objects/{path}",
-        headers={"X-Storage-Key": key},
-        timeout=60,
-    )
-    if resp.status_code == 403:
-        reset_storage_key()
-        key = init_storage()
-        resp = requests.get(
-            f"{STORAGE_URL}/objects/{path}",
-            headers={"X-Storage-Key": key},
-            timeout=60,
-        )
-    resp.raise_for_status()
-    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
+# Esta función ya no es necesaria, puedes dejarla vacía para no romper imports
+def init_storage():
+    pass

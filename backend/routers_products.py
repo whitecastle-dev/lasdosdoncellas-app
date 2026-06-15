@@ -1,4 +1,4 @@
-"""Products + categories + image upload with Nano Banana enhancement."""
+"""Products + categories + image upload with Cloudinary enhancement."""
 import uuid
 import asyncio
 import logging
@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from pydantic import BaseModel, Field
 from db import db
 from auth import require_permission, get_current_user
-from storage import put_object, APP_NAME
+from storage import upload_to_cloudinary  # Importamos la nueva función
 from image_ai import enhance_product_image
 
 logger = logging.getLogger(__name__)
@@ -66,13 +66,8 @@ class ProductIn(BaseModel):
 
 def _product_with_image_urls(prod: dict) -> dict:
     prod.pop("_id", None)
-    urls = []
-    for p in prod.get("images", []):
-        if p.startswith("http://") or p.startswith("https://"):
-            urls.append(p)
-        else:
-            urls.append(f"/api/files/{p}")
-    prod["image_urls"] = urls
+    # Cloudinary ya devuelve URLs completas, ajustamos lógica
+    prod["image_urls"] = prod.get("images", [])
     return prod
 
 @router.get("/products")
@@ -151,7 +146,7 @@ async def delete_product(product_id: str, _=Depends(require_permission("products
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return {"ok": True}
 
-# ---------- Product image upload (with AI enhancement) ----------
+# ---------- Product image upload (Cloudinary) ----------
 @router.post("/products/{product_id}/images")
 async def upload_product_image(
     product_id: str,
@@ -174,20 +169,14 @@ async def upload_product_image(
         enhanced_bytes = original_bytes
         ai_success = False
 
-    final_bytes = enhanced_bytes
-    final_content_type = "image/png"
-    ext = "png"
-
-    path = f"{APP_NAME}/products/{product_id}/{uuid.uuid4()}.{ext}"
-    result = await asyncio.to_thread(put_object, path, final_bytes, final_content_type)
-    stored_path = result["path"]
-
+    # Subida a Cloudinary
+    result = await asyncio.to_thread(upload_to_cloudinary, enhanced_bytes, product_id)
+    
     await db.product_images.insert_one({
         "id": str(uuid.uuid4()),
         "product_id": product_id,
-        "storage_path": stored_path,
-        "content_type": final_content_type,
-        "size": result.get("size", len(final_bytes)),
+        "storage_path": result["path"],
+        "url": result["url"],
         "ai_enhanced": ai_success,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
@@ -195,14 +184,13 @@ async def upload_product_image(
     await db.products.update_one(
         {"id": product_id},
         {
-            "$push": {"images": stored_path}, 
+            "$push": {"images": result["url"]}, 
             "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
         },
     )
 
     return {
-        "storage_path": stored_path,
-        "url": f"/api/files/{stored_path}",
+        "url": result["url"],
         "ai_enhanced": ai_success,
     }
 
@@ -212,6 +200,7 @@ async def delete_product_image(
     storage_path: str = Query(...),
     _=Depends(require_permission("products.write")),
 ):
+    # Nota: Aquí deberías añadir lógica para eliminar el archivo de Cloudinary si fuera necesario
     await db.products.update_one({"id": product_id}, {"$pull": {"images": storage_path}})
-    await db.product_images.delete_many({"storage_path": storage_path})
+    await db.product_images.delete_many({"url": storage_path})
     return {"ok": True}
