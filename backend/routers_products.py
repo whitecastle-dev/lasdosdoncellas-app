@@ -1,4 +1,4 @@
-"""Products + categories + image upload with Cloudinary enhancement."""
+"""Products + categories + image upload with Cloudinary transformation."""
 import uuid
 import asyncio
 import logging
@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 from db import db
 from auth import require_permission, get_current_user
 from storage import upload_to_cloudinary
-from image_ai import enhance_product_image
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["catalog"])
@@ -145,26 +144,7 @@ async def delete_product(product_id: str, _=Depends(require_permission("products
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return {"ok": True}
 
-# ---------- Product image upload (Asynchronous AI enhancement) ----------
-
-async def process_ai_enhancement(product_id: str, original_bytes: bytes):
-    """Tarea en segundo plano para mejorar la imagen con IA."""
-    try:
-        enhanced_bytes = await enhance_product_image(original_bytes)
-        # Subimos la versión mejorada
-        new_result = await asyncio.to_thread(upload_to_cloudinary, enhanced_bytes, product_id)
-        
-        # Guardamos registro en la base de datos de la versión mejorada
-        await db.product_images.insert_one({
-            "id": str(uuid.uuid4()),
-            "product_id": product_id,
-            "url": new_result["url"],
-            "ai_enhanced": True,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        })
-        logger.info(f"IA completada para el producto: {product_id}")
-    except Exception as e:
-        logger.error(f"La IA falló en segundo plano: {e}")
+# ---------- Product image upload (Cloudinary Direct Transformation) ----------
 
 @router.post("/products/{product_id}/images")
 async def upload_product_image(
@@ -180,31 +160,32 @@ async def upload_product_image(
     if not original_bytes:
         raise HTTPException(status_code=400, detail="Archivo vacío")
 
-    # 1. Subir la imagen original inmediatamente
+    # Subimos a Cloudinary. Gracias a la configuración en storage.py, 
+    # la imagen se transforma automáticamente al subirla.
     result = await asyncio.to_thread(upload_to_cloudinary, original_bytes, product_id)
 
-    # 2. Registrar la original en la DB
+    # Registrar en DB
     await db.product_images.insert_one({
         "id": str(uuid.uuid4()),
         "product_id": product_id,
         "storage_path": result["path"],
         "url": result["url"],
-        "ai_enhanced": False,
+        "ai_enhanced": True, 
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
 
     await db.products.update_one(
         {"id": product_id},
-        {"$push": {"images": result["url"]}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}},
+        {
+            "$push": {"images": result["url"]}, 
+            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+        },
     )
-
-    # 3. Lanzar la mejora por IA en segundo plano
-    asyncio.create_task(process_ai_enhancement(product_id, original_bytes))
 
     return {
         "url": result["url"],
-        "ai_enhanced": False,
-        "message": "Imagen subida. La mejora por IA se aplicará en segundo plano."
+        "ai_enhanced": True,
+        "message": "Imagen subida y procesada profesionalmente por Cloudinary."
     }
 
 @router.delete("/products/{product_id}/images")
