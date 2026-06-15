@@ -34,22 +34,27 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 def generate_verification_token() -> str:
-    """Genera un token seguro para la verificación de correo."""
     return secrets.token_urlsafe(32)
 
+# --- REINSERTANDO LA FUNCIÓN QUE FALTABA ---
+def create_refresh_token(user_id: str) -> str:
+    payload = {
+        "sub": user_id,
+        "exp": datetime.now(timezone.utc) + timedelta(days=7),
+        "type": "refresh",
+    }
+    return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
+# --------------------------------------------
+
 async def send_verification_email(email_to: str, token: str):
-    """Envía correo de verificación usando el servidor SMTP de tu hosting."""
     msg = EmailMessage()
     msg["Subject"] = "Verifica tu cuenta en Las Dos Doncellas"
     msg["From"] = os.environ["EMAIL_USER"]
     msg["To"] = email_to
-    
     verify_url = f"https://lasdosdoncellas-api.onrender.com/api/auth/verify?token={token}"
-    
-    msg.set_content(f"Hola,\n\nGracias por registrarte. Haz clic aquí para verificar tu cuenta:\n{verify_url}\n\nSi no te has registrado, ignora este correo.")
+    msg.set_content(f"Hola,\n\nGracias por registrarte. Haz clic aquí para verificar tu cuenta:\n{verify_url}")
     
     try:
-        # Usamos SMTP_SSL para el puerto 465 (estándar en cPanel/Lucushost)
         with smtplib.SMTP_SSL(os.environ["EMAIL_HOST"], int(os.environ["EMAIL_PORT"])) as server:
             server.login(os.environ["EMAIL_USER"], os.environ["EMAIL_PASSWORD"])
             server.send_message(msg)
@@ -95,7 +100,6 @@ async def get_current_user(request: Request) -> dict:
     user = await db.users.find_one({"id": payload["sub"]}, {"password_hash": 0})
     if not user: raise HTTPException(status_code=401, detail="Usuario no encontrado")
     
-    # Nueva validación de cuenta verificada
     if not user.get("is_verified", False):
         raise HTTPException(status_code=403, detail="Cuenta no verificada. Por favor, revisa tu correo.")
     if user.get("is_active") is False:
@@ -112,7 +116,6 @@ def require_permission(permission: str):
     return dep
 
 async def seed_admin():
-    """Seed the non-deletable superadmin user."""
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@lasdosdoncellas.com").lower()
     admin_password = os.environ.get("ADMIN_PASSWORD", "Admin1234")
     existing = await db.users.find_one({"email": admin_email})
@@ -128,7 +131,7 @@ async def seed_admin():
             "role": "superadmin",
             "is_superadmin": True,
             "is_active": True,
-            "is_verified": True, # El admin ya nace verificado
+            "is_verified": True,
             "permissions": ALL_PERMISSIONS,
             "created_at": now,
             "updated_at": now,
