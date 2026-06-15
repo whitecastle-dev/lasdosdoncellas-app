@@ -30,6 +30,14 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Las Dos Doncellas API")
 
+# --- CORS CONFIGURATION (Mover arriba para que procese bien las peticiones) ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.environ.get("CORS_ORIGINS", "https://lasdosdoncellas-web.onrender.com").split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/api")
 async def root():
@@ -46,14 +54,6 @@ app.include_router(providers_router)
 app.include_router(customers_router)
 app.include_router(excel_router)
 app.include_router(excel_all_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 @app.on_event("startup")
