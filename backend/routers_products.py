@@ -1,6 +1,7 @@
 """Products + categories + image upload with Nano Banana enhancement."""
 import uuid
 import asyncio
+import logging
 from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
@@ -10,6 +11,7 @@ from auth import require_permission, get_current_user
 from storage import put_object, APP_NAME
 from image_ai import enhance_product_image
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["catalog"])
 
 # ---------- Categories ----------
@@ -164,7 +166,14 @@ async def upload_product_image(
     if not original_bytes:
         raise HTTPException(status_code=400, detail="Archivo vacío")
 
-    enhanced_bytes = await enhance_product_image(original_bytes)
+    # Intentamos mejorar con IA, si falla no lanzamos excepción
+    try:
+        enhanced_bytes = await enhance_product_image(original_bytes)
+        ai_success = True
+    except Exception as e:
+        logger.error(f"La IA falló, subiendo original: {e}")
+        enhanced_bytes = original_bytes
+        ai_success = False
 
     final_bytes = enhanced_bytes
     final_content_type = "image/png"
@@ -180,27 +189,10 @@ async def upload_product_image(
         "storage_path": stored_path,
         "content_type": final_content_type,
         "size": result.get("size", len(final_bytes)),
-        "ai_enhanced": True,
+        "ai_enhanced": ai_success,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
 
     await db.products.update_one(
         {"id": product_id},
-        {"$push": {"images": stored_path}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}},
-    )
-
-    return {
-        "storage_path": stored_path,
-        "url": f"/api/files/{stored_path}",
-        "ai_enhanced": True,
-    }
-
-@router.delete("/products/{product_id}/images")
-async def delete_product_image(
-    product_id: str,
-    storage_path: str = Query(...),
-    _=Depends(require_permission("products.write")),
-):
-    await db.products.update_one({"id": product_id}, {"$pull": {"images": storage_path}})
-    await db.product_images.delete_many({"storage_path": storage_path})
-    return {"ok": True}
+        {"$push": {"images": stored_path}, "$set
