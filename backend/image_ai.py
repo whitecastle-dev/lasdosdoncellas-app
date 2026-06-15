@@ -7,7 +7,7 @@ import asyncio
 logger = logging.getLogger(__name__)
 
 # Usamos gemini-1.5-flash por ser el más eficiente para tareas de visión rápida
-MODEL_NAME = "gemini-pro-vision" 
+MODEL_NAME = "gemma-4-26b-a4b-it" 
 
 ENHANCE_PROMPT = (
     "Take the product in this image and create an editorial, ultra-premium "
