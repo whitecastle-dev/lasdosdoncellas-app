@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from pydantic import BaseModel, Field
 from db import db
 from auth import require_permission, get_current_user
-from storage import upload_to_cloudinary  # Importamos la nueva función
+from storage import upload_to_cloudinary
 from image_ai import enhance_product_image
 
 logger = logging.getLogger(__name__)
@@ -66,7 +66,6 @@ class ProductIn(BaseModel):
 
 def _product_with_image_urls(prod: dict) -> dict:
     prod.pop("_id", None)
-    # Cloudinary ya devuelve URLs completas, ajustamos lógica
     prod["image_urls"] = prod.get("images", [])
     return prod
 
@@ -146,7 +145,27 @@ async def delete_product(product_id: str, _=Depends(require_permission("products
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return {"ok": True}
 
-# ---------- Product image upload (Cloudinary) ----------
+# ---------- Product image upload (Asynchronous AI enhancement) ----------
+
+async def process_ai_enhancement(product_id: str, original_bytes: bytes):
+    """Tarea en segundo plano para mejorar la imagen con IA."""
+    try:
+        enhanced_bytes = await enhance_product_image(original_bytes)
+        # Subimos la versión mejorada
+        new_result = await asyncio.to_thread(upload_to_cloudinary, enhanced_bytes, product_id)
+        
+        # Guardamos registro en la base de datos de la versión mejorada
+        await db.product_images.insert_one({
+            "id": str(uuid.uuid4()),
+            "product_id": product_id,
+            "url": new_result["url"],
+            "ai_enhanced": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        logger.info(f"IA completada para el producto: {product_id}")
+    except Exception as e:
+        logger.error(f"La IA falló en segundo plano: {e}")
+
 @router.post("/products/{product_id}/images")
 async def upload_product_image(
     product_id: str,
@@ -161,37 +180,31 @@ async def upload_product_image(
     if not original_bytes:
         raise HTTPException(status_code=400, detail="Archivo vacío")
 
-    try:
-        enhanced_bytes = await enhance_product_image(original_bytes)
-        ai_success = True
-    except Exception as e:
-        logger.error(f"La IA falló, subiendo original: {e}")
-        enhanced_bytes = original_bytes
-        ai_success = False
+    # 1. Subir la imagen original inmediatamente
+    result = await asyncio.to_thread(upload_to_cloudinary, original_bytes, product_id)
 
-    # Subida a Cloudinary
-    result = await asyncio.to_thread(upload_to_cloudinary, enhanced_bytes, product_id)
-    
+    # 2. Registrar la original en la DB
     await db.product_images.insert_one({
         "id": str(uuid.uuid4()),
         "product_id": product_id,
         "storage_path": result["path"],
         "url": result["url"],
-        "ai_enhanced": ai_success,
+        "ai_enhanced": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
 
     await db.products.update_one(
         {"id": product_id},
-        {
-            "$push": {"images": result["url"]}, 
-            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
-        },
+        {"$push": {"images": result["url"]}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}},
     )
+
+    # 3. Lanzar la mejora por IA en segundo plano
+    asyncio.create_task(process_ai_enhancement(product_id, original_bytes))
 
     return {
         "url": result["url"],
-        "ai_enhanced": ai_success,
+        "ai_enhanced": False,
+        "message": "Imagen subida. La mejora por IA se aplicará en segundo plano."
     }
 
 @router.delete("/products/{product_id}/images")
@@ -200,7 +213,6 @@ async def delete_product_image(
     storage_path: str = Query(...),
     _=Depends(require_permission("products.write")),
 ):
-    # Nota: Aquí deberías añadir lógica para eliminar el archivo de Cloudinary si fuera necesario
     await db.products.update_one({"id": product_id}, {"$pull": {"images": storage_path}})
     await db.product_images.delete_many({"url": storage_path})
     return {"ok": True}
