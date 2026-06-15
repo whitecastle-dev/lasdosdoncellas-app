@@ -70,6 +70,7 @@ python-multipart==0.0.32
 pytokens==0.4.1
 requests==2.34.2
 requests-oauthlib==2.0.0
+reportlab
 rich==15.0.0
 rsa==4.9.1
 s3transfer==0.18.0
