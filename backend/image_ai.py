@@ -8,7 +8,7 @@ import google.generativeai as genai
 logger = logging.getLogger(__name__)
 
 # Configuración del modelo
-NANO_BANANA_MODEL = "gemini-1.5-flash" # Asegúrate de usar un modelo válido
+NANO_BANANA_MODEL = "gemini-1.5-flash-latest" # Asegúrate de usar un modelo válido
 ENHANCE_PROMPT = (
     "Take the product in this image and create an editorial, ultra-premium "
     "product photograph. Remove the existing background completely and place "
