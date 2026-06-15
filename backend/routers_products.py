@@ -153,4 +153,69 @@ async def update_product(product_id: str, payload: ProductIn, _=Depends(require_
     return _product_with_image_urls(updated)
 
 
-@router
+@router.delete("/products/{product_id}")
+async def delete_product(product_id: str, _=Depends(require_permission("products.delete"))):
+    res = await db.products.delete_one({"id": product_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    return {"ok": True}
+
+
+# ---------- Product image upload (with AI enhancement) ----------
+@router.post("/products/{product_id}/images")
+async def upload_product_image(
+    product_id: str,
+    file: UploadFile = File(...),
+    user=Depends(require_permission("products.write")),
+):
+    product = await db.products.find_one({"id": product_id})
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    original_bytes = await file.read()
+    if not original_bytes:
+        raise HTTPException(status_code=400, detail="Archivo vacío")
+
+    # Forzamos obligatoriamente el paso por Nano Banana
+    enhanced_bytes = await enhance_product_image(original_bytes)
+
+    final_bytes = enhanced_bytes
+    final_content_type = "image/png"
+    ext = "png"
+
+    path = f"{APP_NAME}/products/{product_id}/{uuid.uuid4()}.{ext}"
+    result = await asyncio.to_thread(put_object, path, final_bytes, final_content_type)
+    stored_path = result["path"]
+
+    # store metadata
+    await db.product_images.insert_one({
+        "id": str(uuid.uuid4()),
+        "product_id": product_id,
+        "storage_path": stored_path,
+        "content_type": final_content_type,
+        "size": result.get("size", len(final_bytes)),
+        "ai_enhanced": True,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+    await db.products.update_one(
+        {"id": product_id},
+        {"$push": {"images": stored_path}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+
+    return {
+        "storage_path": stored_path,
+        "url": f"/api/files/{stored_path}",
+        "ai_enhanced": True,
+    }
+
+
+@router.delete("/products/{product_id}/images")
+async def delete_product_image(
+    product_id: str,
+    storage_path: str = Query(...),
+    _=Depends(require_permission("products.write")),
+):
+    await db.products.update_one({"id": product_id}, {"$pull": {"images": storage_path}})
+    await db.product_images.delete_many({"storage_path": storage_path})
+    return {"ok": True}
