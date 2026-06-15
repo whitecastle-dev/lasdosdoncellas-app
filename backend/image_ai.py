@@ -7,7 +7,7 @@ import google.generativeai as genai
 logger = logging.getLogger(__name__)
 
 # Usamos gemini-2.0-flash por ser estable y tener mejores cuotas
-NANO_BANANA_MODEL = "gemini-2.0-flash" 
+NANO_BANANA_MODEL = "gemma-4-26b-a4b-it" 
 
 ENHANCE_PROMPT = (
     "Take the product in this image and create an editorial, ultra-premium "
