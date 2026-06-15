@@ -3,12 +3,12 @@ import os
 import base64
 import logging
 import uuid
-from llm_utils import LlmChat, UserMessage, ImageContent # Asegúrate de que estas importaciones sean correctas para tu entorno
+import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
 
-NANO_BANANA_MODEL = "gemini-3.1-flash-image-preview"
-
+# Configuración del modelo
+NANO_BANANA_MODEL = "gemini-1.5-flash" # Asegúrate de usar un modelo válido
 ENHANCE_PROMPT = (
     "Take the product in this image and create an editorial, ultra-premium "
     "product photograph. Remove the existing background completely and place "
@@ -26,21 +26,22 @@ async def enhance_product_image(image_bytes: bytes) -> bytes:
     if not api_key:
         raise Exception("EMERGENT_LLM_KEY is not configured in environment variables")
     
-    image_b64 = base64.b64encode(image_bytes).decode("utf-8")
-    chat = LlmChat(
-        api_key=api_key,
-        session_id=f"product-{uuid.uuid4()}",
-        system_message="You are an expert food product photographer creating editorial images for a luxury Spanish iberico brand.",
-    ).with_model("gemini", NANO_BANANA_MODEL).with_params(modalities=["image", "text"])
-
-    msg = UserMessage(
-        text=ENHANCE_PROMPT,
-        file_contents=[ImageContent(image_b64)],
-    )
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(NANO_BANANA_MODEL)
     
-    _text, images = await chat.send_message_multimodal_response(msg)
+    # Preparar imagen para el SDK
+    image_data = {
+        "mime_type": "image/png",
+        "data": image_bytes
+    }
     
-    if not images:
+    response = model.generate_content([ENHANCE_PROMPT, image_data])
+    
+    # Nota: La lógica para extraer la imagen procesada puede variar según cómo devuelva el modelo
+    # Esto asume que el modelo devuelve la imagen procesada en la respuesta.
+    if not response.candidates or not response.candidates[0].content.parts:
         raise Exception("Nano Banana failed to return an enhanced image")
         
-    return base64.b64decode(images[0]["data"])
+    # Aquí deberías extraer los bytes de la imagen generada por la IA
+    # Si el modelo devuelve la imagen codificada en base64 en la respuesta:
+    return base64.b64decode(response.text) # Ajusta según la estructura real de respuesta
