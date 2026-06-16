@@ -114,3 +114,27 @@ async def get_current_user(request: Request) -> dict:
     
     if not user.get("is_verified", False):
         raise HTTPException(status_code=403, detail="Cuenta no verificada. Por favor, revisa tu correo.")
+    if user.get("is_active") is False:
+        raise HTTPException(status_code=403, detail="Usuario inactivo")
+        
+    user.pop("_id", None)
+    return user
+
+def require_permission(permission: str):
+    async def dep(user: dict = Depends(get_current_user)) -> dict:
+        if not user.get("is_superadmin") and permission not in (user.get("permissions") or []):
+            raise HTTPException(status_code=403, detail=f"Permiso requerido: {permission}")
+        return user
+    return dep
+
+async def seed_admin():
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@lasdosdoncellas.com").lower()
+    admin_password = os.environ.get("ADMIN_PASSWORD", "Admin1234")
+    existing = await db.users.find_one({"email": admin_email})
+    now = datetime.now(timezone.utc).isoformat()
+    
+    if existing is None:
+        doc = {
+            "id": str(uuid.uuid4()),
+            "email": admin_email,
+            "password_hash
