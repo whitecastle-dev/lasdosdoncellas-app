@@ -15,7 +15,8 @@ export default function ForgotPassword() {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post(`${BACKEND_URL}/api/auth/forgot-password`, { email });
+      // Enviamos el objeto con la clave 'email' para que coincida con ForgotPasswordIn
+      await axios.post(`${BACKEND_URL}/api/auth/forgot-password`, { email: email });
       toast.success("Si el email existe, recibirás un enlace de recuperación.");
     } catch (err) {
       toast.error("Error al enviar la solicitud.");
@@ -38,6 +39,7 @@ export default function ForgotPassword() {
             placeholder="Email *" 
             required 
             className="w-full bg-transparent border border-[rgba(250,248,245,0.2)] px-4 py-3 text-sm text-white focus:border-[#C5A059] outline-none"
+            value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
           <button disabled={loading} className="ldd-btn-gold w-full justify-center">

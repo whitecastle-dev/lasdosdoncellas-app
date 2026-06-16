@@ -24,6 +24,13 @@ class RegisterIn(BaseModel):
     first_name: str = Field(..., min_length=2)
     last_name: str = Field(..., min_length=2)
 
+class ForgotPasswordIn(BaseModel):
+    email: EmailStr
+
+class ResetPasswordIn(BaseModel):
+    token: str
+    new_password: str
+
 @router.post("/register")
 async def register(payload: RegisterIn):
     if not validate_password(payload.password):
@@ -60,8 +67,8 @@ async def register(payload: RegisterIn):
     return {"message": "Usuario registrado. Por favor, verifica tu correo."}
 
 @router.post("/forgot-password")
-async def forgot_password(email: EmailStr):
-    user = await db.users.find_one({"email": email.lower().strip()})
+async def forgot_password(payload: ForgotPasswordIn):
+    user = await db.users.find_one({"email": payload.email.lower().strip()})
     if user:
         token = secrets.token_urlsafe(32)
         await db.users.update_one({"id": user["id"]}, {"$set": {"reset_token": token}})
@@ -69,17 +76,17 @@ async def forgot_password(email: EmailStr):
     return {"message": "Si el email existe, se ha enviado un enlace."}
 
 @router.post("/reset-password")
-async def reset_password(token: str, new_password: str):
-    if not validate_password(new_password):
+async def reset_password(payload: ResetPasswordIn):
+    if not validate_password(payload.new_password):
         raise HTTPException(status_code=400, detail=PASSWORD_RULES_MSG)
     
-    user = await db.users.find_one({"reset_token": token})
+    user = await db.users.find_one({"reset_token": payload.token})
     if not user:
         raise HTTPException(status_code=400, detail="Token inválido o expirado")
     
     await db.users.update_one(
         {"id": user["id"]},
-        {"$set": {"password_hash": hash_password(new_password)}, "$unset": {"reset_token": ""}}
+        {"$set": {"password_hash": hash_password(payload.new_password)}, "$unset": {"reset_token": ""}}
     )
     return {"message": "Contraseña actualizada exitosamente."}
 
@@ -108,32 +115,4 @@ async def login(payload: LoginIn, response: Response):
 
     access = create_access_token(user["id"], user["email"])
     refresh = create_refresh_token(user["id"])
-    response.set_cookie("access_token", access, httponly=True, secure=True, samesite="none", max_age=12 * 3600, path="/")
-    response.set_cookie("refresh_token", refresh, httponly=True, secure=True, samesite="none", max_age=7 * 86400, path="/")
-    
-    user_data = user.copy()
-    user_data.pop("_id", None)
-    user_data.pop("password_hash", None)
-    return {"user": user_data, "access_token": access}
-
-@router.post("/logout")
-async def logout(response: Response):
-    response.delete_cookie("access_token", path="/")
-    response.delete_cookie("refresh_token", path="/")
-    return {"ok": True}
-
-@router.get("/me")
-async def me(user: dict = Depends(get_current_user)):
-    return user
-
-@router.post("/refresh")
-async def refresh(request: Request, response: Response):
-    token = request.cookies.get("refresh_token")
-    if not token: raise HTTPException(status_code=401, detail="No refresh token")
-    payload = decode_token(token)
-    if payload.get("type") != "refresh": raise HTTPException(status_code=401, detail="Tipo de token inválido")
-    user = await db.users.find_one({"id": payload["sub"]})
-    if not user: raise HTTPException(status_code=401, detail="Usuario no encontrado")
-    access = create_access_token(user["id"], user["email"])
-    response.set_cookie("access_token", access, httponly=True, secure=True, samesite="none", max_age=12 * 3600, path="/")
-    return {"ok": True}
+    response.set_
