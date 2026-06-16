@@ -23,13 +23,14 @@ export default function CustomerLogin() {
       await login(email, password);
       toast.success("Bienvenido");
       
-      // Forzamos la redirección nativa para asegurar que el StoreHeader 
-      // recargue el estado del cliente y pinte el nuevo menú desplegable.
-      window.location.href = "/cuenta";
+      // Utilizamos un pequeño retraso para asegurar que el contexto se actualice 
+      // y el navegador procese el cambio de ruta sin parpadeos de renderizado.
+      setTimeout(() => {
+        window.location.href = "/cuenta";
+      }, 500);
     } catch (err) { 
+      setLoading(false);
       toast.error(formatApiError(err)); 
-    } finally { 
-      setLoading(false); 
     }
   };
 
