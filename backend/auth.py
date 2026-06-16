@@ -5,13 +5,15 @@ import uuid
 import bcrypt
 import jwt
 import secrets
-import smtplib
-from email.message import EmailMessage
+import resend
 from datetime import datetime, timezone, timedelta
 from fastapi import HTTPException, Request, Depends
 from db import db
 
 JWT_ALGORITHM = "HS256"
+
+# Configuración de Resend
+resend.api_key = os.environ.get("RESEND_API_KEY")
 
 # Permission catalog
 ALL_PERMISSIONS = [
@@ -45,33 +47,29 @@ def create_refresh_token(user_id: str) -> str:
     return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
 
 async def send_verification_email(email_to: str, token: str):
-    msg = EmailMessage()
-    msg["Subject"] = "Verifica tu cuenta en Las Dos Doncellas"
-    msg["From"] = os.environ["EMAIL_USER"]
-    msg["To"] = email_to
     verify_url = f"https://lasdosdoncellas-api.onrender.com/api/auth/verify?token={token}"
-    msg.set_content(f"Hola,\n\nGracias por registrarte. Haz clic aquí para verificar tu cuenta:\n{verify_url}")
-    
+    params = {
+        "from": "Las Dos Doncellas <onboarding@resend.dev>",
+        "to": [email_to],
+        "subject": "Verifica tu cuenta en Las Dos Doncellas",
+        "html": f"<p>Hola,</p><p>Gracias por registrarte. Haz clic aquí para verificar tu cuenta:</p><a href='{verify_url}'>Verificar cuenta</a>"
+    }
     try:
-        with smtplib.SMTP_SSL(os.environ["EMAIL_HOST"], int(os.environ["EMAIL_PORT"])) as server:
-            server.login(os.environ["EMAIL_USER"], os.environ["EMAIL_PASSWORD"])
-            server.send_message(msg)
+        resend.Emails.send(params)
     except Exception as e:
         print(f"Error enviando correo de verificación: {e}")
 
 async def send_password_reset_email(email_to: str, token: str):
-    msg = EmailMessage()
-    msg["Subject"] = "Restablece tu contraseña - Las Dos Doncellas"
-    msg["From"] = os.environ["EMAIL_USER"]
-    msg["To"] = email_to
     # Ajusta esta URL a la ruta de tu frontend
     reset_url = f"https://lasdosdoncellas.com/cuenta/restablecer?token={token}"
-    msg.set_content(f"Hola,\n\nHas solicitado restablecer tu contraseña. Haz clic aquí:\n{reset_url}\n\nSi no lo solicitaste, ignora este correo.")
-    
+    params = {
+        "from": "Las Dos Doncellas <onboarding@resend.dev>",
+        "to": [email_to],
+        "subject": "Restablece tu contraseña - Las Dos Doncellas",
+        "html": f"<p>Hola,</p><p>Has solicitado restablecer tu contraseña. Haz clic aquí:</p><a href='{reset_url}'>Restablecer contraseña</a><p>Si no lo solicitaste, ignora este correo.</p>"
+    }
     try:
-        with smtplib.SMTP_SSL(os.environ["EMAIL_HOST"], int(os.environ["EMAIL_PORT"])) as server:
-            server.login(os.environ["EMAIL_USER"], os.environ["EMAIL_PASSWORD"])
-            server.send_message(msg)
+        resend.Emails.send(params)
     except Exception as e:
         print(f"Error enviando correo de reseteo: {e}")
 
@@ -116,43 +114,3 @@ async def get_current_user(request: Request) -> dict:
     
     if not user.get("is_verified", False):
         raise HTTPException(status_code=403, detail="Cuenta no verificada. Por favor, revisa tu correo.")
-    if user.get("is_active") is False:
-        raise HTTPException(status_code=403, detail="Usuario inactivo")
-        
-    user.pop("_id", None)
-    return user
-
-def require_permission(permission: str):
-    async def dep(user: dict = Depends(get_current_user)) -> dict:
-        if not user.get("is_superadmin") and permission not in (user.get("permissions") or []):
-            raise HTTPException(status_code=403, detail=f"Permiso requerido: {permission}")
-        return user
-    return dep
-
-async def seed_admin():
-    admin_email = os.environ.get("ADMIN_EMAIL", "admin@lasdosdoncellas.com").lower()
-    admin_password = os.environ.get("ADMIN_PASSWORD", "Admin1234")
-    existing = await db.users.find_one({"email": admin_email})
-    now = datetime.now(timezone.utc).isoformat()
-    
-    if existing is None:
-        doc = {
-            "id": str(uuid.uuid4()),
-            "email": admin_email,
-            "password_hash": hash_password(admin_password),
-            "first_name": "Super",
-            "last_name": "Administrador",
-            "role": "superadmin",
-            "is_superadmin": True,
-            "is_active": True,
-            "is_verified": True,
-            "permissions": ALL_PERMISSIONS,
-            "created_at": now,
-            "updated_at": now,
-        }
-        await db.users.insert_one(doc)
-    else:
-        updates = {"is_superadmin": True, "is_active": True, "is_verified": True, "role": "superadmin", "permissions": ALL_PERMISSIONS}
-        if not verify_password(admin_password, existing.get("password_hash", "")):
-            updates["password_hash"] = hash_password(admin_password)
-        await db.users.update_one({"email": admin_email}, {"$set": updates})
