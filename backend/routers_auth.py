@@ -80,9 +80,14 @@ async def reset_password(payload: ResetPasswordIn):
     if not validate_password(payload.new_password):
         raise HTTPException(status_code=400, detail=PASSWORD_RULES_MSG)
     
-    user = await db.users.find_one({"reset_token": payload.token})
+    # Buscamos al usuario por el token recibido
+    # .strip() asegura que no haya saltos de línea ni espacios ocultos
+    user = await db.users.find_one({"reset_token": payload.token.strip()})
+    
     if not user:
-        raise HTTPException(status_code=400, detail="Token inválido o expirado")
+        # Añadimos un print para debuguear si el token llega vacío o mal desde Render
+        print(f"Error: No se encontró usuario con el token {payload.token}")
+        raise HTTPException(status_code=400, detail="El enlace ha expirado o es inválido.")
     
     await db.users.update_one(
         {"id": user["id"]},
@@ -115,4 +120,9 @@ async def login(payload: LoginIn, response: Response):
 
     access = create_access_token(user["id"], user["email"])
     refresh = create_refresh_token(user["id"])
-    response.set_
+    
+    # Configuración de cookies
+    response.set_cookie(key="access_token", value=access, httponly=True, secure=True, samesite="lax")
+    response.set_cookie(key="refresh_token", value=refresh, httponly=True, secure=True, samesite="lax")
+    
+    return {"message": "Inicio de sesión exitoso"}
