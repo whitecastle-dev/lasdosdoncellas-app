@@ -41,6 +41,7 @@ Stack: **FastAPI (Python) + React + MongoDB**
 5. En **Database → Connect → Drivers**, copia la URI tipo:
    ```
    mongodb+srv://USER:PASSWORD@cluster0.xxxx.mongodb.net/?retryWrites=true&w=majority
+   mongodb+srv://antokastil_db_user:Lucas2022@whitecastle-db.cofhtoz.mongodb.net/?appName=whitecastle-db
    ```
 6. Guarda esta URI: la usaremos como `MONGO_URL` en Render.
 
@@ -78,9 +79,9 @@ Ya tienes cuenta y dos servicios funcionando, así que añadir el tercero es dir
    MONGO_URL=mongodb+srv://USER:PASSWORD@cluster0.xxxx.mongodb.net/?retryWrites=true&w=majority
    DB_NAME=lasdosdoncellas
    CORS_ORIGINS=https://lasdosdoncellasibericos.es,https://www.lasdosdoncellasibericos.es
-   JWT_SECRET=<genera uno largo aleatorio (40+ chars)>
+   JWT_SECRET=hNHNImyiF6LD•••orNAvsHFeZal
    ADMIN_EMAIL=admin@lasdosdoncellasibericos.es
-   ADMIN_PASSWORD=<contraseña fuerte que cumpla rules>
+   ADMIN_PASSWORD=<contraseña fuerte que cumpla rules> LDD2026*-
    STRIPE_API_KEY=<tu clave LIVE de Stripe, NO la de test>
    EMERGENT_LLM_KEY=<tu clave de Emergent para IA imágenes (opcional)>
    BREVO_API_KEY=<tu key de brevo.com>
@@ -110,7 +111,7 @@ Ya tienes cuenta y dos servicios funcionando, así que añadir el tercero es dir
 ### 2.3 — Custom domain (opcional pero recomendado)
 
 1. En Render → tu servicio → **Settings → Custom Domain** → añadir `api.lasdosdoncellasibericos.es`.
-2. Render te dará un valor CNAME tipo `lasdosdoncellas-api.onrender.com`.
+2. Render te dará un valor CNAME tipo `lasdosdoncellas-api.onrender.com`. hostname=api
 3. En LucusHost panel DNS → crea registro **CNAME**:
    - Host: `api`
    - Apunta a: `lasdosdoncellas-api.onrender.com`

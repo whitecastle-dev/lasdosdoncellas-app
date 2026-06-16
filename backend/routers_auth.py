@@ -1,13 +1,15 @@
 """Auth routes with registration, email verification, and name/last name fields."""
 import uuid
 import secrets
+import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, Request, Response, HTTPException, Depends
 from pydantic import BaseModel, EmailStr, Field
 from db import db
 from auth import (
     hash_password, verify_password, create_access_token, create_refresh_token,
-    decode_token, get_current_user, generate_verification_token, validate_password, PASSWORD_RULES_MSG
+    decode_token, get_current_user, generate_verification_token, validate_password, 
+    PASSWORD_RULES_MSG, send_verification_email, send_password_reset_email
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -31,7 +33,6 @@ async def register(payload: RegisterIn):
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="El email ya está registrado")
 
-    # Crear usuario con estado no verificado
     now = datetime.now(timezone.utc).isoformat()
     verification_token = generate_verification_token()
     
@@ -49,10 +50,38 @@ async def register(payload: RegisterIn):
     }
     await db.users.insert_one(user_doc)
     
-    # AQUÍ DEBES LLAMAR A TU FUNCIÓN DE ENVÍO DE EMAIL
-    # send_verification_email(email, verification_token)
-    
+    async def run_email_task():
+        try:
+            await send_verification_email(email, verification_token)
+        except Exception as e:
+            print(f"Error crítico enviando correo: {e}")
+
+    asyncio.create_task(run_email_task())
     return {"message": "Usuario registrado. Por favor, verifica tu correo."}
+
+@router.post("/forgot-password")
+async def forgot_password(email: EmailStr):
+    user = await db.users.find_one({"email": email.lower().strip()})
+    if user:
+        token = secrets.token_urlsafe(32)
+        await db.users.update_one({"id": user["id"]}, {"$set": {"reset_token": token}})
+        asyncio.create_task(send_password_reset_email(user["email"], token))
+    return {"message": "Si el email existe, se ha enviado un enlace."}
+
+@router.post("/reset-password")
+async def reset_password(token: str, new_password: str):
+    if not validate_password(new_password):
+        raise HTTPException(status_code=400, detail=PASSWORD_RULES_MSG)
+    
+    user = await db.users.find_one({"reset_token": token})
+    if not user:
+        raise HTTPException(status_code=400, detail="Token inválido o expirado")
+    
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"password_hash": hash_password(new_password)}, "$unset": {"reset_token": ""}}
+    )
+    return {"message": "Contraseña actualizada exitosamente."}
 
 @router.get("/verify")
 async def verify_email(token: str):
@@ -70,23 +99,17 @@ async def verify_email(token: str):
 async def login(payload: LoginIn, response: Response):
     email = payload.email.lower().strip()
     user = await db.users.find_one({"email": email})
-    
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
-    
-    # Validar verificación
     if not user.get("is_verified", False):
         raise HTTPException(status_code=403, detail="Debes verificar tu correo antes de iniciar sesión.")
-    
     if user.get("is_active") is False:
         raise HTTPException(status_code=403, detail="Usuario inactivo")
 
     access = create_access_token(user["id"], user["email"])
     refresh = create_refresh_token(user["id"])
-    response.set_cookie("access_token", access, httponly=True, secure=True, samesite="none",
-                        max_age=12 * 3600, path="/")
-    response.set_cookie("refresh_token", refresh, httponly=True, secure=True, samesite="none",
-                        max_age=7 * 86400, path="/")
+    response.set_cookie("access_token", access, httponly=True, secure=True, samesite="none", max_age=12 * 3600, path="/")
+    response.set_cookie("refresh_token", refresh, httponly=True, secure=True, samesite="none", max_age=7 * 86400, path="/")
     
     user_data = user.copy()
     user_data.pop("_id", None)
@@ -106,15 +129,11 @@ async def me(user: dict = Depends(get_current_user)):
 @router.post("/refresh")
 async def refresh(request: Request, response: Response):
     token = request.cookies.get("refresh_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="No refresh token")
+    if not token: raise HTTPException(status_code=401, detail="No refresh token")
     payload = decode_token(token)
-    if payload.get("type") != "refresh":
-        raise HTTPException(status_code=401, detail="Tipo de token inválido")
+    if payload.get("type") != "refresh": raise HTTPException(status_code=401, detail="Tipo de token inválido")
     user = await db.users.find_one({"id": payload["sub"]})
-    if not user:
-        raise HTTPException(status_code=401, detail="Usuario no encontrado")
+    if not user: raise HTTPException(status_code=401, detail="Usuario no encontrado")
     access = create_access_token(user["id"], user["email"])
-    response.set_cookie("access_token", access, httponly=True, secure=True, samesite="none",
-                        max_age=12 * 3600, path="/")
+    response.set_cookie("access_token", access, httponly=True, secure=True, samesite="none", max_age=12 * 3600, path="/")
     return {"ok": True}
