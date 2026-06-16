@@ -7,7 +7,7 @@ import { formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 
 export default function CustomerLogin() {
-  const { customer, login } = useCustomer();
+  const { customer, login, refresh } = useCustomer();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,12 +20,17 @@ export default function CustomerLogin() {
     e.preventDefault();
     setLoading(true);
     try {
+      // 1. Ejecutamos el login
       await login(email, password);
+      
+      // 2. Refrescamos el contexto para forzar la carga del usuario en memoria
+      if (typeof refresh === "function") {
+        await refresh();
+      }
+      
       toast.success("Bienvenido");
       
-      // Forzamos una recarga total del navegador hacia la ruta /cuenta.
-      // Esto destruye el estado actual y asegura que todo el árbol de 
-      // componentes vuelva a montarse con la sesión iniciada.
+      // 3. Forzamos la redirección total una vez que el estado está actualizado
       window.location.replace("/cuenta");
     } catch (err) { 
       setLoading(false);

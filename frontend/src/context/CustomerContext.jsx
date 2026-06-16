@@ -28,18 +28,7 @@ export function CustomerProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const t = localStorage.getItem("ldd_customer_token");
-        if (!t) { setLoading(false); return; }
-        const { data } = await customerApi.get("/me");
-        setCustomer(data);
-      } catch {
-        setCustomer(null);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    refresh(); // Usamos la función refresh para inicializar el estado
   }, []);
 
   const register = async (payload) => {
@@ -49,8 +38,12 @@ export function CustomerProvider({ children }) {
 
   const login = async (email, password) => {
     const { data } = await authApi.post("/login", { email, password });
-    if (data.access_token) localStorage.setItem("ldd_customer_token", data.access_token);
-    setCustomer(data.user);
+    if (data.access_token) {
+      localStorage.setItem("ldd_customer_token", data.access_token);
+    }
+    // No dependemos solo del user que devuelve el login, 
+    // forzamos un refresh para asegurar que el estado esté sincronizado
+    await refresh();
     return data.user;
   };
 
@@ -61,11 +54,19 @@ export function CustomerProvider({ children }) {
   };
 
   const refresh = async () => {
+    setLoading(true);
     try {
+      const t = localStorage.getItem("ldd_customer_token");
+      if (!t) { setCustomer(null); return null; }
       const { data } = await customerApi.get("/me");
       setCustomer(data);
       return data;
-    } catch { return null; }
+    } catch { 
+      setCustomer(null);
+      return null;
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   return (

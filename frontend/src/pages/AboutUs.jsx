@@ -34,7 +34,7 @@ export default function AboutUs() {
           </div>
           <div>
             <div className="label-eyebrow gold mb-2">Contacto</div>
-            <div>pedidos@lasdosdoncellasibericos.es</div>
+            <div>info@lasdosdoncellasibericos.es</div>
           </div>
         </div>
       </div>
