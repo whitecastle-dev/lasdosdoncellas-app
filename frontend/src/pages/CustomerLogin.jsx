@@ -34,10 +34,18 @@ export default function CustomerLogin() {
         <form onSubmit={submit} className="mt-10 space-y-5" data-testid="customer-login-form">
           <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required testid="customer-login-email" />
           <Field label="Contraseña" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required testid="customer-login-password" />
+          
           <button disabled={loading} className="ldd-btn-gold w-full justify-center" data-testid="customer-login-submit">
             {loading ? "Entrando…" : "Acceder"}
           </button>
+
+          <div className="text-center mt-2">
+            <Link to="/cuenta/olvide-password" className="text-xs text-[rgba(250,248,245,0.6)] hover:text-[#C5A059] underline">
+              ¿No recuerdas tu contraseña?
+            </Link>
+          </div>
         </form>
+        
         <div className="mt-8 text-sm text-center" style={{ color: "rgba(250,248,245,0.6)" }}>
           ¿No tienes cuenta?{" "}
           <Link to="/cuenta/registro" className="gold hover:underline" data-testid="customer-login-register-link">Regístrate</Link>
