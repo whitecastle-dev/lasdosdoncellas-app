@@ -2,10 +2,18 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import axios from "axios";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const CUSTOMER_API = `${BACKEND_URL}/api/customer`;
+// IMPORTANTE: Asegúrate de que las llamadas de registro apunten al router correcto.
+// Si tu ruta /register está en /api/auth, ajustamos la baseURL si es necesario.
+const AUTH_API = `${BACKEND_URL}/api/auth`; 
 
 export const customerApi = axios.create({
-  baseURL: CUSTOMER_API,
+  baseURL: `${BACKEND_URL}/api/customer`,
+  withCredentials: true,
+});
+
+// Creamos una instancia específica para Auth que no requiere token inicial
+const authApi = axios.create({
+  baseURL: AUTH_API,
   withCredentials: true,
 });
 
@@ -37,21 +45,22 @@ export function CustomerProvider({ children }) {
   }, []);
 
   const register = async (payload) => {
-    const { data } = await customerApi.post("/register", payload);
-    if (data.access_token) localStorage.setItem("ldd_customer_token", data.access_token);
-    setCustomer(data.customer);
-    return data.customer;
+    // Usamos authApi para el registro, ya que la ruta está en /api/auth
+    const { data } = await authApi.post("/register", payload);
+    // El registro ahora devuelve un mensaje de éxito, no un token inmediato
+    return data;
   };
 
   const login = async (email, password) => {
-    const { data } = await customerApi.post("/login", { email, password });
+    // Usamos authApi para el login
+    const { data } = await authApi.post("/login", { email, password });
     if (data.access_token) localStorage.setItem("ldd_customer_token", data.access_token);
-    setCustomer(data.customer);
-    return data.customer;
+    setCustomer(data.user);
+    return data.user;
   };
 
   const logout = async () => {
-    try { await customerApi.post("/logout"); } catch {}
+    try { await authApi.post("/logout"); } catch {}
     localStorage.removeItem("ldd_customer_token");
     setCustomer(null);
   };
