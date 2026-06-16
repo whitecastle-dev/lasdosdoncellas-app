@@ -61,7 +61,7 @@ async def send_verification_email(email_to: str, token: str):
 
 async def send_password_reset_email(email_to: str, token: str):
     # Ajusta esta URL a la ruta de tu frontend
-    reset_url = f"https://lasdosdoncellas.com/cuenta/restablecer?token={token}"
+    reset_url = f"https://lasdosdoncellas-web.onrender.com/cuenta/restablecer?token={token}"
     params = {
         "from": "Las Dos Doncellas <onboarding@resend.dev>",
         "to": [email_to],
