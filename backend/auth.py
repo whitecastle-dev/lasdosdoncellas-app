@@ -137,4 +137,20 @@ async def seed_admin():
         doc = {
             "id": str(uuid.uuid4()),
             "email": admin_email,
-            "password_hash
+            "password_hash": hash_password(admin_password),
+            "first_name": "Super",
+            "last_name": "Administrador",
+            "role": "superadmin",
+            "is_superadmin": True,
+            "is_active": True,
+            "is_verified": True,
+            "permissions": ALL_PERMISSIONS,
+            "created_at": now,
+            "updated_at": now,
+        }
+        await db.users.insert_one(doc)
+    else:
+        updates = {"is_superadmin": True, "is_active": True, "is_verified": True, "role": "superadmin", "permissions": ALL_PERMISSIONS}
+        if not verify_password(admin_password, existing.get("password_hash", "")):
+            updates["password_hash"] = hash_password(admin_password)
+        await db.users.update_one({"email": admin_email}, {"$set": updates})
