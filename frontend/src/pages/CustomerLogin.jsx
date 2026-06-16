@@ -13,6 +13,7 @@ export default function CustomerLogin() {
   const [loading, setLoading] = useState(false);
   const nav = useNavigate();
 
+  // Si ya está logueado, redirige a la cuenta
   if (customer) return <Navigate to="/cuenta" replace />;
 
   const submit = async (e) => {
@@ -21,8 +22,14 @@ export default function CustomerLogin() {
     try {
       await login(email, password);
       toast.success("Bienvenido");
+      // Al navegar a /cuenta, el StoreHeader detectará automáticamente
+      // el cambio en 'customer' y mostrará tu nuevo menú desplegable.
       nav("/cuenta");
-    } catch (err) { toast.error(formatApiError(err)); } finally { setLoading(false); }
+    } catch (err) { 
+      toast.error(formatApiError(err)); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   return (

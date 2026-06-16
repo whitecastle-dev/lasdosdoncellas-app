@@ -19,6 +19,9 @@ import AboutUs from "@/pages/AboutUs";
 import CustomerLogin from "@/pages/CustomerLogin";
 import CustomerRegister from "@/pages/CustomerRegister";
 import CustomerAccount from "@/pages/CustomerAccount";
+import Profile from "@/pages/Profile";
+import Orders from "@/pages/Orders";
+import Settings from "@/pages/Settings";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 
@@ -53,6 +56,9 @@ function App() {
               <Route path="/cuenta/olvide-password" element={<ForgotPassword />} />
               <Route path="/cuenta/restablecer" element={<ResetPassword />} />
               <Route path="/cuenta" element={<CustomerAccount />} />
+              <Route path="/cuenta/perfil" element={<Profile />} />
+              <Route path="/cuenta/pedidos" element={<Orders />} />
+              <Route path="/cuenta/configuracion" element={<Settings />} />
 
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/admin" element={<AdminLayout />}>
