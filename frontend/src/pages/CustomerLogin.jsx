@@ -22,9 +22,10 @@ export default function CustomerLogin() {
     try {
       await login(email, password);
       toast.success("Bienvenido");
-      // Al navegar a /cuenta, el StoreHeader detectará automáticamente
-      // el cambio en 'customer' y mostrará tu nuevo menú desplegable.
-      nav("/cuenta");
+      
+      // Forzamos la redirección nativa para asegurar que el StoreHeader 
+      // recargue el estado del cliente y pinte el nuevo menú desplegable.
+      window.location.href = "/cuenta";
     } catch (err) { 
       toast.error(formatApiError(err)); 
     } finally { 
