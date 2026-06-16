@@ -16,11 +16,17 @@ export default function ResetPassword() {
   const submit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${BACKEND_URL}/api/auth/reset-password?token=${token}&new_password=${password}`);
+      // Enviamos el token y la nueva contraseña dentro del cuerpo (JSON)
+      await axios.post(`${BACKEND_URL}/api/auth/reset-password`, {
+        token: token,
+        new_password: password
+      });
+      
       toast.success("Contraseña actualizada con éxito.");
       nav("/cuenta/login");
     } catch (err) {
-      toast.error("El enlace ha expirado o es inválido.");
+      // Mostramos el detalle del error proporcionado por el backend
+      toast.error(err.response?.data?.detail || "El enlace ha expirado o es inválido.");
     }
   };
 
