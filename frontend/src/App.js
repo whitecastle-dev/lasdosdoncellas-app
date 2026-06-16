@@ -19,6 +19,8 @@ import AboutUs from "@/pages/AboutUs";
 import CustomerLogin from "@/pages/CustomerLogin";
 import CustomerRegister from "@/pages/CustomerRegister";
 import CustomerAccount from "@/pages/CustomerAccount";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminLayout from "@/pages/admin/AdminLayout";
@@ -48,6 +50,8 @@ function App() {
 
               <Route path="/cuenta/login" element={<CustomerLogin />} />
               <Route path="/cuenta/registro" element={<CustomerRegister />} />
+              <Route path="/cuenta/olvide-password" element={<ForgotPassword />} />
+              <Route path="/cuenta/restablecer" element={<ResetPassword />} />
               <Route path="/cuenta" element={<CustomerAccount />} />
 
               <Route path="/admin/login" element={<AdminLogin />} />

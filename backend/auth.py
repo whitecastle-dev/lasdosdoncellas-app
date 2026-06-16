@@ -36,7 +36,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def generate_verification_token() -> str:
     return secrets.token_urlsafe(32)
 
-# --- REINSERTANDO LA FUNCIÓN QUE FALTABA ---
 def create_refresh_token(user_id: str) -> str:
     payload = {
         "sub": user_id,
@@ -44,7 +43,6 @@ def create_refresh_token(user_id: str) -> str:
         "type": "refresh",
     }
     return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
-# --------------------------------------------
 
 async def send_verification_email(email_to: str, token: str):
     msg = EmailMessage()
@@ -59,7 +57,23 @@ async def send_verification_email(email_to: str, token: str):
             server.login(os.environ["EMAIL_USER"], os.environ["EMAIL_PASSWORD"])
             server.send_message(msg)
     except Exception as e:
-        print(f"Error enviando correo: {e}")
+        print(f"Error enviando correo de verificación: {e}")
+
+async def send_password_reset_email(email_to: str, token: str):
+    msg = EmailMessage()
+    msg["Subject"] = "Restablece tu contraseña - Las Dos Doncellas"
+    msg["From"] = os.environ["EMAIL_USER"]
+    msg["To"] = email_to
+    # Ajusta esta URL a la ruta de tu frontend
+    reset_url = f"https://lasdosdoncellas.com/cuenta/restablecer?token={token}"
+    msg.set_content(f"Hola,\n\nHas solicitado restablecer tu contraseña. Haz clic aquí:\n{reset_url}\n\nSi no lo solicitaste, ignora este correo.")
+    
+    try:
+        with smtplib.SMTP_SSL(os.environ["EMAIL_HOST"], int(os.environ["EMAIL_PORT"])) as server:
+            server.login(os.environ["EMAIL_USER"], os.environ["EMAIL_PASSWORD"])
+            server.send_message(msg)
+    except Exception as e:
+        print(f"Error enviando correo de reseteo: {e}")
 
 PASSWORD_RULES_MSG = "La contraseña debe tener mínimo 8 caracteres y contener al menos una mayúscula, una minúscula y un número."
 
