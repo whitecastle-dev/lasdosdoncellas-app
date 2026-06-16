@@ -4,7 +4,7 @@ import secrets
 import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, Request, Response, HTTPException, Depends
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from db import db
 from auth import (
     hash_password, verify_password, create_access_token, create_refresh_token,
@@ -28,9 +28,10 @@ class ForgotPasswordIn(BaseModel):
     email: EmailStr
 
 class ResetPasswordIn(BaseModel):
+    model_config = ConfigDict(extra='ignore')  # Ignora campos extras enviados por el frontend
     token: str
     new_password: str
-    email: str = None  # Permitimos email opcional para evitar errores 422
+    email: str = None  # Opcional para compatibilidad
 
 @router.get("/me")
 async def get_me(user: dict = Depends(get_current_user)):
@@ -87,10 +88,11 @@ async def reset_password(payload: ResetPasswordIn):
         raise HTTPException(status_code=400, detail=PASSWORD_RULES_MSG)
     
     # Buscamos al usuario por el token recibido
-    user = await db.users.find_one({"reset_token": payload.token.strip()})
+    token_to_verify = payload.token.strip()
+    user = await db.users.find_one({"reset_token": token_to_verify})
     
     if not user:
-        print(f"Error: No se encontró usuario con el token {payload.token}")
+        print(f"DEBUG: Intento de reset fallido con token: {token_to_verify}")
         raise HTTPException(status_code=400, detail="El enlace ha expirado o es inválido.")
     
     await db.users.update_one(
@@ -125,7 +127,6 @@ async def login(payload: LoginIn, response: Response):
     access = create_access_token(user["id"], user["email"])
     refresh = create_refresh_token(user["id"])
     
-    # Configuración de cookies
     response.set_cookie(key="access_token", value=access, httponly=True, secure=True, samesite="lax")
     response.set_cookie(key="refresh_token", value=refresh, httponly=True, secure=True, samesite="lax")
     
