@@ -30,6 +30,12 @@ class ForgotPasswordIn(BaseModel):
 class ResetPasswordIn(BaseModel):
     token: str
     new_password: str
+    email: str = None  # Permitimos email opcional para evitar errores 422
+
+@router.get("/me")
+async def get_me(user: dict = Depends(get_current_user)):
+    """Ruta para obtener los datos del usuario actual."""
+    return user
 
 @router.post("/register")
 async def register(payload: RegisterIn):
@@ -81,11 +87,9 @@ async def reset_password(payload: ResetPasswordIn):
         raise HTTPException(status_code=400, detail=PASSWORD_RULES_MSG)
     
     # Buscamos al usuario por el token recibido
-    # .strip() asegura que no haya saltos de línea ni espacios ocultos
     user = await db.users.find_one({"reset_token": payload.token.strip()})
     
     if not user:
-        # Añadimos un print para debuguear si el token llega vacío o mal desde Render
         print(f"Error: No se encontró usuario con el token {payload.token}")
         raise HTTPException(status_code=400, detail="El enlace ha expirado o es inválido.")
     
