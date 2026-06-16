@@ -23,11 +23,10 @@ export default function CustomerLogin() {
       await login(email, password);
       toast.success("Bienvenido");
       
-      // Utilizamos un pequeño retraso para asegurar que el contexto se actualice 
-      // y el navegador procese el cambio de ruta sin parpadeos de renderizado.
-      setTimeout(() => {
-        window.location.href = "/cuenta";
-      }, 500);
+      // Forzamos una recarga total del navegador hacia la ruta /cuenta.
+      // Esto destruye el estado actual y asegura que todo el árbol de 
+      // componentes vuelva a montarse con la sesión iniciada.
+      window.location.replace("/cuenta");
     } catch (err) { 
       setLoading(false);
       toast.error(formatApiError(err)); 
