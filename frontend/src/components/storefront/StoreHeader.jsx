@@ -1,15 +1,34 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingBag, Menu, X, User } from "lucide-react";
+import { ShoppingBag, Menu, X, User, ChevronDown } from "lucide-react";
 import { Logo } from "@/components/storefront/Logo";
 import { useCart } from "@/context/CartContext";
 import { useCustomer } from "@/context/CustomerContext";
 
 export default function StoreHeader({ onOpenCart }) {
   const { count } = useCart();
-  const { customer } = useCustomer();
+  const { customer, logout } = useCustomer(); // Asumo que tienes una función logout en el contexto
   const [open, setOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const navigate = useNavigate();
+
+  // Cerrar dropdown si se hace clic fuera
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleLogout = () => {
+    if (logout) logout();
+    setIsDropdownOpen(false);
+    navigate("/");
+  };
 
   return (
     <header className="sticky top-0 z-40 backdrop-blur-xl" style={{ background: "rgba(10,10,10,0.78)", borderBottom: "1px solid rgba(197,160,89,0.18)" }}>
@@ -25,10 +44,25 @@ export default function StoreHeader({ onOpenCart }) {
         </nav>
         <div className="flex items-center gap-3">
           {customer ? (
-            <Link to="/cuenta" className="text-[#FAF8F5] hover:text-[#C5A059] transition flex items-center gap-2 px-3 py-2" data-testid="header-account-link">
-              <User size={16} />
-              <span className="hidden sm:inline text-xs uppercase tracking-[0.2em]">{customer.name?.split(" ")[0] || "Cuenta"}</span>
-            </Link>
+            <div className="relative" ref={dropdownRef}>
+              <button 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="text-[#FAF8F5] hover:text-[#C5A059] transition flex items-center gap-2 px-3 py-2"
+              >
+                <User size={16} />
+                <span className="hidden sm:inline text-xs uppercase tracking-[0.2em]">{customer.name?.split(" ")[0] || "Cuenta"}</span>
+                <ChevronDown size={14} />
+              </button>
+              
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-[#0a0a0a] border border-[rgba(197,160,89,0.3)] py-2 shadow-xl z-50">
+                  <Link to="/cuenta/perfil" className="block px-4 py-2 text-xs text-[#FAF8F5] hover:bg-[#C5A059] hover:text-black transition uppercase tracking-widest" onClick={() => setIsDropdownOpen(false)}>Mi perfil</Link>
+                  <Link to="/cuenta/pedidos" className="block px-4 py-2 text-xs text-[#FAF8F5] hover:bg-[#C5A059] hover:text-black transition uppercase tracking-widest" onClick={() => setIsDropdownOpen(false)}>Mis pedidos</Link>
+                  <Link to="/cuenta/configuracion" className="block px-4 py-2 text-xs text-[#FAF8F5] hover:bg-[#C5A059] hover:text-black transition uppercase tracking-widest" onClick={() => setIsDropdownOpen(false)}>Configuración</Link>
+                  <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-red-900/20 transition uppercase tracking-widest">Cerrar sesión</button>
+                </div>
+              )}
+            </div>
           ) : (
             <Link to="/cuenta/login" className="text-[#FAF8F5] hover:text-[#C5A059] transition px-3 py-2 text-xs uppercase tracking-[0.2em] hidden sm:inline" data-testid="header-login-link">
               Acceder

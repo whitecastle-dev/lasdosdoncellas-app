@@ -2,8 +2,6 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import axios from "axios";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-// IMPORTANTE: Asegúrate de que las llamadas de registro apunten al router correcto.
-// Si tu ruta /register está en /api/auth, ajustamos la baseURL si es necesario.
 const AUTH_API = `${BACKEND_URL}/api/auth`; 
 
 export const customerApi = axios.create({
@@ -45,14 +43,11 @@ export function CustomerProvider({ children }) {
   }, []);
 
   const register = async (payload) => {
-    // Usamos authApi para el registro, ya que la ruta está en /api/auth
     const { data } = await authApi.post("/register", payload);
-    // El registro ahora devuelve un mensaje de éxito, no un token inmediato
     return data;
   };
 
   const login = async (email, password) => {
-    // Usamos authApi para el login
     const { data } = await authApi.post("/login", { email, password });
     if (data.access_token) localStorage.setItem("ldd_customer_token", data.access_token);
     setCustomer(data.user);
