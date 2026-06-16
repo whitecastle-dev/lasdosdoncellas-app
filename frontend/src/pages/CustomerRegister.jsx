@@ -8,9 +8,12 @@ import { toast } from "sonner";
 
 export default function CustomerRegister() {
   const { customer, register } = useCustomer();
-  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
+  // Estado actualizado para first_name y last_name
+  const [form, setForm] = useState({ first_name: "", last_name: "", email: "", phone: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const nav = useNavigate();
+  
   if (customer) return <Navigate to="/cuenta" replace />;
 
   const submit = async (e) => {
@@ -18,8 +21,8 @@ export default function CustomerRegister() {
     setLoading(true);
     try {
       await register(form);
-      toast.success("Cuenta creada. ¡Bienvenido!");
-      nav("/cuenta");
+      toast.success("Cuenta creada. Por favor, revisa tu correo para verificar tu cuenta.");
+      nav("/cuenta/login");
     } catch (err) { toast.error(formatApiError(err)); } finally { setLoading(false); }
   };
 
@@ -33,10 +36,32 @@ export default function CustomerRegister() {
           Crea tu cuenta para guardar direcciones y comprar en un clic con el botón <span className="gold">Comprar ya</span>.
         </p>
         <form onSubmit={submit} className="mt-8 space-y-4" data-testid="customer-register-form">
-          <Field label="Nombre completo *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required testid="customer-register-name" />
+          <div className="flex gap-4">
+            <Field label="Nombre *" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} required testid="customer-register-first-name" />
+            <Field label="Apellidos *" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} required testid="customer-register-last-name" />
+          </div>
           <Field label="Email *" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required testid="customer-register-email" />
           <Field label="Teléfono" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} testid="customer-register-phone" />
-          <Field label="Contraseña *" type="password" placeholder="Mín 8, mayús, minús, número" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required testid="customer-register-password" />
+          
+          <div className="relative">
+            <Field 
+              label="Contraseña *" 
+              type={showPassword ? "text" : "password"} 
+              placeholder="Mín 8, mayús, minús, número" 
+              value={form.password} 
+              onChange={(e) => setForm({ ...form, password: e.target.value })} 
+              required 
+              testid="customer-register-password" 
+            />
+            <button 
+              type="button" 
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-[38px] text-xs gold hover:underline"
+            >
+              {showPassword ? "Ocultar" : "Mostrar"}
+            </button>
+          </div>
+
           <button disabled={loading} className="ldd-btn-gold w-full justify-center" data-testid="customer-register-submit">
             {loading ? "Creando…" : "Crear cuenta"}
           </button>
@@ -52,9 +77,6 @@ export default function CustomerRegister() {
 
 function Field({ label, testid, ...rest }) {
   return (
-    <div>
+    <div className="flex-1">
       <label className="label-eyebrow gold block mb-2">{label}</label>
-      <input data-testid={testid} {...rest} className="w-full bg-transparent border border-[rgba(250,248,245,0.2)] focus:border-[#C5A059] outline-none px-4 py-3 text-sm" />
-    </div>
-  );
-}
+      <input data-testid={testid} {...rest} className="w-full bg-transparent border border-[rgba(250,248,245,0.2)] focus:border-[#C5
