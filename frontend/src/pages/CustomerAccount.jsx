@@ -25,7 +25,12 @@ export default function CustomerAccount() {
 
   return (
     <div className="ldd-storefront min-h-screen">
-      <StoreHeader onOpenCart={() => {}} />
+      {/* Añadimos la key dinámica para forzar la actualización del Header */}
+      <StoreHeader 
+        key={customer ? "user-logged" : "user-guest"} 
+        onOpenCart={() => {}} 
+      />
+      
       <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-12">
         <div className="flex items-end justify-between mb-10">
           <div>
