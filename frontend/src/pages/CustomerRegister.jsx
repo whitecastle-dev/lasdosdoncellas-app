@@ -8,7 +8,6 @@ import { toast } from "sonner";
 
 export default function CustomerRegister() {
   const { customer, register } = useCustomer();
-  // Estado actualizado para first_name y last_name
   const [form, setForm] = useState({ first_name: "", last_name: "", email: "", phone: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -79,4 +78,7 @@ function Field({ label, testid, ...rest }) {
   return (
     <div className="flex-1">
       <label className="label-eyebrow gold block mb-2">{label}</label>
-      <input data-testid={testid} {...rest} className="w-full bg-transparent border border-[rgba(250,248,245,0.2)] focus:border-[#C5
+      <input data-testid={testid} {...rest} className="w-full bg-transparent border border-[rgba(250,248,245,0.2)] focus:border-[#C5A059] outline-none px-4 py-3 text-sm text-white" />
+    </div>
+  );
+}
