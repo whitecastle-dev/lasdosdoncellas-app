@@ -7,7 +7,7 @@ import { useCustomer } from "@/context/CustomerContext";
 
 export default function StoreHeader({ onOpenCart }) {
   const { count } = useCart();
-  const { customer, logout } = useCustomer(); // Asumo que tienes una función logout en el contexto
+  const { customer, logout } = useCustomer(); 
   const [open, setOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -31,7 +31,12 @@ export default function StoreHeader({ onOpenCart }) {
   };
 
   return (
-    <header className="sticky top-0 z-40 backdrop-blur-xl" style={{ background: "rgba(10,10,10,0.78)", borderBottom: "1px solid rgba(197,160,89,0.18)" }}>
+    // La 'key' dinámica obliga a React a reconstruir el header cuando el estado de autenticación cambia
+    <header 
+      key={customer ? "logged-in" : "guest"}
+      className="sticky top-0 z-40 backdrop-blur-xl" 
+      style={{ background: "rgba(10,10,10,0.78)", borderBottom: "1px solid rgba(197,160,89,0.18)" }}
+    >
       <div className="max-w-[1500px] mx-auto px-6 lg:px-12 flex items-center justify-between py-4">
         <Link to="/" data-testid="header-logo-link">
           <Logo size={44} />
