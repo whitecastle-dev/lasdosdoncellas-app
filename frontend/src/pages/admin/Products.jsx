@@ -125,7 +125,23 @@ export default function ProductsAdmin() {
           providers={providers}
           startedNew={editing === "new"}
           onClose={() => setEditing(null)}
-          onSaved={() => { load(); setEditing(null); }}
+          onSaved={(savedProduct) => {
+            // Actualización optimista: mete/actualiza el producto en el estado
+            // local SIN esperar al GET /products. Lista refresca al instante.
+            if (savedProduct?.id) {
+              setProducts((prev) => {
+                const idx = prev.findIndex((p) => p.id === savedProduct.id);
+                if (idx >= 0) {
+                  const next = [...prev];
+                  next[idx] = savedProduct;
+                  return next;
+                }
+                return [savedProduct, ...prev];
+              });
+            }
+            // No cerramos el drawer: el usuario puede seguir editando / subiendo imágenes.
+            // Cuando termine, cierra con la X o el fondo gris.
+          }}
         />
       )}
     </div>
@@ -168,10 +184,12 @@ function ProductDrawer({ initial, startedNew, categories, providers, onClose, on
         setForm({ ...r.data, tags: (r.data.tags || []).join(", ") });
         setCreated(true);
         toast.success("Producto creado. Ahora puedes subir imágenes.");
+        onSaved?.(r.data);
       } else {
         const r = await api.patch(`/products/${form.id}`, payload);
         setForm({ ...r.data, tags: (r.data.tags || []).join(", ") });
         toast.success("Producto actualizado");
+        onSaved?.(r.data);
       }
     } catch (err) {
       toast.error(formatApiError(err));

@@ -63,7 +63,7 @@ export default function StoreHeader({ onOpenCart }) {
                 <div className="absolute right-0 mt-2 w-48 bg-[#0a0a0a] border border-[rgba(197,160,89,0.3)] py-2 shadow-xl z-50">
                   <Link to="/cuenta/perfil" className="block px-4 py-2 text-xs text-[#FAF8F5] hover:bg-[#C5A059] hover:text-black transition uppercase tracking-widest" onClick={() => setIsDropdownOpen(false)}>Mi perfil</Link>
                   <Link to="/cuenta/pedidos" className="block px-4 py-2 text-xs text-[#FAF8F5] hover:bg-[#C5A059] hover:text-black transition uppercase tracking-widest" onClick={() => setIsDropdownOpen(false)}>Mis pedidos</Link>
-                  <Link to="/cuenta/configuracion" className="block px-4 py-2 text-xs text-[#FAF8F5] hover:bg-[#C5A059] hover:text-black transition uppercase tracking-widest" onClick={() => setIsDropdownOpen(false)}>Configuración</Link>
+                  <Link to="/cuenta/configuracion" className="block px-4 py-2 text-xs text-[#FAF8F5] hover:bg-[#C5A059] hover:text-black transition uppercase tracking-widest" onClick={() => setIsDropdownOpen(false)}>Cambiar contraseña</Link>
                   <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-red-900/20 transition uppercase tracking-widest">Cerrar sesión</button>
                 </div>
               )}

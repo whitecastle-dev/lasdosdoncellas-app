@@ -16,7 +16,16 @@ export default function CustomerAccount() {
 
   useEffect(() => {
     if (customer) {
-      customerApi.get("/orders").then((r) => setOrders(r.data)).catch(() => {});
+      // Endpoint unificado: /api/auth/orders devuelve los pedidos del usuario actual
+      const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+      const token = localStorage.getItem("ldd_customer_token");
+      fetch(`${BACKEND_URL}/api/auth/orders`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+      })
+        .then((r) => r.ok ? r.json() : [])
+        .then((data) => setOrders(Array.isArray(data) ? data : []))
+        .catch(() => setOrders([]));
     }
   }, [customer]);
 
@@ -35,7 +44,7 @@ export default function CustomerAccount() {
         <div className="flex items-end justify-between mb-10">
           <div>
             <div className="label-eyebrow gold mb-3">Mi cuenta</div>
-            <h1 className="font-serif text-4xl md:text-5xl tracking-tighter" style={{ color: "#FAF8F5" }}>Hola, {customer.name?.split(" ")[0]}</h1>
+            <h1 className="font-serif text-4xl md:text-5xl tracking-tighter" style={{ color: "#FAF8F5" }}>Hola, {customer.first_name || customer.name?.split(" ")[0] || "amigo"}</h1>
           </div>
           <button onClick={async () => { await logout(); nav("/"); }} className="text-sm flex items-center gap-2 hover:text-[#C5A059]" data-testid="account-logout" style={{ color: "rgba(250,248,245,0.7)" }}>
             <LogOut size={14} /> Salir
@@ -216,15 +225,38 @@ function Field({ label, testid, className = "", ...rest }) {
   );
 }
 
+const ORDER_STATUS_LABEL = {
+  pending_payment: "Pendiente de pago",
+  paid: "Pagado",
+  processing: "Preparando",
+  shipped: "Enviado",
+  delivered: "Entregado",
+  cancelled: "Cancelado",
+  refunded: "Devuelto / reembolsado",
+};
+
 function OrdersList({ orders }) {
-  if (!orders.length) return <p className="text-sm" style={{ color: "rgba(250,248,245,0.6)" }}>Aún no tienes pedidos.</p>;
+  if (!orders || orders.length === 0) {
+    return (
+      <div className="text-center py-16 border border-dashed border-[rgba(197,160,89,0.3)]" data-testid="orders-empty-state">
+        <div className="font-script gold text-3xl mb-3">Aún sin historial</div>
+        <p className="text-sm" style={{ color: "rgba(250,248,245,0.65)" }}>Aún no tienes pedidos realizados.</p>
+        <a href="/catalogo" className="ldd-btn-ghost text-xs mt-6 inline-block">Explorar catálogo</a>
+      </div>
+    );
+  }
   return (
     <div className="space-y-3">
       {orders.map((o) => (
         <div key={o.id} className="border border-[rgba(197,160,89,0.18)] p-5 flex items-center justify-between" data-testid={`my-order-${o.id}`}>
           <div>
             <div className="font-mono-data text-sm gold">{o.order_number}</div>
-            <div className="text-xs mt-1" style={{ color: "rgba(250,248,245,0.55)" }}>{new Date(o.created_at).toLocaleString("es-ES")} · {o.status}</div>
+            <div className="text-xs mt-1" style={{ color: "rgba(250,248,245,0.55)" }}>
+              {new Date(o.created_at).toLocaleString("es-ES")}
+            </div>
+            <div className="text-xs mt-1 inline-block px-2 py-0.5 border border-[rgba(197,160,89,0.4)] text-[#C5A059] uppercase tracking-widest">
+              {ORDER_STATUS_LABEL[o.status] || o.status}
+            </div>
           </div>
           <div className="text-right">
             <div className="font-serif text-xl" style={{ color: "#FAF8F5" }}>{formatMoney(o.total)}</div>
