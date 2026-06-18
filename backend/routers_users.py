@@ -37,7 +37,21 @@ async def list_permissions(_=Depends(require_permission("users.read"))):
 
 @router.get("")
 async def list_users(_=Depends(require_permission("users.read"))):
-    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", 1).to_list(1000)
+    # Solo usuarios CMS: tienen rol distinto de "customer" o son superadmin
+    users = await db.users.find(
+        {"$or": [{"role": {"$ne": "customer"}}, {"is_superadmin": True}]},
+        {"_id": 0, "password_hash": 0}
+    ).sort("created_at", 1).to_list(1000)
+    return users
+
+
+@router.get("/web")
+async def list_web_users(_=Depends(require_permission("users.read"))):
+    """Usuarios de la tienda (clientes). Solo lectura — no se editan permisos aquí."""
+    users = await db.users.find(
+        {"role": "customer"},
+        {"_id": 0, "password_hash": 0, "verification_token": 0, "reset_token": 0}
+    ).sort("created_at", -1).to_list(2000)
     return users
 
 

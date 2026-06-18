@@ -58,6 +58,10 @@ async def register(payload: RegisterIn):
         "password_hash": hash_password(payload.password),
         "first_name": payload.first_name,
         "last_name": payload.last_name,
+        "role": "customer",
+        "is_superadmin": False,
+        "permissions": [],
+        "addresses": [],
         "is_active": True,
         "is_verified": False,
         "verification_token": verification_token,
@@ -164,3 +168,15 @@ async def logout(response: Response):
 async def get_me(user: dict = Depends(get_current_user)):
     """Devuelve los datos del usuario autenticado (cliente o admin)."""
     return user
+
+
+@router.get("/orders")
+async def my_orders(user: dict = Depends(get_current_user)):
+    """Pedidos del usuario autenticado (búsqueda por email — case insensitive)."""
+    import re as _re
+    email_regex = f"^{_re.escape(user['email'])}$"
+    cursor = db.orders.find(
+        {"customer.email": {"$regex": email_regex, "$options": "i"}},
+        {"_id": 0},
+    ).sort("created_at", -1).limit(100)
+    return [o async for o in cursor]
