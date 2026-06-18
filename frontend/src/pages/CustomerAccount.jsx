@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import ChatPanel from "@/components/storefront/ChatPanel";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Pencil, Trash2, LogOut, MapPin, Package, Check } from "lucide-react";
 import StoreHeader from "@/components/storefront/StoreHeader";
 import StoreFooter from "@/components/storefront/StoreFooter";
@@ -10,7 +11,12 @@ import { toast } from "sonner";
 export default function CustomerAccount() {
   const { customer, loading, logout, refresh } = useCustomer();
   const [orders, setOrders] = useState([]);
-  const [tab, setTab] = useState("profile");
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(searchParams.get("tab") || "profile");
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t) setTab(t);
+  }, [searchParams]);
   const [editingAddr, setEditingAddr] = useState(null);
   const nav = useNavigate();
 
@@ -57,6 +63,7 @@ export default function CustomerAccount() {
             <TabBtn id="addresses" tab={tab} setTab={setTab} label="Direcciones" testid="tab-addresses" />
             <TabBtn id="orders" tab={tab} setTab={setTab} label="Mis pedidos" testid="tab-orders" />
             <TabBtn id="payment" tab={tab} setTab={setTab} label="Pagos guardados" testid="tab-payment" />
+            <TabBtn id="chat" tab={tab} setTab={setTab} label="Contacta con nosotros" testid="tab-chat" />
           </nav>
 
           <div>
@@ -75,6 +82,7 @@ export default function CustomerAccount() {
                 </p>
               </div>
             )}
+            {tab === "chat" && <ChatPanel />}
           </div>
         </div>
       </div>

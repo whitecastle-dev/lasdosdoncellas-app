@@ -32,6 +32,7 @@ import ProductsAdmin from "@/pages/admin/Products";
 import OrdersAdmin from "@/pages/admin/Orders";
 import UsersAdmin from "@/pages/admin/Users";
 import ProvidersAdmin from "@/pages/admin/Providers";
+import AdminChat from "@/pages/admin/AdminChat";
 
 function App() {
   return (
@@ -67,6 +68,7 @@ function App() {
                 <Route path="orders" element={<OrdersAdmin />} />
                 <Route path="providers" element={<ProvidersAdmin />} />
                 <Route path="users" element={<UsersAdmin />} />
+                <Route path="chat" element={<AdminChat />} />
               </Route>
 
               <Route path="*" element={<Navigate to="/" />} />

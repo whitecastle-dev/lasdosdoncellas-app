@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink, Outlet, Navigate, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck, MessageCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const LINKS = [
@@ -9,6 +9,7 @@ const LINKS = [
   { to: "/admin/orders", icon: ShoppingCart, label: "Pedidos", perm: "orders.read" },
   { to: "/admin/providers", icon: Truck, label: "Proveedores", perm: "products.read" },
   { to: "/admin/users", icon: Users, label: "Usuarios", perm: "users.read" },
+  { to: "/admin/chat", icon: MessageCircle, label: "Chat", perm: "users.read" },
 ];
 
 export default function AdminLayout() {

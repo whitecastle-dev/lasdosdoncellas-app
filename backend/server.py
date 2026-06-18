@@ -54,6 +54,8 @@ app.include_router(providers_router)
 app.include_router(customers_router)
 app.include_router(excel_router)
 app.include_router(excel_all_router)
+from routers_chat import router as chat_router
+app.include_router(chat_router)
 
 
 @app.on_event("startup")
