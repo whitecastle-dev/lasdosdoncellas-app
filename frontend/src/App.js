@@ -34,6 +34,10 @@ import UsersAdmin from "@/pages/admin/Users";
 import ProvidersAdmin from "@/pages/admin/Providers";
 import AdminChat from "@/pages/admin/AdminChat";
 
+import AvisoLegal from "@/pages/legal/AvisoLegal";
+import PoliticaPrivacidad from "@/pages/legal/PoliticaPrivacidad";
+import PoliticaCookies from "@/pages/legal/PoliticaCookies";
+
 function App() {
   return (
     <BrowserRouter>
@@ -60,6 +64,10 @@ function App() {
               <Route path="/cuenta/perfil" element={<Profile />} />
               <Route path="/cuenta/pedidos" element={<Orders />} />
               <Route path="/cuenta/configuracion" element={<Settings />} />
+
+              <Route path="/legal/aviso-legal" element={<AvisoLegal />} />
+              <Route path="/legal/politica-privacidad" element={<PoliticaPrivacidad />} />
+              <Route path="/legal/politica-cookies" element={<PoliticaCookies />} />
 
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/admin" element={<AdminLayout />}>

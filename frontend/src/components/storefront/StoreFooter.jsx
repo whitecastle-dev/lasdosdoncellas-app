@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 export default function StoreFooter() {
   return (
     <footer className="mt-32 pt-20 pb-12" style={{ borderTop: "1px solid rgba(197,160,89,0.18)" }}>
-      <div className="max-w-[1500px] mx-auto px-6 lg:px-12 grid md:grid-cols-4 gap-12">
+      <div className="max-w-[1500px] mx-auto px-6 lg:px-12 grid md:grid-cols-5 gap-12">
         <div className="md:col-span-2">
           <Logo size={56} />
           <p className="mt-6 max-w-md text-sm leading-relaxed" style={{ color: "rgba(250,248,245,0.65)" }}>
@@ -23,6 +23,14 @@ export default function StoreFooter() {
           </ul>
         </div>
         <div>
+          <div className="label-eyebrow gold mb-5">Legal</div>
+          <ul className="space-y-3 text-sm" style={{ color: "rgba(250,248,245,0.75)" }}>
+            <li><Link to="/legal/aviso-legal" className="hover:text-[#C5A059] transition" data-testid="footer-aviso-legal">Aviso legal</Link></li>
+            <li><Link to="/legal/politica-privacidad" className="hover:text-[#C5A059] transition" data-testid="footer-politica-privacidad">Política de privacidad</Link></li>
+            <li><Link to="/legal/politica-cookies" className="hover:text-[#C5A059] transition" data-testid="footer-politica-cookies">Política de cookies</Link></li>
+          </ul>
+        </div>
+        <div>
           <div className="label-eyebrow gold mb-5">Contacto</div>
           <ul className="space-y-3 text-sm" style={{ color: "rgba(250,248,245,0.75)" }}>
             <li>info@lasdosdoncellasibericos.es</li>
@@ -33,7 +41,7 @@ export default function StoreFooter() {
           </ul>
         </div>
       </div>
-      <div className="max-w-[1500px] mx-auto px-6 lg:px-12 mt-16 pt-8 flex items-center justify-between text-xs" style={{ borderTop: "1px solid rgba(197,160,89,0.12)", color: "rgba(250,248,245,0.45)" }}>
+      <div className="max-w-[1500px] mx-auto px-6 lg:px-12 mt-16 pt-8 flex items-center justify-between text-xs flex-wrap gap-3" style={{ borderTop: "1px solid rgba(197,160,89,0.12)", color: "rgba(250,248,245,0.45)" }}>
         <div>© {new Date().getFullYear()} Las Dos Doncellas S.L. · CIF 77815813M</div>
         <div className="font-script gold text-base">Sierra Norte de Sevilla</div>
       </div>

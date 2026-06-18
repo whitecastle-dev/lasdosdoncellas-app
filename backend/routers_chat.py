@@ -1,13 +1,19 @@
 """Chat interno entre clientes y admin. Persistencia permanente en MongoDB."""
 import uuid
-from datetime import datetime, timezone
+import logging
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from db import db
 from auth import get_current_user, require_permission
+from email_service import send_chat_notification
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+# Throttle: como mucho un email de notificación cada N minutos por cliente
+NOTIFY_COOLDOWN_MIN = 15
 
 
 class SendIn(BaseModel):
@@ -39,6 +45,27 @@ async def send_message(payload: SendIn, user: dict = Depends(get_current_user)):
     }
     await db.chat_messages.insert_one(doc)
     doc.pop("_id", None)
+
+    # Si lo envía un cliente, notifica por email a info@... (con cooldown anti-spam)
+    if not is_admin:
+        try:
+            cooldown_iso = (datetime.now(timezone.utc) - timedelta(minutes=NOTIFY_COOLDOWN_MIN)).isoformat()
+            recent = await db.chat_messages.find_one({
+                "thread_user_id": thread_user_id,
+                "from_admin": False,
+                "notification_sent_at": {"$gte": cooldown_iso},
+            })
+            if not recent:
+                customer_name = doc["from_name"]
+                customer_email = user.get("email", "")
+                await send_chat_notification(customer_name, customer_email, doc["message"])
+                await db.chat_messages.update_one(
+                    {"id": doc["id"]},
+                    {"$set": {"notification_sent_at": datetime.now(timezone.utc).isoformat()}},
+                )
+        except Exception as e:
+            logger.warning("send_chat_notification failed: %s", e)
+
     return doc
 
 

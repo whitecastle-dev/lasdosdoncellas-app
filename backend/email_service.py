@@ -154,3 +154,26 @@ async def send_provider_message(provider_email: str, provider_name: str, subject
       <div style="color:#222;font-size:14px;line-height:1.7;white-space:pre-wrap;">{body}</div>
     """)
     return await _send(subject=subject, html=html, text=body, to_email=provider_email, to_name=provider_name)
+
+
+async def send_chat_notification(customer_name: str, customer_email: str, message: str) -> bool:
+    """Notifica a info@... que hay un chat nuevo de un cliente pendiente de respuesta."""
+    admin_email = os.environ.get("CHAT_NOTIFICATION_EMAIL", "info@lasdosdoncellasibericos.es")
+    safe_msg = (message or "")[:600]
+    if len(message or "") > 600:
+        safe_msg += "…"
+    html = _shell(f"""
+      <h1 style="font-family:Georgia,serif;font-weight:normal;font-size:26px;margin:0 0 8px;">Nuevo mensaje de chat</h1>
+      <p style="color:#555;margin:0 0 6px;">Cliente: <strong>{customer_name}</strong></p>
+      <p style="color:#555;margin:0 0 18px;">{customer_email}</p>
+      <div style="background:#FAF8F5;border-left:3px solid #C5A059;padding:14px 18px;color:#222;font-size:14px;line-height:1.6;white-space:pre-wrap;">{safe_msg}</div>
+      <p style="margin-top:22px;font-size:13px;color:#666;">
+        Responde desde el panel: <a href="https://lasdosdoncellasibericos.es/admin/chat" style="color:#C5A059;">Abrir panel de chat</a>
+      </p>
+    """)
+    text = f"Nuevo mensaje de chat de {customer_name} ({customer_email}):\n\n{safe_msg}"
+    return await _send(
+        subject=f"[Chat pendiente] {customer_name}",
+        html=html, text=text,
+        to_email=admin_email,
+    )

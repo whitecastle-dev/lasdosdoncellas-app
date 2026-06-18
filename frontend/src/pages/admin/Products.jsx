@@ -124,7 +124,11 @@ export default function ProductsAdmin() {
           categories={categories}
           providers={providers}
           startedNew={editing === "new"}
-          onClose={() => setEditing(null)}
+          onClose={() => {
+            setEditing(null);
+            // Resync con servidor por si hubo cambios fuera de optimistic update
+            load();
+          }}
           onSaved={(savedProduct) => {
             // Actualización optimista: mete/actualiza el producto en el estado
             // local SIN esperar al GET /products. Lista refresca al instante.
@@ -133,7 +137,7 @@ export default function ProductsAdmin() {
                 const idx = prev.findIndex((p) => p.id === savedProduct.id);
                 if (idx >= 0) {
                   const next = [...prev];
-                  next[idx] = savedProduct;
+                  next[idx] = { ...next[idx], ...savedProduct };
                   return next;
                 }
                 return [savedProduct, ...prev];
@@ -209,7 +213,11 @@ function ProductDrawer({ initial, startedNew, categories, providers, onClose, on
       fd.append("file", file);
       fd.append("enhance", String(enhance));
       const { data } = await api.post(`/products/${form.id}/images`, fd, { headers: { "Content-Type": "multipart/form-data" } });
-      setForm((f) => ({ ...f, images: [...(f.images || []), data.storage_path], image_urls: [...(f.image_urls || []), data.url] }));
+      const newImages = [...(form.images || []), data.url];
+      const newImageUrls = [...(form.image_urls || []), data.url];
+      setForm((f) => ({ ...f, images: newImages, image_urls: newImageUrls }));
+      // Propaga al padre para que la tabla muestre la nueva imagen sin recargar
+      onSaved?.({ ...form, images: newImages, image_urls: newImageUrls });
       toast.success(data.ai_enhanced ? "Imagen mejorada con IA ✨" : "Imagen subida");
     } catch (err) {
       toast.error(formatApiError(err));
@@ -222,7 +230,10 @@ function ProductDrawer({ initial, startedNew, categories, providers, onClose, on
   const removeImage = async (path) => {
     try {
       await api.delete(`/products/${form.id}/images`, { params: { storage_path: path } });
-      setForm((f) => ({ ...f, images: f.images.filter((p) => p !== path), image_urls: f.image_urls.filter((u) => !u.endsWith(path)) }));
+      const newImages = (form.images || []).filter((p) => p !== path);
+      const newImageUrls = (form.image_urls || []).filter((u) => u !== path && !u.endsWith(path));
+      setForm((f) => ({ ...f, images: newImages, image_urls: newImageUrls }));
+      onSaved?.({ ...form, images: newImages, image_urls: newImageUrls });
     } catch (err) { toast.error(formatApiError(err)); }
   };
 
