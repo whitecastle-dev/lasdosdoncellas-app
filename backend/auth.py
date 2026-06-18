@@ -47,12 +47,21 @@ def create_refresh_token(user_id: str) -> str:
     return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
 
 async def send_verification_email(email_to: str, token: str):
-    verify_url = f"https://lasdosdoncellas-api.onrender.com/api/auth/verify?token={token}"
+    api_base = os.environ.get("API_BASE_URL", "https://lasdosdoncellas-api.onrender.com")
+    sender = os.environ.get("RESEND_FROM_EMAIL", "Las Dos Doncellas <onboarding@resend.dev>")
+    verify_url = f"{api_base}/api/auth/verify?token={token}"
     params = {
-        "from": "Las Dos Doncellas <onboarding@resend.dev>",
+        "from": sender,
         "to": [email_to],
         "subject": "Verifica tu cuenta en Las Dos Doncellas",
-        "html": f"<p>Hola,</p><p>Gracias por registrarte. Haz clic aquí para verificar tu cuenta:</p><a href='{verify_url}'>Verificar cuenta</a>"
+        "html": (
+            "<div style='font-family:Georgia,serif;max-width:560px;margin:0 auto;padding:24px;background:#FAF8F5;'>"
+            "<h2 style='font-weight:normal;color:#0A0A0A;'>Las Dos Doncellas</h2>"
+            "<p style='color:#3B2B20;'>Gracias por registrarte. Pulsa el botón para verificar tu cuenta:</p>"
+            f"<p style='margin:24px 0;'><a href='{verify_url}' style='background:#C5A059;color:#0A0A0A;padding:12px 24px;text-decoration:none;letter-spacing:0.1em;'>VERIFICAR CUENTA</a></p>"
+            f"<p style='color:#666;font-size:12px;'>O copia este enlace: {verify_url}</p>"
+            "</div>"
+        ),
     }
     try:
         resend.Emails.send(params)
@@ -60,13 +69,21 @@ async def send_verification_email(email_to: str, token: str):
         print(f"Error enviando correo de verificación: {e}")
 
 async def send_password_reset_email(email_to: str, token: str):
-    # Ajusta esta URL a la ruta de tu frontend
-    reset_url = f"https://lasdosdoncellas-web.onrender.com/cuenta/restablecer?token={token}"
+    front = os.environ.get("FRONTEND_URL", "https://lasdosdoncellas-web.onrender.com")
+    sender = os.environ.get("RESEND_FROM_EMAIL", "Las Dos Doncellas <onboarding@resend.dev>")
+    reset_url = f"{front}/cuenta/restablecer?token={token}"
     params = {
-        "from": "Las Dos Doncellas <onboarding@resend.dev>",
+        "from": sender,
         "to": [email_to],
         "subject": "Restablece tu contraseña - Las Dos Doncellas",
-        "html": f"<p>Hola,</p><p>Has solicitado restablecer tu contraseña. Haz clic aquí:</p><a href='{reset_url}'>Restablecer contraseña</a><p>Si no lo solicitaste, ignora este correo.</p>"
+        "html": (
+            "<div style='font-family:Georgia,serif;max-width:560px;margin:0 auto;padding:24px;background:#FAF8F5;'>"
+            "<h2 style='font-weight:normal;color:#0A0A0A;'>Las Dos Doncellas</h2>"
+            "<p style='color:#3B2B20;'>Has solicitado restablecer tu contraseña. Pulsa el botón para crear una nueva:</p>"
+            f"<p style='margin:24px 0;'><a href='{reset_url}' style='background:#C5A059;color:#0A0A0A;padding:12px 24px;text-decoration:none;letter-spacing:0.1em;'>RESTABLECER CONTRASEÑA</a></p>"
+            "<p style='color:#666;font-size:12px;'>Si no lo solicitaste, ignora este correo.</p>"
+            "</div>"
+        ),
     }
     try:
         resend.Emails.send(params)
