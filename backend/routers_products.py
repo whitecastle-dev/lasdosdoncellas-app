@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from db import db
 from auth import require_permission, get_current_user
 from storage import upload_to_cloudinary
+from image_ai import enhance_product_image
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["catalog"])
@@ -150,6 +151,7 @@ async def delete_product(product_id: str, _=Depends(require_permission("products
 async def upload_product_image(
     product_id: str,
     file: UploadFile = File(...),
+    enhance: bool = Query(True, description="Aplicar mejora IA antes de subir"),
     user=Depends(require_permission("products.write")),
 ):
     product = await db.products.find_one({"id": product_id})
@@ -160,9 +162,22 @@ async def upload_product_image(
     if not original_bytes:
         raise HTTPException(status_code=400, detail="Archivo vacío")
 
-    # Subimos a Cloudinary. Gracias a la configuración en storage.py, 
-    # la imagen se transforma automáticamente al subirla.
-    result = await asyncio.to_thread(upload_to_cloudinary, original_bytes, product_id)
+    # 1) Pasamos la imagen por Gemini Nano Banana — fondo de madera + nitidez.
+    #    Si la IA falla o no hay GOOGLE_API_KEY, devuelve los bytes originales.
+    final_bytes = original_bytes
+    ai_applied = False
+    if enhance:
+        try:
+            enhanced = await enhance_product_image(original_bytes)
+            if enhanced and enhanced != original_bytes:
+                final_bytes = enhanced
+                ai_applied = True
+                logger.info("Imagen mejorada por IA (%d → %d bytes)", len(original_bytes), len(final_bytes))
+        except Exception as e:
+            logger.exception("Fallo en mejora IA, usando original: %s", e)
+
+    # 2) Subimos a Cloudinary (ya sea la mejorada o la original).
+    result = await asyncio.to_thread(upload_to_cloudinary, final_bytes, product_id)
 
     # Registrar en DB
     await db.product_images.insert_one({
@@ -170,7 +185,7 @@ async def upload_product_image(
         "product_id": product_id,
         "storage_path": result["path"],
         "url": result["url"],
-        "ai_enhanced": True, 
+        "ai_enhanced": ai_applied,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
 
