@@ -9,17 +9,21 @@ export const customerApi = axios.create({
   withCredentials: true,
 });
 
-// Creamos una instancia específica para Auth que no requiere token inicial
+// authApi: registro, login, /me, reset password (sistema unificado)
 const authApi = axios.create({
   baseURL: AUTH_API,
   withCredentials: true,
 });
 
-customerApi.interceptors.request.use((config) => {
+// Interceptor: añade el Bearer token a ambas instancias (fallback si las
+// cookies cross-site son bloqueadas por el navegador)
+const attachToken = (config) => {
   const t = localStorage.getItem("ldd_customer_token");
   if (t) config.headers.Authorization = `Bearer ${t}`;
   return config;
-});
+};
+customerApi.interceptors.request.use(attachToken);
+authApi.interceptors.request.use(attachToken);
 
 const CustomerCtx = createContext({ customer: null, loading: true });
 
@@ -38,11 +42,14 @@ export function CustomerProvider({ children }) {
 
   const login = async (email, password) => {
     const { data } = await authApi.post("/login", { email, password });
+    // El backend ahora devuelve access_token + user en el body.
+    // Guardamos el token como fallback (cookies httpOnly se aplican en paralelo).
     if (data.access_token) {
       localStorage.setItem("ldd_customer_token", data.access_token);
     }
-    // No dependemos solo del user que devuelve el login, 
-    // forzamos un refresh para asegurar que el estado esté sincronizado
+    // Pinta el menú inmediatamente con el user del body (sin esperar al /me)
+    if (data.user) setCustomer(data.user);
+    // Después sincroniza con /me para confirmar y traer datos completos
     await refresh();
     return data.user;
   };
@@ -56,16 +63,17 @@ export function CustomerProvider({ children }) {
   const refresh = async () => {
     setLoading(true);
     try {
-      const t = localStorage.getItem("ldd_customer_token");
-      if (!t) { setCustomer(null); return null; }
-      const { data } = await customerApi.get("/me");
+      // Usamos authApi (/api/auth/me) — endpoint unificado para clientes y admin.
+      // El interceptor añade el Bearer automáticamente; si no hay token y las
+      // cookies cross-site sí llegan, sigue funcionando.
+      const { data } = await authApi.get("/me");
       setCustomer(data);
       return data;
-    } catch { 
+    } catch {
       setCustomer(null);
       return null;
-    } finally { 
-      setLoading(false); 
+    } finally {
+      setLoading(false);
     }
   };
 

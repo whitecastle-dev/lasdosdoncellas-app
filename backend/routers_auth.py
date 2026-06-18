@@ -4,7 +4,9 @@ import secrets
 import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, Request, Response, HTTPException, Depends
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
+import os
 from db import db
 from auth import (
     hash_password, verify_password, create_access_token, create_refresh_token,
@@ -103,15 +105,16 @@ async def reset_password(payload: ResetPasswordIn):
 
 @router.get("/verify")
 async def verify_email(token: str):
+    front = os.environ.get("FRONTEND_URL", "https://lasdosdoncellas-web.onrender.com")
     user = await db.users.find_one({"verification_token": token})
     if not user:
-        raise HTTPException(status_code=400, detail="Token de verificación inválido")
-    
+        return RedirectResponse(url=f"{front}/cuenta/login?verified=invalid", status_code=302)
+
     await db.users.update_one(
         {"id": user["id"]},
         {"$set": {"is_verified": True}, "$unset": {"verification_token": ""}}
     )
-    return {"message": "Cuenta verificada correctamente. Ya puedes iniciar sesión."}
+    return RedirectResponse(url=f"{front}/cuenta/login?verified=ok", status_code=302)
 
 @router.post("/login")
 async def login(payload: LoginIn, response: Response):
@@ -119,15 +122,45 @@ async def login(payload: LoginIn, response: Response):
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
-    if not user.get("is_verified", False):
+    # Superadmin queda exento de la verificación de email
+    if not user.get("is_verified", False) and not user.get("is_superadmin", False):
         raise HTTPException(status_code=403, detail="Debes verificar tu correo antes de iniciar sesión.")
     if user.get("is_active") is False:
         raise HTTPException(status_code=403, detail="Usuario inactivo")
 
     access = create_access_token(user["id"], user["email"])
     refresh = create_refresh_token(user["id"])
-    
-    response.set_cookie(key="access_token", value=access, httponly=True, secure=True, samesite="lax")
-    response.set_cookie(key="refresh_token", value=refresh, httponly=True, secure=True, samesite="lax")
-    
-    return {"message": "Inicio de sesión exitoso"}
+
+    # SameSite=none + Secure es REQUERIDO cuando front y back viven en
+    # subdominios distintos (lasdosdoncellas-web vs lasdosdoncellas-api).
+    # Con samesite="lax" el navegador descarta la cookie en cross-site fetches.
+    cookie_kwargs = {"httponly": True, "secure": True, "samesite": "none", "path": "/"}
+    response.set_cookie(key="access_token", value=access, max_age=12 * 3600, **cookie_kwargs)
+    response.set_cookie(key="refresh_token", value=refresh, max_age=7 * 86400, **cookie_kwargs)
+
+    # Devolvemos también access_token + user en el body para que el frontend
+    # tenga fallback con Authorization: Bearer cuando las cookies cross-site
+    # sean bloqueadas (Safari, modo incógnito, algunas configuraciones de Chrome).
+    user.pop("_id", None)
+    user.pop("password_hash", None)
+    user.pop("verification_token", None)
+    user.pop("reset_token", None)
+
+    return {
+        "message": "Inicio de sesión exitoso",
+        "user": user,
+        "access_token": access,
+    }
+
+
+@router.post("/logout")
+async def logout(response: Response):
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("refresh_token", path="/")
+    return {"ok": True}
+
+
+@router.get("/me")
+async def get_me(user: dict = Depends(get_current_user)):
+    """Devuelve los datos del usuario autenticado (cliente o admin)."""
+    return user
