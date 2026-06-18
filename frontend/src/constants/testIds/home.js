@@ -2,5 +2,4 @@
 // in ./auth.js (keys camelCase, values kebab-case `<feature>-<element>`).
 
 export const HOME = {
-	whitecastleLink: 'home-whitecastle-link',
 };
