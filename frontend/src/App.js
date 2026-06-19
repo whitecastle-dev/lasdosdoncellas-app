@@ -44,10 +44,10 @@ import PoliticaCookies from "@/pages/legal/PoliticaCookies";
 function App() {
   return (
     <Suspense fallback="Cargando...">
-      <BrowserRouter>
-        <AuthProvider>
-          <CustomerProvider>
-            <CartProvider>
+      <AuthProvider>
+        <CustomerProvider>
+          <CartProvider>
+            <BrowserRouter>
               <Toaster position="top-right" richColors theme="dark" />
               <Routes>
                 <Route path="/" element={<Storefront />} />
@@ -85,10 +85,10 @@ function App() {
 
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
-            </CartProvider>
-          </CustomerProvider>
-        </AuthProvider>
-      </BrowserRouter>
+            </BrowserRouter>
+          </CartProvider>
+        </CustomerProvider>
+      </AuthProvider>
     </Suspense>
   );
 }
