@@ -10,22 +10,16 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 export default function StoreHeader({ onOpenCart }) {
   const { t } = useTranslation();
   
-  // Usamos los hooks de forma segura
-  let cartContext = null;
-  let customerContext = null;
-
-  try {
-    cartContext = useCart();
-    customerContext = useCustomer();
-  } catch (e) {
-    console.warn("Contexto no disponible en StoreHeader, renderizando modo invitado.");
-  }
+  // Llamada a los hooks siempre en el mismo orden, sin try/catch
+  const cartContext = useCart();
+  const customerContext = useCustomer();
   
   const [open, setOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
+  // Cerrar dropdown si se hace clic fuera
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -42,6 +36,7 @@ export default function StoreHeader({ onOpenCart }) {
     navigate("/");
   };
 
+  // Acceso seguro a las propiedades del contexto
   const count = cartContext?.count || 0;
   const customer = customerContext?.customer || null;
 
