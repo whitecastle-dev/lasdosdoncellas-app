@@ -36,21 +36,11 @@ export default function StoreHeader({ onOpenCart }) {
     navigate("/");
   };
 
-  // MECANISMO DE DEFENSA: 
-  // Si los contextos aún no están listos, renderizamos una versión mínima del header
-  // para evitar que la aplicación lance el error de 'null' y se quede en blanco.
-  if (!cartContext || !customerContext) {
-    return (
-      <header className="sticky top-0 z-40 backdrop-blur-xl" style={{ background: "rgba(10,10,10,0.78)", borderBottom: "1px solid rgba(197,160,89,0.18)" }}>
-        <div className="max-w-[1500px] mx-auto px-6 py-4 flex items-center justify-between">
-          <Logo size={44} />
-        </div>
-      </header>
-    );
-  }
-
-  const { count } = cartContext;
-  const { customer } = customerContext;
+  // MECANISMO DE DEFENSA ROBUSTO:
+  // Si los contextos aún no están listos (undefined/null), devolvemos un estado seguro.
+  // Esto evita el error TypeError: Cannot read properties of null (reading 'useContext')
+  const count = cartContext?.count || 0;
+  const customer = customerContext?.customer || null;
 
   return (
     <header 
@@ -77,7 +67,7 @@ export default function StoreHeader({ onOpenCart }) {
                 className="text-[#FAF8F5] hover:text-[#C5A059] transition flex items-center gap-2 px-3 py-2"
               >
                 <User size={16} />
-                <span className="hidden sm:inline text-xs uppercase tracking-[0.2em]">{customer.name?.split(" ")[0] || t("Cuenta")}</span>
+                <span className="hidden sm:inline text-xs uppercase tracking-[0.2em]">{customer?.name?.split(" ")[0] || t("Cuenta")}</span>
                 <ChevronDown size={14} />
               </button>
               
