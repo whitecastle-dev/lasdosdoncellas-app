@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@/index.css";
 import App from "@/App";
+import "./i18n"; // Importación añadida para activar la configuración de traducción
 
 const queryClient = new QueryClient({
   defaultOptions: {
