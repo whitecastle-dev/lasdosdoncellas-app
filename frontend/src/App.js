@@ -41,54 +41,61 @@ import AvisoLegal from "@/pages/legal/AvisoLegal";
 import PoliticaPrivacidad from "@/pages/legal/PoliticaPrivacidad";
 import PoliticaCookies from "@/pages/legal/PoliticaCookies";
 
+// Este componente agrupa todos los proveedores para simplificar la estructura
+const AppProviders = ({ children }) => (
+  <AuthProvider>
+    <CustomerProvider>
+      <CartProvider>
+        {children}
+      </CartProvider>
+    </CustomerProvider>
+  </AuthProvider>
+);
+
 function App() {
   return (
     <Suspense fallback="Cargando...">
-      <AuthProvider>
-        <CustomerProvider>
-          <CartProvider>
-            <BrowserRouter>
-              <Toaster position="top-right" richColors theme="dark" />
-              <Routes>
-                <Route path="/" element={<Storefront />} />
-                <Route path="/catalogo" element={<Catalog />} />
-                <Route path="/categoria/:slug" element={<CategoryPage />} />
-                <Route path="/product/:id" element={<ProductDetail />} />
-                <Route path="/lotes/configurador" element={<LotConfigurator />} />
-                <Route path="/nosotros" element={<AboutUs />} />
-                <Route path="/cart" element={<Checkout />} />
-                <Route path="/checkout" element={<Checkout />} />
-                <Route path="/checkout/success" element={<CheckoutSuccess />} />
+      <AppProviders>
+        <BrowserRouter>
+          <Toaster position="top-right" richColors theme="dark" />
+          <Routes>
+            <Route path="/" element={<Storefront />} />
+            <Route path="/catalogo" element={<Catalog />} />
+            <Route path="/categoria/:slug" element={<CategoryPage />} />
+            <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/lotes/configurador" element={<LotConfigurator />} />
+            <Route path="/nosotros" element={<AboutUs />} />
+            <Route path="/cart" element={<Checkout />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/checkout/success" element={<CheckoutSuccess />} />
 
-                <Route path="/cuenta/login" element={<CustomerLogin />} />
-                <Route path="/cuenta/registro" element={<CustomerRegister />} />
-                <Route path="/cuenta/olvide-password" element={<ForgotPassword />} />
-                <Route path="/cuenta/restablecer" element={<ResetPassword />} />
-                <Route path="/cuenta" element={<CustomerAccount />} />
-                <Route path="/cuenta/perfil" element={<Profile />} />
-                <Route path="/cuenta/pedidos" element={<Orders />} />
-                <Route path="/cuenta/configuracion" element={<Settings />} />
+            <Route path="/cuenta/login" element={<CustomerLogin />} />
+            <Route path="/cuenta/registro" element={<CustomerRegister />} />
+            <Route path="/cuenta/olvide-password" element={<ForgotPassword />} />
+            <Route path="/cuenta/restablecer" element={<ResetPassword />} />
+            <Route path="/cuenta" element={<CustomerAccount />} />
+            <Route path="/cuenta/perfil" element={<Profile />} />
+            <Route path="/cuenta/pedidos" element={<Orders />} />
+            <Route path="/cuenta/configuracion" element={<Settings />} />
 
-                <Route path="/legal/aviso-legal" element={<AvisoLegal />} />
-                <Route path="/legal/politica-privacidad" element={<PoliticaPrivacidad />} />
-                <Route path="/legal/politica-cookies" element={<PoliticaCookies />} />
+            <Route path="/legal/aviso-legal" element={<AvisoLegal />} />
+            <Route path="/legal/politica-privacidad" element={<PoliticaPrivacidad />} />
+            <Route path="/legal/politica-cookies" element={<PoliticaCookies />} />
 
-                <Route path="/admin/login" element={<AdminLogin />} />
-                <Route path="/admin" element={<AdminLayout />}>
-                  <Route index element={<Dashboard />} />
-                  <Route path="products" element={<ProductsAdmin />} />
-                  <Route path="orders" element={<OrdersAdmin />} />
-                  <Route path="providers" element={<ProvidersAdmin />} />
-                  <Route path="users" element={<UsersAdmin />} />
-                  <Route path="chat" element={<AdminChat />} />
-                </Route>
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="products" element={<ProductsAdmin />} />
+              <Route path="orders" element={<OrdersAdmin />} />
+              <Route path="providers" element={<ProvidersAdmin />} />
+              <Route path="users" element={<UsersAdmin />} />
+              <Route path="chat" element={<AdminChat />} />
+            </Route>
 
-                <Route path="*" element={<Navigate to="/" />} />
-              </Routes>
-            </BrowserRouter>
-          </CartProvider>
-        </CustomerProvider>
-      </AuthProvider>
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </BrowserRouter>
+      </AppProviders>
     </Suspense>
   );
 }
