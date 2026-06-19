@@ -1,10 +1,11 @@
-import React, { Suspense } from "react";
+import React from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 
-// Asegúrate de importar i18n para que las configuraciones se carguen
-import "@/i18n"; 
+import { AuthProvider } from "@/context/AuthContext";
+import { CustomerProvider } from "@/context/CustomerContext";
+import { CartProvider } from "@/context/CartContext";
 
 import Storefront from "@/pages/Storefront";
 import Catalog from "@/pages/Catalog";
@@ -39,47 +40,51 @@ import PoliticaCookies from "@/pages/legal/PoliticaCookies";
 
 function App() {
   return (
-    <Suspense fallback="Cargando...">
-      <BrowserRouter>
-        <Toaster position="top-right" richColors theme="dark" />
-        <Routes>
-          <Route path="/" element={<Storefront />} />
-          <Route path="/catalogo" element={<Catalog />} />
-          <Route path="/categoria/:slug" element={<CategoryPage />} />
-          <Route path="/product/:id" element={<ProductDetail />} />
-          <Route path="/lotes/configurador" element={<LotConfigurator />} />
-          <Route path="/nosotros" element={<AboutUs />} />
-          <Route path="/cart" element={<Checkout />} />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/checkout/success" element={<CheckoutSuccess />} />
+    <BrowserRouter>
+      <AuthProvider>
+        <CustomerProvider>
+          <CartProvider>
+            <Toaster position="top-right" richColors theme="dark" />
+            <Routes>
+              <Route path="/" element={<Storefront />} />
+              <Route path="/catalogo" element={<Catalog />} />
+              <Route path="/categoria/:slug" element={<CategoryPage />} />
+              <Route path="/product/:id" element={<ProductDetail />} />
+              <Route path="/lotes/configurador" element={<LotConfigurator />} />
+              <Route path="/nosotros" element={<AboutUs />} />
+              <Route path="/cart" element={<Checkout />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/checkout/success" element={<CheckoutSuccess />} />
 
-          <Route path="/cuenta/login" element={<CustomerLogin />} />
-          <Route path="/cuenta/registro" element={<CustomerRegister />} />
-          <Route path="/cuenta/olvide-password" element={<ForgotPassword />} />
-          <Route path="/cuenta/restablecer" element={<ResetPassword />} />
-          <Route path="/cuenta" element={<CustomerAccount />} />
-          <Route path="/cuenta/perfil" element={<Profile />} />
-          <Route path="/cuenta/pedidos" element={<Orders />} />
-          <Route path="/cuenta/configuracion" element={<Settings />} />
+              <Route path="/cuenta/login" element={<CustomerLogin />} />
+              <Route path="/cuenta/registro" element={<CustomerRegister />} />
+              <Route path="/cuenta/olvide-password" element={<ForgotPassword />} />
+              <Route path="/cuenta/restablecer" element={<ResetPassword />} />
+              <Route path="/cuenta" element={<CustomerAccount />} />
+              <Route path="/cuenta/perfil" element={<Profile />} />
+              <Route path="/cuenta/pedidos" element={<Orders />} />
+              <Route path="/cuenta/configuracion" element={<Settings />} />
 
-          <Route path="/legal/aviso-legal" element={<AvisoLegal />} />
-          <Route path="/legal/politica-privacidad" element={<PoliticaPrivacidad />} />
-          <Route path="/legal/politica-cookies" element={<PoliticaCookies />} />
+              <Route path="/legal/aviso-legal" element={<AvisoLegal />} />
+              <Route path="/legal/politica-privacidad" element={<PoliticaPrivacidad />} />
+              <Route path="/legal/politica-cookies" element={<PoliticaCookies />} />
 
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="products" element={<ProductsAdmin />} />
-            <Route path="orders" element={<OrdersAdmin />} />
-            <Route path="providers" element={<ProvidersAdmin />} />
-            <Route path="users" element={<UsersAdmin />} />
-            <Route path="chat" element={<AdminChat />} />
-          </Route>
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="products" element={<ProductsAdmin />} />
+                <Route path="orders" element={<OrdersAdmin />} />
+                <Route path="providers" element={<ProvidersAdmin />} />
+                <Route path="users" element={<UsersAdmin />} />
+                <Route path="chat" element={<AdminChat />} />
+              </Route>
 
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </BrowserRouter>
-    </Suspense>
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </CartProvider>
+        </CustomerProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 
