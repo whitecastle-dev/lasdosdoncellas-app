@@ -10,23 +10,43 @@ i18n
       es: {
         translation: {
           "Mi cuenta": "Mi cuenta",
+          "Cuenta": "Cuenta",
           "Salir": "Salir",
-          "Hola, {name}": "Hola, {{name}}",
+          "Cerrar sesión": "Cerrar sesión",
+          "Hola, {{name}}": "Hola, {{name}}",
           "Mis datos": "Mis datos",
+          "Mi perfil": "Mi perfil",
           "Direcciones": "Direcciones",
           "Mis pedidos": "Mis pedidos",
-          "Pagos guardados": "Pagos guardados"
+          "Pagos guardados": "Pagos guardados",
+          "Inicio": "Inicio",
+          "Catálogo": "Catálogo",
+          "Configurar lote": "Configurar lote",
+          "Nosotros": "Nosotros",
+          "Acceder": "Acceder",
+          "Cesta": "Cesta",
+          "Cambiar contraseña": "Cambiar contraseña"
         }
       },
       en: {
         translation: {
           "Mi cuenta": "My Account",
+          "Cuenta": "Account",
           "Salir": "Sign out",
-          "Hola, {name}": "Hello, {{name}}",
+          "Cerrar sesión": "Sign out",
+          "Hola, {{name}}": "Hello, {{name}}",
           "Mis datos": "My Profile",
+          "Mi perfil": "My Profile",
           "Direcciones": "Addresses",
           "Mis pedidos": "My Orders",
-          "Pagos guardados": "Saved Payments"
+          "Pagos guardados": "Saved Payments",
+          "Inicio": "Home",
+          "Catálogo": "Catalog",
+          "Configurar lote": "Configure batch",
+          "Nosotros": "About Us",
+          "Acceder": "Sign in",
+          "Cesta": "Cart",
+          "Cambiar contraseña": "Change password"
         }
       }
     },
