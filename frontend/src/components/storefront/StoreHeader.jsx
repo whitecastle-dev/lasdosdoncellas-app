@@ -9,8 +9,11 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function StoreHeader({ onOpenCart }) {
   const { t } = useTranslation();
-  const { count } = useCart();
-  const { customer, logout } = useCustomer(); 
+  
+  // Usamos los hooks de contexto
+  const cartContext = useCart();
+  const customerContext = useCustomer();
+  
   const [open, setOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -28,13 +31,28 @@ export default function StoreHeader({ onOpenCart }) {
   }, []);
 
   const handleLogout = () => {
-    if (logout) logout();
+    if (customerContext?.logout) customerContext.logout();
     setIsDropdownOpen(false);
     navigate("/");
   };
 
+  // MECANISMO DE DEFENSA: 
+  // Si los contextos aún no están listos, renderizamos una versión mínima del header
+  // para evitar que la aplicación lance el error de 'null' y se quede en blanco.
+  if (!cartContext || !customerContext) {
+    return (
+      <header className="sticky top-0 z-40 backdrop-blur-xl" style={{ background: "rgba(10,10,10,0.78)", borderBottom: "1px solid rgba(197,160,89,0.18)" }}>
+        <div className="max-w-[1500px] mx-auto px-6 py-4 flex items-center justify-between">
+          <Logo size={44} />
+        </div>
+      </header>
+    );
+  }
+
+  const { count } = cartContext;
+  const { customer } = customerContext;
+
   return (
-    // La 'key' dinámica obliga a React a reconstruir el header cuando el estado de autenticación cambia
     <header 
       key={customer ? "logged-in" : "guest"}
       className="sticky top-0 z-40 backdrop-blur-xl" 
