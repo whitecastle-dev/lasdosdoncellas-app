@@ -7,26 +7,33 @@ Modelo:
 - customer_name
 - rating (1..5)
 - comment (string, opcional)
+- image_urls (List[str], max 3)
 - approved (bool, default True — moderación opcional)
 - created_at
 """
+import asyncio
 import uuid
 import logging
 from datetime import datetime, timezone
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Optional, List
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from pydantic import BaseModel, Field, conint
 from db import db
 from auth import require_permission
 from routers_customers import get_current_customer
+from storage import upload_to_cloudinary
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/reviews", tags=["reviews"])
+
+MAX_IMAGES_PER_REVIEW = 3
+MAX_IMAGE_BYTES = 6 * 1024 * 1024  # 6 MB
 
 
 # ---------- helpers ----------
 def _clean(r: dict) -> dict:
     r.pop("_id", None)
+    r.setdefault("image_urls", [])
     return r
 
 
@@ -52,6 +59,7 @@ class ReviewIn(BaseModel):
     product_id: str
     rating: conint(ge=1, le=5)
     comment: Optional[str] = Field(default="", max_length=1500)
+    image_urls: Optional[List[str]] = Field(default_factory=list)
 
 
 # ---------- endpoints ----------
@@ -69,7 +77,6 @@ async def list_reviews_for_product(product_id: str, limit: int = Query(50, le=20
     async for d in agg:
         avg = round(float(d.get("avg", 0)), 2)
         n = int(d.get("n", 0))
-    # Distribution 1..5
     dist_cur = db.reviews.aggregate([
         {"$match": {"product_id": product_id, "approved": True}},
         {"$group": {"_id": "$rating", "count": {"$sum": 1}}},
@@ -80,13 +87,28 @@ async def list_reviews_for_product(product_id: str, limit: int = Query(50, le=20
     return {"items": items, "avg_rating": avg, "review_count": n, "distribution": dist}
 
 
+@router.post("/upload-image")
+async def upload_review_image(file: UploadFile = File(...), customer: dict = Depends(get_current_customer)):
+    """Sube una imagen del cliente a Cloudinary y devuelve la URL para
+    asociarla luego al POST /reviews. Auth: cliente logueado."""
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Archivo vacío")
+    if len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=413, detail="Imagen demasiado grande (máx 6MB)")
+    result = await asyncio.to_thread(upload_to_cloudinary, data, f"review-{customer['id']}")
+    return {"url": result["url"]}
+
+
 @router.post("")
 async def create_review(payload: ReviewIn, customer: dict = Depends(get_current_customer)):
     prod = await db.products.find_one({"id": payload.product_id})
     if not prod:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-    # Una reseña por cliente y producto: si ya existe, la actualizamos
+    images = [u for u in (payload.image_urls or []) if isinstance(u, str) and u.startswith("http")]
+    images = images[:MAX_IMAGES_PER_REVIEW]
+
     existing = await db.reviews.find_one({
         "product_id": payload.product_id,
         "customer_id": customer["id"],
@@ -99,7 +121,7 @@ async def create_review(payload: ReviewIn, customer: dict = Depends(get_current_
         await db.reviews.update_one(
             {"id": existing["id"]},
             {"$set": {"rating": int(payload.rating), "comment": (payload.comment or "").strip(),
-                      "updated_at": now, "customer_name": name}}
+                      "updated_at": now, "customer_name": name, "image_urls": images}}
         )
         doc = await db.reviews.find_one({"id": existing["id"]})
     else:
@@ -110,6 +132,7 @@ async def create_review(payload: ReviewIn, customer: dict = Depends(get_current_
             "customer_name": name,
             "rating": int(payload.rating),
             "comment": (payload.comment or "").strip(),
+            "image_urls": images,
             "approved": True,
             "created_at": now,
         }
