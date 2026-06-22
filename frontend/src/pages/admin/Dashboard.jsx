@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { TrendingUp, ShoppingBag, Package, Users as UsersIcon, AlertTriangle } from "lucide-react";
+import { TrendingUp, ShoppingBag, Package, AlertTriangle, Star } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar } from "recharts";
 import { api, formatMoney } from "@/lib/api";
+import StarRating from "@/components/StarRating";
 
 function StatCard({ label, value, icon: Icon, subtext, testid }) {
   return (
@@ -41,7 +42,7 @@ export default function Dashboard() {
   }, []);
 
   if (!data) return <div className="p-10">Cargando…</div>;
-  const { totals, daily_revenue, top_products, recent_orders, low_stock } = data;
+  const { totals, daily_revenue, top_products, top_rated, recent_orders, recent_reviews, low_stock } = data;
 
   return (
     <div className="p-8 lg:p-10 max-w-[1600px] mx-auto">
@@ -57,6 +58,25 @@ export default function Dashboard() {
         <StatCard label="Ingresos totales" value={formatMoney(totals.revenue_total)} icon={TrendingUp} testid="stat-revenue-total" />
         <StatCard label="Pedidos" value={totals.orders} icon={ShoppingBag} subtext={`${totals.paid_orders} pagados · ${totals.pending_orders} pendientes`} testid="stat-orders" />
         <StatCard label="Productos" value={totals.products} icon={Package} subtext={`${totals.active_products} activos`} testid="stat-products" />
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <StatCard label="Reseñas" value={totals.reviews ?? 0} icon={Star} subtext={`${(totals.avg_rating || 0).toFixed(1)} ★ media`} testid="stat-reviews" />
+        <div className="cms-card p-6 lg:col-span-3">
+          <div className="label-eyebrow text-gray-500">Top productos por valoración</div>
+          {(top_rated || []).length === 0 && <div className="text-sm text-gray-500 mt-3">Sin reseñas todavía.</div>}
+          <ul className="mt-3 space-y-2">
+            {(top_rated || []).map((p) => (
+              <li key={p.id} className="flex items-center justify-between text-sm" data-testid={`top-rated-${p.id}`}>
+                <span className="truncate">{p.name}</span>
+                <span className="flex items-center gap-2">
+                  <span className="mono text-xs text-gray-500">({p.review_count})</span>
+                  <span className="font-mono-data" style={{ color: "#C5A059" }}>{(p.avg_rating || 0).toFixed(1)} ★</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 mb-8">
@@ -129,6 +149,26 @@ export default function Dashboard() {
             {low_stock.length === 0 && <li className="text-gray-500">Todo en orden ✓</li>}
           </ul>
         </div>
+      </div>
+
+      <div className="cms-card p-6 mt-4">
+        <div className="label-eyebrow text-gray-500 mb-1">Opiniones recientes</div>
+        <div className="font-serif text-2xl mb-4">Últimas reseñas</div>
+        {(recent_reviews || []).length === 0 && <div className="text-sm text-gray-500">Aún no hay reseñas.</div>}
+        <ul className="divide-y divide-gray-100">
+          {(recent_reviews || []).map((r) => (
+            <li key={r.id} className="py-3 flex items-start gap-4" data-testid={`recent-review-${r.id}`}>
+              <div className="min-w-[110px]"><StarRating value={r.rating} size={14} readOnly /></div>
+              <div className="flex-1 text-sm">
+                <div className="font-medium">{r.customer_name} <span className="text-gray-500">· {r.product_name || "—"}</span></div>
+                {r.comment && <div className="text-gray-600 mt-1 line-clamp-2">{r.comment}</div>}
+              </div>
+              <div className="text-xs text-gray-400 mono whitespace-nowrap">
+                {new Date(r.created_at).toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

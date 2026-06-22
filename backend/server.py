@@ -56,6 +56,8 @@ app.include_router(excel_router)
 app.include_router(excel_all_router)
 from routers_chat import router as chat_router
 app.include_router(chat_router)
+from routers_reviews import router as reviews_router
+app.include_router(reviews_router)
 
 
 @app.on_event("startup")
@@ -71,6 +73,8 @@ async def on_startup():
         await db.payment_transactions.create_index("session_id")
         await db.categories.create_index("slug", unique=True)
         await db.providers.create_index("email", unique=True)
+        await db.reviews.create_index([("product_id", 1), ("created_at", -1)])
+        await db.reviews.create_index([("product_id", 1), ("customer_id", 1)], unique=True)
         logger.info("Indexes ensured")
     except Exception as e:
         logger.warning(f"Index creation issue: {e}")

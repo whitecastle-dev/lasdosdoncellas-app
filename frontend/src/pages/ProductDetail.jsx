@@ -4,6 +4,8 @@ import { ArrowLeft, Check } from "lucide-react";
 import StoreHeader from "@/components/storefront/StoreHeader";
 import StoreFooter from "@/components/storefront/StoreFooter";
 import CartDrawer from "@/components/storefront/CartDrawer";
+import ReviewsSection from "@/components/storefront/ReviewsSection";
+import StarRating from "@/components/StarRating";
 import { api, fileUrl, formatMoney } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 
@@ -70,6 +72,11 @@ export default function ProductDetail() {
             <h1 className="font-serif text-4xl md:text-6xl tracking-tighter leading-[1.02] mt-4" style={{ color: "#FAF8F5" }}>
               {product.name}
             </h1>
+            {(product.review_count || 0) > 0 && (
+              <div className="mt-4">
+                <StarRating value={product.avg_rating || 0} size={16} readOnly count={product.review_count} showNumber />
+              </div>
+            )}
             <div className="mt-6 flex items-center gap-4">
               <span className="font-serif text-3xl gold" data-testid="product-detail-price">{formatMoney(product.price)}</span>
               {product.compare_at_price && product.compare_at_price > product.price && (
@@ -109,6 +116,13 @@ export default function ProductDetail() {
             </ul>
           </div>
         </div>
+
+        <ReviewsSection
+          productId={product.id}
+          initialAvg={product.avg_rating || 0}
+          initialCount={product.review_count || 0}
+          onStatsChange={({ avg, count }) => setProduct((p) => p ? { ...p, avg_rating: avg, review_count: count } : p)}
+        />
       </div>
       <StoreFooter />
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
