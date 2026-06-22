@@ -91,6 +91,21 @@ async def on_startup():
     except Exception as e:
         logger.warning(f"Storage init failed (will retry per request): {e}")
 
+    # Auto-seed de productos demo si la variable AUTO_SEED_PRODUCTS=1 y la
+    # colección de productos está vacía. Útil para Render: arrancas con la
+    # base vacía y se inyectan los 15 productos demo una sola vez.
+    if os.environ.get("AUTO_SEED_PRODUCTS") == "1":
+        try:
+            count = await db.products.count_documents({})
+            if count == 0:
+                logger.info("AUTO_SEED_PRODUCTS=1 y BD vacía — inyectando productos demo…")
+                from scripts.seed_products import seed
+                await seed()
+            else:
+                logger.info("AUTO_SEED_PRODUCTS=1 pero ya hay %d productos — no se hace nada.", count)
+        except Exception as e:
+            logger.exception("Auto-seed de productos falló: %s", e)
+
 
 @app.on_event("shutdown")
 async def on_shutdown():

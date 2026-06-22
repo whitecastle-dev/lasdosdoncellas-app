@@ -9,7 +9,6 @@ from auth import (
     hash_password, validate_password, PASSWORD_RULES_MSG,
     require_permission, ALL_PERMISSIONS,
 )
-
 router = APIRouter(prefix="/api/users", tags=["users"])
 
 
@@ -46,13 +45,85 @@ async def list_users(_=Depends(require_permission("users.read"))):
 
 
 @router.get("/web")
-async def list_web_users(_=Depends(require_permission("users.read"))):
-    """Usuarios de la tienda (clientes). Solo lectura — no se editan permisos aquí."""
-    users = await db.users.find(
-        {"role": "customer"},
+async def list_web_users(_=Depends(require_permission("customers.read"))):
+    """Usuarios de la tienda (clientes registrados via storefront).
+    Viven en `db.customers` — colección separada de los usuarios CMS."""
+    cursor = db.customers.find(
+        {},
+        {"_id": 0, "password_hash": 0, "verification_token": 0, "reset_token": 0,
+         "reset_token_expires": 0, "verification_expires": 0}
+    ).sort("created_at", -1)
+    items = []
+    async for c in cursor:
+        # Normaliza campos para la UI (el modelo guarda 'name', la UI espera
+        # first_name/last_name — partimos del 'name' completo)
+        full_name = c.get("name") or ""
+        if " " in full_name and not c.get("first_name"):
+            parts = full_name.split(" ", 1)
+            c.setdefault("first_name", parts[0])
+            c.setdefault("last_name", parts[1] if len(parts) > 1 else "")
+        else:
+            c.setdefault("first_name", full_name)
+            c.setdefault("last_name", "")
+        c.setdefault("is_verified", bool(c.get("verified", False)))
+        items.append(c)
+    return items
+
+
+class WebUserUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_verified: Optional[bool] = None
+    password: Optional[str] = None
+
+
+@router.patch("/web/{customer_id}")
+async def update_web_user(customer_id: str, payload: WebUserUpdate,
+                          _=Depends(require_permission("customers.write"))):
+    customer = await db.customers.find_one({"id": customer_id})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+
+    updates = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    if payload.first_name is not None or payload.last_name is not None:
+        fn = payload.first_name if payload.first_name is not None else (customer.get("first_name") or "")
+        ln = payload.last_name if payload.last_name is not None else (customer.get("last_name") or "")
+        updates["first_name"] = fn
+        updates["last_name"] = ln
+        updates["name"] = (fn + " " + ln).strip() or (payload.name or customer.get("name", ""))
+    elif payload.name is not None:
+        updates["name"] = payload.name
+    if payload.phone is not None:
+        updates["phone"] = payload.phone
+    if payload.is_active is not None:
+        updates["is_active"] = payload.is_active
+    if payload.is_verified is not None:
+        updates["is_verified"] = payload.is_verified
+        updates["verified"] = payload.is_verified
+    if payload.password is not None:
+        if not validate_password(payload.password):
+            raise HTTPException(status_code=400, detail=PASSWORD_RULES_MSG)
+        updates["password_hash"] = hash_password(payload.password)
+
+    await db.customers.update_one({"id": customer_id}, {"$set": updates})
+    updated = await db.customers.find_one(
+        {"id": customer_id},
         {"_id": 0, "password_hash": 0, "verification_token": 0, "reset_token": 0}
-    ).sort("created_at", -1).to_list(2000)
-    return users
+    )
+    return updated
+
+
+@router.delete("/web/{customer_id}")
+async def delete_web_user(customer_id: str,
+                          _=Depends(require_permission("customers.delete"))):
+    customer = await db.customers.find_one({"id": customer_id})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    await db.customers.delete_one({"id": customer_id})
+    return {"ok": True}
 
 
 @router.post("")

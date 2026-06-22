@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import ExcelBar from "@/components/admin/ExcelBar";
 
-// Etiquetas legibles para los permisos (en lugar de mostrar "products.read" en crudo)
 const PERMISSION_LABELS = {
   "dashboard.read": "Ver Dashboard",
   "products.read": "Ver Productos",
@@ -14,20 +13,24 @@ const PERMISSION_LABELS = {
   "orders.read": "Ver Pedidos",
   "orders.write": "Gestionar Pedidos",
   "orders.delete": "Eliminar Pedidos",
-  "users.read": "Ver Usuarios",
-  "users.write": "Crear / Editar Usuarios",
-  "users.delete": "Eliminar Usuarios",
+  "users.read": "Ver Usuarios CMS",
+  "users.write": "Crear / Editar Usuarios CMS",
+  "users.delete": "Eliminar Usuarios CMS",
+  "customers.read": "Ver Usuarios WEB",
+  "customers.write": "Editar Usuarios WEB",
+  "customers.delete": "Eliminar Usuarios WEB",
   "settings.write": "Modificar Ajustes",
 };
 
 const EMPTY = { email: "", password: "", name: "", role: "manager", permissions: [], is_active: true };
 
 export default function UsersAdmin() {
-  const [tab, setTab] = useState("cms"); // "cms" | "web"
+  const [tab, setTab] = useState("cms");
   const [users, setUsers] = useState([]);
   const [webUsers, setWebUsers] = useState([]);
   const [perms, setPerms] = useState([]);
-  const [editing, setEditing] = useState(null);
+  const [editing, setEditing] = useState(null);          // CMS user editing
+  const [editingWeb, setEditingWeb] = useState(null);    // Web user editing
   const { user: me } = useAuth();
 
   const load = async () => {
@@ -44,10 +47,19 @@ export default function UsersAdmin() {
 
   const onDelete = async (u) => {
     if (u.is_superadmin) return toast.error("No se puede eliminar al superadmin");
-    if (!confirm(`¿Eliminar usuario ${u.email}?`)) return;
+    if (!window.confirm(`¿Eliminar usuario ${u.email}?`)) return;
     try {
       await api.delete(`/users/${u.id}`);
       toast.success("Usuario eliminado");
+      load();
+    } catch (err) { toast.error(formatApiError(err)); }
+  };
+
+  const onDeleteWeb = async (u) => {
+    if (!window.confirm(`¿Eliminar al cliente ${u.email}? Esta acción no se puede deshacer.`)) return;
+    try {
+      await api.delete(`/users/web/${u.id}`);
+      toast.success("Cliente eliminado");
       load();
     } catch (err) { toast.error(formatApiError(err)); }
   };
@@ -129,15 +141,16 @@ export default function UsersAdmin() {
                 <th>Teléfono</th>
                 <th>Verificado</th>
                 <th>Alta</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {webUsers.length === 0 && (
-                <tr><td colSpan={5} className="py-12 text-center text-gray-400">Aún no hay clientes registrados.</td></tr>
+                <tr><td colSpan={6} className="py-12 text-center text-gray-400">Aún no hay clientes registrados.</td></tr>
               )}
               {webUsers.map((u) => (
                 <tr key={u.id} className="border-t border-gray-100" data-testid={`web-user-row-${u.id}`}>
-                  <td className="px-4 py-3">{`${u.first_name || ""} ${u.last_name || ""}`.trim() || "—"}</td>
+                  <td className="px-4 py-3">{`${u.first_name || ""} ${u.last_name || ""}`.trim() || u.name || "—"}</td>
                   <td className="mono text-xs">{u.email}</td>
                   <td className="text-gray-600">{u.phone || "—"}</td>
                   <td>
@@ -146,6 +159,10 @@ export default function UsersAdmin() {
                     </span>
                   </td>
                   <td className="text-xs text-gray-500 mono">{(u.created_at || "").slice(0, 10)}</td>
+                  <td className="text-right pr-4">
+                    <button onClick={() => setEditingWeb(u)} className="p-2 hover:bg-gray-100" data-testid={`web-user-edit-${u.id}`}><Pencil size={14} /></button>
+                    <button onClick={() => onDeleteWeb(u)} className="p-2 hover:bg-red-50 text-red-600" data-testid={`web-user-delete-${u.id}`}><Trash2 size={14} /></button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -160,6 +177,14 @@ export default function UsersAdmin() {
           perms={perms}
           onClose={() => setEditing(null)}
           onSaved={() => { load(); setEditing(null); }}
+        />
+      )}
+
+      {editingWeb && (
+        <WebUserDrawer
+          initial={{ ...editingWeb, password: "" }}
+          onClose={() => setEditingWeb(null)}
+          onSaved={() => { load(); setEditingWeb(null); }}
         />
       )}
     </div>
@@ -255,6 +280,83 @@ function UserDrawer({ initial, isNew, perms, onClose, onSaved }) {
 
           <button type="submit" disabled={saving} className="px-5 py-2.5 bg-black text-[#C5A059] disabled:opacity-50" data-testid="user-save">
             {saving ? "Guardando…" : (isNew ? "Crear usuario" : "Guardar cambios")}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function WebUserDrawer({ initial, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    first_name: initial.first_name || "",
+    last_name: initial.last_name || "",
+    phone: initial.phone || "",
+    is_active: initial.is_active !== false,
+    is_verified: !!initial.is_verified,
+    password: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value });
+
+  const save = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const payload = { ...form };
+      if (!payload.password) delete payload.password;
+      await api.patch(`/users/web/${initial.id}`, payload);
+      toast.success("Cliente actualizado");
+      onSaved();
+    } catch (err) { toast.error(formatApiError(err)); } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40" onClick={onClose}>
+      <div className="absolute right-0 top-0 bottom-0 w-full max-w-xl bg-white overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="web-user-drawer">
+        <div className="px-6 py-5 flex items-center justify-between border-b border-gray-200 sticky top-0 bg-white">
+          <div>
+            <div className="label-eyebrow text-gray-500">Cliente WEB</div>
+            <div className="font-serif text-2xl">{initial.email}</div>
+          </div>
+          <button onClick={onClose}><X size={20} /></button>
+        </div>
+        <form onSubmit={save} className="p-6 space-y-5">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label-eyebrow text-gray-500 block mb-1">Nombre</label>
+              <input value={form.first_name} onChange={set("first_name")} data-testid="web-user-first-name"
+                className="w-full border border-gray-200 px-3 py-2 text-sm focus:border-black outline-none" />
+            </div>
+            <div>
+              <label className="label-eyebrow text-gray-500 block mb-1">Apellidos</label>
+              <input value={form.last_name} onChange={set("last_name")} data-testid="web-user-last-name"
+                className="w-full border border-gray-200 px-3 py-2 text-sm focus:border-black outline-none" />
+            </div>
+            <div>
+              <label className="label-eyebrow text-gray-500 block mb-1">Teléfono</label>
+              <input value={form.phone} onChange={set("phone")} data-testid="web-user-phone"
+                className="w-full border border-gray-200 px-3 py-2 text-sm focus:border-black outline-none" />
+            </div>
+            <div>
+              <label className="label-eyebrow text-gray-500 block mb-1">Nueva contraseña (opcional)</label>
+              <input type="password" value={form.password} onChange={set("password")} data-testid="web-user-password"
+                placeholder="Dejar vacío para no cambiar"
+                className="w-full border border-gray-200 px-3 py-2 text-sm focus:border-black outline-none" />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={form.is_active} onChange={set("is_active")} data-testid="web-user-active" /> Cuenta activa
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={form.is_verified} onChange={set("is_verified")} data-testid="web-user-verified" /> Email verificado
+            </label>
+          </div>
+
+          <button type="submit" disabled={saving} className="px-5 py-2.5 bg-black text-[#C5A059] disabled:opacity-50" data-testid="web-user-save">
+            {saving ? "Guardando…" : "Guardar cambios"}
           </button>
         </form>
       </div>
