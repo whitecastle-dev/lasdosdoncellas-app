@@ -148,6 +148,30 @@ async def delete_product(product_id: str, _=Depends(require_permission("products
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return {"ok": True}
 
+
+@router.post("/products/admin/seed-demo")
+async def force_seed_demo(_=Depends(require_permission("products.write"))):
+    """Endpoint admin para forzar la inyección de los 15 productos demo cuando
+    la BD está vacía. Idempotente: salta los SKUs que ya existen."""
+    try:
+        try:
+            from scripts.seed_products import seed as seed_products
+        except ImportError:
+            import importlib.util as _u
+            import pathlib
+            _here = pathlib.Path(__file__).parent
+            _spec = _u.spec_from_file_location("seed_products", _here / "scripts" / "seed_products.py")
+            _mod = _u.module_from_spec(_spec)
+            _spec.loader.exec_module(_mod)
+            seed_products = _mod.seed
+        before = await db.products.count_documents({})
+        await seed_products()
+        after = await db.products.count_documents({})
+        return {"inserted": after - before, "total": after}
+    except Exception as e:
+        logger.exception("Seed demo failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Seed falló: {e}")
+
 # ---------- Product image upload (Cloudinary Direct Transformation) ----------
 
 @router.post("/products/{product_id}/images")

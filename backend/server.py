@@ -30,10 +30,20 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Las Dos Doncellas API")
 
-# --- CORS CONFIGURATION (Mover arriba para que procese bien las peticiones) ---
+# --- CORS: incluye SIEMPRE los dominios conocidos del front + custom domain ---
+_default_origins = [
+    "https://lasdosdoncellas-web.onrender.com",
+    "https://lasdosdoncellasibericos.es",
+    "https://www.lasdosdoncellasibericos.es",
+    "http://localhost:3000",
+]
+_env_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+_all_origins = list(dict.fromkeys(_default_origins + _env_origins))
+logger.info("CORS allow_origins: %s", _all_origins)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.environ.get("CORS_ORIGINS", "https://lasdosdoncellas-web.onrender.com").split(","),
+    allow_origins=_all_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -91,20 +101,30 @@ async def on_startup():
     except Exception as e:
         logger.warning(f"Storage init failed (will retry per request): {e}")
 
-    # Auto-seed de productos demo si la variable AUTO_SEED_PRODUCTS=1 y la
-    # colección de productos está vacía. Útil para Render: arrancas con la
-    # base vacía y se inyectan los 15 productos demo una sola vez.
-    if os.environ.get("AUTO_SEED_PRODUCTS") == "1":
-        try:
-            count = await db.products.count_documents({})
-            if count == 0:
-                logger.info("AUTO_SEED_PRODUCTS=1 y BD vacía — inyectando productos demo…")
-                from scripts.seed_products import seed
-                await seed()
-            else:
-                logger.info("AUTO_SEED_PRODUCTS=1 pero ya hay %d productos — no se hace nada.", count)
-        except Exception as e:
-            logger.exception("Auto-seed de productos falló: %s", e)
+    # Auto-seed productos demo cuando la BD esté vacía. Esto soluciona
+    # definitivamente el caso "tras build no hay productos": basta con que la
+    # colección products esté a 0 y se inyectan los 15 productos demo (Jamones,
+    # Embutidos, Lotes). Ya tiene productos? No hace nada (idempotente).
+    try:
+        count = await db.products.count_documents({})
+        if count == 0:
+            logger.info("BD sin productos — auto-seed inyectando los 15 productos demo…")
+            try:
+                from scripts.seed_products import seed as seed_products
+            except ImportError:
+                # Fallback: import directo del archivo
+                import importlib.util as _u
+                _spec = _u.spec_from_file_location("seed_products", ROOT_DIR / "scripts" / "seed_products.py")
+                _mod = _u.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                seed_products = _mod.seed
+            await seed_products()
+            new_count = await db.products.count_documents({})
+            logger.info("Auto-seed completado. Productos en BD: %d", new_count)
+        else:
+            logger.info("BD ya tiene %d productos — no se hace auto-seed.", count)
+    except Exception as e:
+        logger.exception("Auto-seed de productos falló: %s", e)
 
 
 @app.on_event("shutdown")
