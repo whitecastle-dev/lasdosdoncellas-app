@@ -16,13 +16,30 @@ import { ChevronDown } from "lucide-react";
  */
 
 const LANGUAGES = [
-  { code: "es", label: "ES", name: "Español",     flag: "🇪🇸" },
-  { code: "en", label: "EN", name: "English",     flag: "🇬🇧" },
-  { code: "fr", label: "FR", name: "Français",    flag: "🇫🇷" },
-  { code: "pt", label: "PT", name: "Português",   flag: "🇵🇹" },
-  { code: "de", label: "DE", name: "Deutsch",     flag: "🇩🇪" },
-  { code: "it", label: "IT", name: "Italiano",    flag: "🇮🇹" },
+  { code: "es", label: "ES", name: "Español",     flag: "es" },
+  { code: "en", label: "EN", name: "English",     flag: "gb" },
+  { code: "fr", label: "FR", name: "Français",    flag: "fr" },
+  { code: "pt", label: "PT", name: "Português",   flag: "pt" },
+  { code: "de", label: "DE", name: "Deutsch",     flag: "de" },
+  { code: "it", label: "IT", name: "Italiano",    flag: "it" },
 ];
+
+// Bandera SVG desde flagcdn.com — funciona en TODOS los OS/navegadores
+// (los emoji de banderas no se renderizan en Windows ni en muchos Android)
+function Flag({ code, size = 16 }) {
+  const w = size * 1.5;
+  return (
+    <img
+      src={`https://flagcdn.com/${size * 2}x${Math.round(size * 1.5)}/${code}.png`}
+      srcSet={`https://flagcdn.com/${size * 4}x${Math.round(size * 3)}/${code}.png 2x`}
+      width={w}
+      height={size}
+      alt=""
+      loading="lazy"
+      style={{ display: "inline-block", borderRadius: 2, objectFit: "cover", boxShadow: "0 0 0 1px rgba(197,160,89,0.25)" }}
+    />
+  );
+}
 
 function readCookie(name) {
   const m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -101,12 +118,12 @@ export default function LanguageSwitcher() {
         data-testid="lang-switcher-button"
         aria-label="Change language"
       >
-        <span className="text-lg leading-none" aria-hidden>{currentLang.flag}</span>
+        <Flag code={currentLang.flag} size={14} />
         <ChevronDown size={12} />
       </button>
       {open && (
         <div
-          className="absolute right-0 mt-2 w-48 bg-[#0a0a0a] border border-[rgba(197,160,89,0.3)] py-2 shadow-xl z-50"
+          className="absolute right-0 mt-2 w-52 bg-[#0a0a0a] border border-[rgba(197,160,89,0.3)] py-2 shadow-xl z-50"
           data-testid="lang-switcher-menu"
         >
           {LANGUAGES.map((l) => (
@@ -120,7 +137,7 @@ export default function LanguageSwitcher() {
               }`}
               data-testid={`lang-option-${l.code}`}
             >
-              <span className="text-lg leading-none" aria-hidden>{l.flag}</span>
+              <Flag code={l.flag} size={14} />
               <span className="flex-1">{l.name}</span>
               <span className="font-mono opacity-60 text-[10px]">{l.label}</span>
             </button>

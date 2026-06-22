@@ -43,7 +43,23 @@ export default function StoreFooter() {
       </div>
       <div className="max-w-[1500px] mx-auto px-6 lg:px-12 mt-16 pt-8 flex items-center justify-between text-xs flex-wrap gap-3" style={{ borderTop: "1px solid rgba(197,160,89,0.12)", color: "rgba(250,248,245,0.45)" }}>
         <div>© {new Date().getFullYear()} Las Dos Doncellas S.L. · CIF 77815813M</div>
-        <div className="font-script gold text-base">Sierra Norte de Sevilla</div>
+        <div className="flex items-center gap-4 flex-wrap">
+          <span className="font-script gold text-base">Sierra Norte de Sevilla</span>
+          <span style={{ color: "rgba(250,248,245,0.25)" }}>·</span>
+          <span>
+            Developed by{" "}
+            <a
+              href="https://whitecastle-dev.es"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#C5A059] transition underline-offset-2 hover:underline"
+              style={{ color: "rgba(250,248,245,0.65)" }}
+              data-testid="footer-whitecastle-link"
+            >
+              WhiteCastle Dev.
+            </a>
+          </span>
+        </div>
       </div>
     </footer>
   );

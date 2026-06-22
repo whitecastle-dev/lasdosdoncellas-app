@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { api, formatApiError } from "@/lib/api";
 import { useCustomer } from "@/context/CustomerContext";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { Camera, X } from "lucide-react";
 import StarRating from "@/components/StarRating";
 
 function fmtDate(iso) {
@@ -10,6 +11,8 @@ function fmtDate(iso) {
   try { return new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" }); }
   catch { return ""; }
 }
+
+const MAX_IMAGES = 3;
 
 export default function ReviewsSection({ productId, initialAvg = 0, initialCount = 0, onStatsChange }) {
   const { customer } = useCustomer();
@@ -20,7 +23,11 @@ export default function ReviewsSection({ productId, initialAvg = 0, initialCount
   const [showForm, setShowForm] = useState(false);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
+  const [imageUrls, setImageUrls] = useState([]);
+  const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [lightbox, setLightbox] = useState(null);
+  const fileRef = useRef(null);
 
   const load = async () => {
     try {
@@ -37,23 +44,46 @@ export default function ReviewsSection({ productId, initialAvg = 0, initialCount
 
   const ownReview = customer && items.find((r) => r.customer_id === customer.id);
 
+  const uploadImage = async (file) => {
+    if (!file) return;
+    if (imageUrls.length >= MAX_IMAGES) {
+      toast.error(`Máximo ${MAX_IMAGES} fotos`);
+      return;
+    }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await api.post("/reviews/upload-image", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      setImageUrls((u) => [...u, r.data.url]);
+    } catch (err) { toast.error(formatApiError(err)); }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ""; }
+  };
+
+  const removeImage = (url) => setImageUrls((u) => u.filter((x) => x !== url));
+
   const submit = async (e) => {
     e?.preventDefault?.();
     if (!rating) { toast.error("Selecciona una puntuación"); return; }
     setSending(true);
     try {
-      await api.post("/reviews", { product_id: productId, rating, comment });
+      await api.post("/reviews", { product_id: productId, rating, comment, image_urls: imageUrls });
       toast.success(ownReview ? "Reseña actualizada" : "Gracias por tu reseña");
       setShowForm(false);
       setComment("");
       setRating(0);
+      setImageUrls([]);
       await load();
     } catch (err) { toast.error(formatApiError(err)); }
     finally { setSending(false); }
   };
 
   const startEdit = () => {
-    if (ownReview) { setRating(ownReview.rating); setComment(ownReview.comment || ""); }
+    if (ownReview) {
+      setRating(ownReview.rating);
+      setComment(ownReview.comment || "");
+      setImageUrls(ownReview.image_urls || []);
+    }
     setShowForm(true);
   };
 
@@ -155,11 +185,43 @@ export default function ReviewsSection({ productId, initialAvg = 0, initialCount
                 {r.comment && (
                   <p className="mt-3 text-sm leading-relaxed" style={{ color: "rgba(250,248,245,0.78)" }}>{r.comment}</p>
                 )}
+                {(r.image_urls || []).length > 0 && (
+                  <div className="mt-3 flex gap-2 flex-wrap">
+                    {r.image_urls.map((u, i) => (
+                      <button
+                        key={u + i}
+                        type="button"
+                        onClick={() => setLightbox(u)}
+                        className="block focus:outline-none"
+                        data-testid={`review-photo-${r.id}-${i}`}
+                      >
+                        <img
+                          src={u}
+                          alt=""
+                          loading="lazy"
+                          className="w-20 h-20 object-cover hover:opacity-90 transition cursor-zoom-in"
+                          style={{ border: "1px solid rgba(197,160,89,0.18)" }}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </li>
             ))}
           </ul>
         </div>
       </div>
+
+      {/* Lightbox de fotos de reseña */}
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-6 cursor-zoom-out"
+          data-testid="review-lightbox"
+        >
+          <img src={lightbox} alt="" className="max-w-full max-h-full object-contain" />
+        </div>
+      )}
     </section>
   );
 }
