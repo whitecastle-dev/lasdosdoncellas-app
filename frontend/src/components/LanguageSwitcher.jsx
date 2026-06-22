@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Globe, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 /**
  * Selector de idioma vía Google Translate Element.
@@ -16,12 +16,12 @@ import { Globe, ChevronDown } from "lucide-react";
  */
 
 const LANGUAGES = [
-  { code: "es", label: "ES", name: "Español" },
-  { code: "en", label: "EN", name: "English" },
-  { code: "fr", label: "FR", name: "Français" },
-  { code: "pt", label: "PT", name: "Português" },
-  { code: "de", label: "DE", name: "Deutsch" },
-  { code: "it", label: "IT", name: "Italiano" },
+  { code: "es", label: "ES", name: "Español",     flag: "🇪🇸" },
+  { code: "en", label: "EN", name: "English",     flag: "🇬🇧" },
+  { code: "fr", label: "FR", name: "Français",    flag: "🇫🇷" },
+  { code: "pt", label: "PT", name: "Português",   flag: "🇵🇹" },
+  { code: "de", label: "DE", name: "Deutsch",     flag: "🇩🇪" },
+  { code: "it", label: "IT", name: "Italiano",    flag: "🇮🇹" },
 ];
 
 function readCookie(name) {
@@ -101,28 +101,28 @@ export default function LanguageSwitcher() {
         data-testid="lang-switcher-button"
         aria-label="Change language"
       >
-        <Globe size={14} />
-        <span className="hidden sm:inline">{currentLang.label}</span>
+        <span className="text-lg leading-none" aria-hidden>{currentLang.flag}</span>
         <ChevronDown size={12} />
       </button>
       {open && (
         <div
-          className="absolute right-0 mt-2 w-44 bg-[#0a0a0a] border border-[rgba(197,160,89,0.3)] py-2 shadow-xl z-50"
+          className="absolute right-0 mt-2 w-48 bg-[#0a0a0a] border border-[rgba(197,160,89,0.3)] py-2 shadow-xl z-50"
           data-testid="lang-switcher-menu"
         >
           {LANGUAGES.map((l) => (
             <button
               key={l.code}
               onClick={() => setLanguage(l.code)}
-              className={`w-full text-left px-4 py-2 text-xs uppercase tracking-widest transition flex items-center justify-between ${
+              className={`w-full text-left px-4 py-2 text-xs uppercase tracking-widest transition flex items-center gap-3 ${
                 l.code === current
                   ? "text-[#C5A059]"
                   : "text-[#FAF8F5] hover:bg-[#C5A059] hover:text-black"
               }`}
               data-testid={`lang-option-${l.code}`}
             >
-              <span>{l.name}</span>
-              <span className="font-mono opacity-70">{l.label}</span>
+              <span className="text-lg leading-none" aria-hidden>{l.flag}</span>
+              <span className="flex-1">{l.name}</span>
+              <span className="font-mono opacity-60 text-[10px]">{l.label}</span>
             </button>
           ))}
         </div>

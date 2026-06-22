@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { fileUrl, formatMoney } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
+import StarRating from "@/components/StarRating";
 
 export function imgSrc(img) {
   if (!img) return "";
@@ -34,6 +35,11 @@ export default function ProductCard({ p }) {
             {p.name}
           </Link>
           {p.origin && <div className="text-xs mt-1" style={{ color: "rgba(250,248,245,0.55)" }}>{p.origin}</div>}
+          {(p.review_count || 0) > 0 && (
+            <div className="mt-2">
+              <StarRating value={p.avg_rating || 0} size={12} readOnly count={p.review_count} />
+            </div>
+          )}
         </div>
         <div className="text-right">
           <div className="font-mono-data text-lg gold" data-testid={`product-price-${p.id}`}>{formatMoney(p.price)}</div>

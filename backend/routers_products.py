@@ -67,6 +67,9 @@ class ProductIn(BaseModel):
 def _product_with_image_urls(prod: dict) -> dict:
     prod.pop("_id", None)
     prod["image_urls"] = prod.get("images", [])
+    # Asegura campos de reseñas siempre presentes para que el front no rompa
+    prod.setdefault("avg_rating", 0.0)
+    prod.setdefault("review_count", 0)
     return prod
 
 @router.get("/products")

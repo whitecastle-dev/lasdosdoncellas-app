@@ -80,6 +80,32 @@ async def dashboard(_=Depends(require_permission("dashboard.read"))):
     ).limit(20)
     low_stock = [p async for p in low_stock_cursor]
 
+    # Reviews
+    total_reviews = await db.reviews.count_documents({})
+    rev_agg = db.reviews.aggregate([
+        {"$match": {"approved": True}},
+        {"$group": {"_id": None, "avg": {"$avg": "$rating"}}},
+    ])
+    avg_rating = 0.0
+    async for d in rev_agg:
+        avg_rating = round(float(d.get("avg", 0)), 2)
+
+    recent_reviews_cursor = db.reviews.find({}, {"_id": 0}).sort("created_at", -1).limit(8)
+    recent_reviews = [r async for r in recent_reviews_cursor]
+    # Enriquece con nombre del producto
+    if recent_reviews:
+        pids = list({r.get("product_id") for r in recent_reviews if r.get("product_id")})
+        prods = {p["id"]: p["name"] async for p in db.products.find({"id": {"$in": pids}}, {"_id": 0, "id": 1, "name": 1})}
+        for r in recent_reviews:
+            r["product_name"] = prods.get(r.get("product_id"), "—")
+
+    # Top productos por rating (mínimo 1 reseña)
+    top_rated_cursor = db.products.find(
+        {"review_count": {"$gt": 0}},
+        {"_id": 0, "id": 1, "name": 1, "avg_rating": 1, "review_count": 1},
+    ).sort("avg_rating", -1).limit(5)
+    top_rated = [p async for p in top_rated_cursor]
+
     return {
         "totals": {
             "orders": total_orders,
@@ -91,9 +117,13 @@ async def dashboard(_=Depends(require_permission("dashboard.read"))):
             "revenue_total": round(revenue_total, 2),
             "revenue_30d": round(revenue_30, 2),
             "orders_30d": orders_30,
+            "reviews": total_reviews,
+            "avg_rating": avg_rating,
         },
         "daily_revenue": daily,
         "top_products": top_products,
+        "top_rated": top_rated,
         "recent_orders": recent,
+        "recent_reviews": recent_reviews,
         "low_stock": low_stock,
     }

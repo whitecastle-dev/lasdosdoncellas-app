@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { AuthProvider } from "@/context/AuthContext";
 import { CustomerProvider } from "@/context/CustomerContext";
 import { CartProvider } from "@/context/CartContext";
+import GoogleTranslateLoader from "@/components/GoogleTranslateLoader";
 
 import Storefront from "@/pages/Storefront";
 import Catalog from "@/pages/Catalog";
@@ -45,6 +46,7 @@ function App() {
         <CustomerProvider>
           <CartProvider>
             <Toaster position="top-right" richColors theme="dark" />
+            <GoogleTranslateLoader />
             <Routes>
               <Route path="/" element={<Storefront />} />
               <Route path="/catalogo" element={<Catalog />} />
