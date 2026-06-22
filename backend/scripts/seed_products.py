@@ -100,13 +100,36 @@ PRODUCTS = {
 }
 
 
+async def _ensure_categories() -> dict:
+    """Crea las categorías base si no existen. Devuelve {slug: id}."""
+    CATS = [
+        {"slug": "jamones", "name": "Jamones", "position": 1},
+        {"slug": "embutidos", "name": "Embutidos", "position": 2},
+        {"slug": "lotes", "name": "Lotes Selectos", "position": 3},
+    ]
+    result = {}
+    for c in CATS:
+        existing = await db.categories.find_one({"slug": c["slug"]})
+        if existing:
+            result[c["slug"]] = existing["id"]
+            continue
+        cat_id = str(uuid.uuid4())
+        await db.categories.insert_one({
+            "id": cat_id,
+            "slug": c["slug"],
+            "name": c["name"],
+            "position": c["position"],
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        result[c["slug"]] = cat_id
+        print(f"  + categoría creada: {c['slug']}")
+    return result
+
+
 async def seed():
-    # Cargar categorías existentes para mapear slug → id
-    cats = {c["slug"]: c["id"] async for c in db.categories.find({}, {"_id": 0, "id": 1, "slug": 1})}
-    print(f"Categorías encontradas: {list(cats.keys())}")
-    if not all(s in cats for s in ("jamones", "embutidos", "lotes")):
-        print("⚠️  Faltan categorías base. Crea jamones/embutidos/lotes desde el CMS antes de seedear.")
-        return
+    cats = await _ensure_categories()
+    print(f"Categorías listas: {list(cats.keys())}")
 
     inserted = skipped = 0
     for slug, items in PRODUCTS.items():
