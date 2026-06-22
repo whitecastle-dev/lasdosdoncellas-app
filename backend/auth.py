@@ -21,6 +21,7 @@ ALL_PERMISSIONS = [
     "products.read", "products.write", "products.delete",
     "orders.read", "orders.write", "orders.delete",
     "users.read", "users.write", "users.delete",
+    "customers.read", "customers.write", "customers.delete",
     "settings.write",
 ]
 
