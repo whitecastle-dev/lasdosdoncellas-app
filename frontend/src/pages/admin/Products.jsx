@@ -4,6 +4,7 @@ import { api, formatApiError, formatMoney, fileUrl } from "@/lib/api";
 import { toast } from "sonner";
 import ExcelBar from "@/components/admin/ExcelBar";
 import TableFilter, { filterRows } from "@/components/admin/TableFilter";
+import useSort, { SortHeader } from "@/components/admin/useSort";
 
 const EMPTY = {
   name: "", sku: "", description: "", long_description: "",
@@ -29,6 +30,8 @@ export default function ProductsAdmin() {
   const [loading, setLoading] = useState(true);
   const bulkRef = useRef(null);
   const [bulkUploading, setBulkUploading] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [dragOver, setDragOver] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -41,21 +44,39 @@ export default function ProductsAdmin() {
     setCategories(c.data);
     setProviders(pr.data);
     setLoading(false);
+    setSelected(new Set());
   };
   useEffect(() => { load(); }, []);
 
   const filtered = useMemo(() => filterRows(products, q), [products, q]);
+  const { sorted, sortBy, sort } = useSort(filtered);
 
-  const onBulkImages = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+  const toggle = (id) => setSelected((s) => {
+    const n = new Set(s);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+  const toggleAll = () => setSelected((s) => s.size === sorted.length ? new Set() : new Set(sorted.map((p) => p.id)));
+
+  const deleteSelected = async () => {
+    if (!selected.size) return;
+    if (!window.confirm(`¿Eliminar ${selected.size} producto(s) seleccionado(s)?`)) return;
+    try {
+      const ids = [...selected];
+      await Promise.all(ids.map((id) => api.delete(`/products/${id}`)));
+      toast.success(`${ids.length} producto(s) eliminado(s)`);
+      load();
+    } catch (err) { toast.error(formatApiError(err)); }
+  };
+
+  const uploadBulkFiles = async (files) => {
+    if (!files?.length) return;
     setBulkUploading(true);
     try {
       const fd = new FormData();
       files.forEach((f) => fd.append("files", f));
       const { data } = await api.post("/products/images/bulk-import?enhance=true", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-        timeout: 180000,
+        headers: { "Content-Type": "multipart/form-data" }, timeout: 240000,
       });
       const msg = [
         `${data.imported} imagen${data.imported === 1 ? "" : "es"} subida${data.imported === 1 ? "" : "s"}`,
@@ -63,17 +84,52 @@ export default function ProductsAdmin() {
         data.errors?.length ? `${data.errors.length} error${data.errors.length === 1 ? "" : "es"}` : null,
       ].filter(Boolean).join(" · ");
       toast.success(msg || "Importación completada");
-      if (data.skipped_no_sku_match?.length) {
-        console.warn("Sin SKU coincidente:", data.skipped_no_sku_match);
-      }
+      if (data.skipped_no_sku_match?.length) console.warn("Sin SKU coincidente:", data.skipped_no_sku_match);
       if (data.errors?.length) console.error("Errores:", data.errors);
       load();
-    } catch (err) {
-      toast.error(formatApiError(err));
-    } finally {
-      setBulkUploading(false);
-      if (bulkRef.current) bulkRef.current.value = "";
+    } catch (err) { toast.error(formatApiError(err)); }
+    finally { setBulkUploading(false); if (bulkRef.current) bulkRef.current.value = ""; }
+  };
+
+  const onBulkImages = (e) => uploadBulkFiles(Array.from(e.target.files || []));
+
+  // Drag & drop de carpeta entera
+  const onDrop = async (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const items = e.dataTransfer?.items;
+    if (!items) return;
+
+    // Recolecta recursivamente todos los archivos de imagen
+    const collectFromEntry = (entry) => new Promise((resolve) => {
+      if (entry.isFile) {
+        entry.file((file) => resolve(file && /^image\//.test(file.type) ? [file] : []));
+      } else if (entry.isDirectory) {
+        const reader = entry.createReader();
+        const all = [];
+        const readAll = () => reader.readEntries(async (entries) => {
+          if (!entries.length) {
+            const lists = await Promise.all(all.map(collectFromEntry));
+            resolve(lists.flat());
+            return;
+          }
+          all.push(...entries);
+          readAll();
+        });
+        readAll();
+      } else { resolve([]); }
+    });
+
+    const promises = [];
+    for (const it of items) {
+      const entry = it.webkitGetAsEntry?.();
+      if (entry) promises.push(collectFromEntry(entry));
+      else { const f = it.getAsFile?.(); if (f && /^image\//.test(f.type)) promises.push(Promise.resolve([f])); }
     }
+    const collected = (await Promise.all(promises)).flat();
+    if (!collected.length) { toast.error("No se encontraron imágenes en lo soltado"); return; }
+    toast.message(`Procesando ${collected.length} imagen${collected.length === 1 ? "" : "es"}…`);
+    await uploadBulkFiles(collected);
   };
 
   const onDelete = async (id) => {
@@ -101,7 +157,7 @@ export default function ProductsAdmin() {
           <button
             onClick={() => bulkRef.current?.click()}
             disabled={bulkUploading}
-            title="Sube varias imágenes a la vez. Nombra cada archivo con el SKU del producto (ej: JAM-BEL-50-5J.jpg, JAM-BEL-50-5J-2.jpg)."
+            title="Sube varias imágenes a la vez o arrastra una carpeta sobre la tabla. Cada archivo se nombra como SKU.jpg (o SKU-2.jpg, SKU-3.jpg, etc.)."
             className="px-3 py-2 border border-[#C5A059] text-[#7a5f24] hover:bg-[#C5A059] hover:text-black text-sm flex items-center gap-2 disabled:opacity-50"
             data-testid="products-bulk-images-btn"
           >
@@ -115,27 +171,55 @@ export default function ProductsAdmin() {
         </div>
       </div>
 
-      <div className="cms-card overflow-hidden">
+      <div className="cms-card overflow-hidden"
+           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+           onDragLeave={() => setDragOver(false)}
+           onDrop={onDrop}
+           style={dragOver ? { boxShadow: "0 0 0 3px #C5A059 inset" } : {}}
+           data-testid="products-table-card">
+        {dragOver && (
+          <div className="p-4 text-center text-sm gold border-b border-[#C5A059]/40" data-testid="products-drop-hint">
+            Suelta la carpeta o imágenes aquí — se subirán todas e identificadas por SKU
+          </div>
+        )}
+        {selected.size > 0 && (
+          <div className="flex items-center justify-between px-4 py-2 bg-black text-white text-sm" data-testid="products-bulk-bar">
+            <div>{selected.size} seleccionado{selected.size === 1 ? "" : "s"}</div>
+            <div className="flex gap-3">
+              <button onClick={() => setSelected(new Set())} className="text-xs label-eyebrow">Limpiar</button>
+              <button onClick={deleteSelected} className="text-xs label-eyebrow text-red-300 hover:text-red-100" data-testid="products-bulk-delete">
+                Eliminar selección
+              </button>
+            </div>
+          </div>
+        )}
         <table className="cms-table w-full text-sm">
           <thead>
             <tr className="text-left bg-gray-50">
-              <th className="py-3 px-4">Img</th>
-              <th>SKU</th>
-              <th>Nombre</th>
-              <th>Categoría</th>
-              <th>Proveedor</th>
-              <th>Alta</th>
-              <th className="text-right">Stock</th>
-              <th className="text-right">Precio</th>
-              <th>Estado</th>
+              <th className="py-3 px-4 w-8">
+                <input type="checkbox" checked={selected.size > 0 && selected.size === sorted.length}
+                       onChange={toggleAll} data-testid="products-select-all" />
+              </th>
+              <th>Img</th>
+              <SortHeader label="SKU" sortKey="sku" sort={sort} sortBy={sortBy} />
+              <SortHeader label="Nombre" sortKey="name" sort={sort} sortBy={sortBy} />
+              <SortHeader label="Categoría" sortKey="category_id" sort={sort} sortBy={sortBy} />
+              <SortHeader label="Proveedor" sortKey="provider_id" sort={sort} sortBy={sortBy} />
+              <SortHeader label="Alta" sortKey="created_at" sort={sort} sortBy={sortBy} />
+              <SortHeader label="Stock" sortKey="stock" sort={sort} sortBy={sortBy} className="text-right" />
+              <SortHeader label="Precio" sortKey="price" sort={sort} sortBy={sortBy} className="text-right" />
+              <SortHeader label="Estado" sortKey="is_active" sort={sort} sortBy={sortBy} />
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={10} className="py-10 text-center text-gray-400">Cargando…</td></tr>}
-            {!loading && filtered.length === 0 && <tr><td colSpan={10} className="py-12 text-center text-gray-400">{products.length === 0 ? <>No hay productos. <button onClick={() => setEditing("new")} className="underline">Crear el primero</button>.</> : "Ningún producto coincide con el filtro."}</td></tr>}
-            {filtered.map((p) => (
+            {loading && <tr><td colSpan={11} className="py-10 text-center text-gray-400">Cargando…</td></tr>}
+            {!loading && sorted.length === 0 && <tr><td colSpan={11} className="py-12 text-center text-gray-400">{products.length === 0 ? <>No hay productos. <button onClick={() => setEditing("new")} className="underline">Crear el primero</button>.</> : "Ningún producto coincide con el filtro."}</td></tr>}
+            {sorted.map((p) => (
               <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50" data-testid={`product-row-${p.id}`}>
+                <td className="px-4 py-2">
+                  <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} data-testid={`product-select-${p.id}`} />
+                </td>
                 <td className="px-4 py-2">
                   <div className="w-12 h-12 bg-gray-100 overflow-hidden">
                     {p.image_urls?.[0] && <img src={imgSrc(p.image_urls[0])} alt="" className="w-full h-full object-cover" />}
