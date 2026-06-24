@@ -7,7 +7,7 @@ import { formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 
 export default function CustomerLogin() {
-  const { customer, login, refresh } = useCustomer();
+  const { customer, login } = useCustomer();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,21 +20,17 @@ export default function CustomerLogin() {
     e.preventDefault();
     setLoading(true);
     try {
-      // 1. Ejecutamos el login
-      await login(email, password);
-      
-      // 2. Refrescamos el contexto para forzar la carga del usuario en memoria
-      if (typeof refresh === "function") {
-        await refresh();
+      const user = await login(email, password);
+      if (!user) {
+        // El backend respondió OK pero no había payload de usuario válido.
+        throw new Error("No se pudo iniciar sesión.");
       }
-      
       toast.success("Bienvenido");
-      
-      // 3. Forzamos la redirección total una vez que el estado está actualizado
-      window.location.replace("/cuenta");
-    } catch (err) { 
+      nav("/cuenta", { replace: true });
+    } catch (err) {
+      toast.error(formatApiError(err));
+    } finally {
       setLoading(false);
-      toast.error(formatApiError(err)); 
     }
   };
 
