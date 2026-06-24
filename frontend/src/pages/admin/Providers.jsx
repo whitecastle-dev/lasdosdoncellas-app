@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, Mail, X, BarChart3, Search } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Plus, Pencil, Trash2, Mail, X, BarChart3 } from "lucide-react";
 import { api, formatApiError, formatMoney } from "@/lib/api";
 import { toast } from "sonner";
 import ExcelBar from "@/components/admin/ExcelBar";
+import TableFilter, { filterRows } from "@/components/admin/TableFilter";
 
 const EMPTY = {
   name: "", company: "", contact_name: "", email: "", phone: "",
@@ -18,10 +19,12 @@ export default function ProvidersAdmin() {
   const [emailFor, setEmailFor] = useState(null);
 
   const load = async () => {
-    const { data } = await api.get("/providers", { params: { q: q || undefined } });
+    const { data } = await api.get("/providers");
     setProviders(data);
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load(); }, []);
+
+  const filtered = useMemo(() => filterRows(providers, q), [providers, q]);
 
   const onDelete = async (p) => {
     if (!confirm(`¿Eliminar proveedor ${p.name}?`)) return;
@@ -41,12 +44,7 @@ export default function ProvidersAdmin() {
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <ExcelBar entity="providers" onImported={load} />
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && load()}
-              placeholder="Buscar nombre, email…"
-              className="pl-9 pr-3 py-2 border border-gray-200 text-sm bg-white outline-none focus:border-black" data-testid="providers-search" />
-          </div>
+          <TableFilter value={q} onChange={setQ} placeholder="Buscar por cualquier campo…" testid="providers-filter" />
           <button onClick={() => setEditing("new")} className="px-4 py-2 bg-black text-[#C5A059] text-sm flex items-center gap-2" data-testid="providers-new">
             <Plus size={14} /> Nuevo proveedor
           </button>
@@ -67,7 +65,7 @@ export default function ProvidersAdmin() {
           </thead>
           <tbody>
             {providers.length === 0 && <tr><td colSpan={6} className="py-12 text-center text-gray-400">Sin proveedores. <button onClick={() => setEditing("new")} className="underline">Crea el primero</button>.</td></tr>}
-            {providers.map((p) => (
+            {filtered.map((p) => (
               <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50" data-testid={`provider-row-${p.id}`}>
                 <td className="py-3 px-4 font-medium">{p.name}</td>
                 <td className="text-gray-600">{p.company}</td>

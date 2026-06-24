@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useRef } from "react";
-import { Plus, Pencil, Trash2, Upload, Search, X, Sparkles } from "lucide-react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+import { Plus, Pencil, Trash2, Upload, X, Sparkles, ImagePlus } from "lucide-react";
 import { api, formatApiError, formatMoney, fileUrl } from "@/lib/api";
 import { toast } from "sonner";
 import ExcelBar from "@/components/admin/ExcelBar";
+import TableFilter, { filterRows } from "@/components/admin/TableFilter";
 
 const EMPTY = {
   name: "", sku: "", description: "", long_description: "",
@@ -26,11 +27,13 @@ export default function ProductsAdmin() {
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(true);
+  const bulkRef = useRef(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
 
   const load = async () => {
     setLoading(true);
     const [p, c, pr] = await Promise.all([
-      api.get("/products", { params: { q: q || undefined } }),
+      api.get("/products"),
       api.get("/categories"),
       api.get("/providers").catch(() => ({ data: [] })),
     ]);
@@ -39,7 +42,39 @@ export default function ProductsAdmin() {
     setProviders(pr.data);
     setLoading(false);
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load(); }, []);
+
+  const filtered = useMemo(() => filterRows(products, q), [products, q]);
+
+  const onBulkImages = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setBulkUploading(true);
+    try {
+      const fd = new FormData();
+      files.forEach((f) => fd.append("files", f));
+      const { data } = await api.post("/products/images/bulk-import?enhance=true", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 180000,
+      });
+      const msg = [
+        `${data.imported} imagen${data.imported === 1 ? "" : "es"} subida${data.imported === 1 ? "" : "s"}`,
+        data.skipped_no_sku_match?.length ? `${data.skipped_no_sku_match.length} sin SKU coincidente` : null,
+        data.errors?.length ? `${data.errors.length} error${data.errors.length === 1 ? "" : "es"}` : null,
+      ].filter(Boolean).join(" · ");
+      toast.success(msg || "Importación completada");
+      if (data.skipped_no_sku_match?.length) {
+        console.warn("Sin SKU coincidente:", data.skipped_no_sku_match);
+      }
+      if (data.errors?.length) console.error("Errores:", data.errors);
+      load();
+    } catch (err) {
+      toast.error(formatApiError(err));
+    } finally {
+      setBulkUploading(false);
+      if (bulkRef.current) bulkRef.current.value = "";
+    }
+  };
 
   const onDelete = async (id) => {
     if (!confirm("¿Eliminar este producto?")) return;
@@ -59,11 +94,21 @@ export default function ProductsAdmin() {
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <ExcelBar entity="products" onImported={load} />
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && load()} placeholder="Buscar SKU, nombre…"
-              className="pl-9 pr-3 py-2 border border-gray-200 text-sm bg-white outline-none focus:border-black" data-testid="products-search" />
-          </div>
+
+          {/* Import masivo de imágenes por SKU */}
+          <input ref={bulkRef} type="file" accept="image/*" multiple className="hidden"
+                 onChange={onBulkImages} data-testid="products-bulk-images-input" />
+          <button
+            onClick={() => bulkRef.current?.click()}
+            disabled={bulkUploading}
+            title="Sube varias imágenes a la vez. Nombra cada archivo con el SKU del producto (ej: JAM-BEL-50-5J.jpg, JAM-BEL-50-5J-2.jpg)."
+            className="px-3 py-2 border border-[#C5A059] text-[#7a5f24] hover:bg-[#C5A059] hover:text-black text-sm flex items-center gap-2 disabled:opacity-50"
+            data-testid="products-bulk-images-btn"
+          >
+            <ImagePlus size={14} /> {bulkUploading ? "Procesando…" : "Importar imágenes (SKU)"}
+          </button>
+
+          <TableFilter value={q} onChange={setQ} placeholder="Buscar por cualquier campo…" testid="products-filter" />
           <button onClick={() => setEditing("new")} className="px-4 py-2 bg-black text-[#C5A059] text-sm flex items-center gap-2" data-testid="products-new">
             <Plus size={14} /> Nuevo producto
           </button>
@@ -88,8 +133,8 @@ export default function ProductsAdmin() {
           </thead>
           <tbody>
             {loading && <tr><td colSpan={10} className="py-10 text-center text-gray-400">Cargando…</td></tr>}
-            {!loading && products.length === 0 && <tr><td colSpan={10} className="py-12 text-center text-gray-400">No hay productos. <button onClick={() => setEditing("new")} className="underline">Crear el primero</button>.</td></tr>}
-            {products.map((p) => (
+            {!loading && filtered.length === 0 && <tr><td colSpan={10} className="py-12 text-center text-gray-400">{products.length === 0 ? <>No hay productos. <button onClick={() => setEditing("new")} className="underline">Crear el primero</button>.</> : "Ningún producto coincide con el filtro."}</td></tr>}
+            {filtered.map((p) => (
               <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50" data-testid={`product-row-${p.id}`}>
                 <td className="px-4 py-2">
                   <div className="w-12 h-12 bg-gray-100 overflow-hidden">

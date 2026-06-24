@@ -66,6 +66,15 @@ async def list_web_users(_=Depends(require_permission("customers.read"))):
             c.setdefault("first_name", full_name)
             c.setdefault("last_name", "")
         c.setdefault("is_verified", bool(c.get("verified", False)))
+        # Aplana la dirección por defecto (envío, o billing, o la primera)
+        addrs = c.get("addresses") or []
+        default = next((a for a in addrs if a.get("is_default_shipping")), None) or \
+                  next((a for a in addrs if a.get("is_default_billing")), None) or \
+                  (addrs[0] if addrs else {})
+        c["address"] = default.get("address", "")
+        c["city"] = default.get("city", "")
+        c["postal_code"] = default.get("postal_code", "")
+        c["country"] = default.get("country", "España")
         items.append(c)
     return items
 
@@ -78,6 +87,10 @@ class WebUserUpdate(BaseModel):
     is_active: Optional[bool] = None
     is_verified: Optional[bool] = None
     password: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    postal_code: Optional[str] = None
+    country: Optional[str] = None
 
 
 @router.patch("/web/{customer_id}")
@@ -107,6 +120,30 @@ async def update_web_user(customer_id: str, payload: WebUserUpdate,
         if not validate_password(payload.password):
             raise HTTPException(status_code=400, detail=PASSWORD_RULES_MSG)
         updates["password_hash"] = hash_password(payload.password)
+
+    # Actualiza/crea la dirección por defecto si llega algún campo de dirección
+    addr_keys = ("address", "city", "postal_code", "country")
+    addr_payload = {k: getattr(payload, k) for k in addr_keys}
+    if any(v is not None for v in addr_payload.values()):
+        addresses = list(customer.get("addresses") or [])
+        idx = next((i for i, a in enumerate(addresses) if a.get("is_default_shipping")), -1)
+        cur = addresses[idx] if idx >= 0 else {}
+        new_addr = {
+            "label": cur.get("label", "Principal"),
+            "full_name": updates.get("name") or customer.get("name", ""),
+            "address": addr_payload["address"] if addr_payload["address"] is not None else cur.get("address", ""),
+            "city": addr_payload["city"] if addr_payload["city"] is not None else cur.get("city", ""),
+            "postal_code": addr_payload["postal_code"] if addr_payload["postal_code"] is not None else cur.get("postal_code", ""),
+            "country": addr_payload["country"] if addr_payload["country"] is not None else cur.get("country", "España"),
+            "phone": customer.get("phone", ""),
+            "is_default_billing": True,
+            "is_default_shipping": True,
+        }
+        if idx >= 0:
+            addresses[idx] = new_addr
+        else:
+            addresses.insert(0, new_addr)
+        updates["addresses"] = addresses
 
     await db.customers.update_one({"id": customer_id}, {"$set": updates})
     updated = await db.customers.find_one(

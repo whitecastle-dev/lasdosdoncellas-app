@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useRef } from "react";
-import { Search, Download, X, ChevronRight, FileSpreadsheet, Upload } from "lucide-react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+import { Download, X, ChevronRight, FileSpreadsheet, Upload } from "lucide-react";
 import { api, formatApiError, formatMoney } from "@/lib/api";
 import { toast } from "sonner";
+import TableFilter, { filterRows } from "@/components/admin/TableFilter";
 
 const STATUSES = [
   { v: "pending_payment", l: "Pendiente de pago" },
@@ -23,11 +24,13 @@ export default function OrdersAdmin() {
   const fileRef = useRef();
 
   const load = async () => {
-    const { data } = await api.get("/orders", { params: { status: filter || undefined, q: q || undefined } });
+    const { data } = await api.get("/orders", { params: { status: filter || undefined } });
     setOrders(data);
     setPicked(new Set());
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [filter]);
+  useEffect(() => { load(); }, [filter]);
+
+  const filtered = useMemo(() => filterRows(orders, q), [orders, q]);
 
   const togglePick = (id, e) => {
     e?.stopPropagation();
@@ -105,13 +108,9 @@ export default function OrdersAdmin() {
           <div className="label-eyebrow text-gray-500">Gestión</div>
           <h1 className="font-serif text-4xl tracking-tight mt-1">Pedidos</h1>
         </div>
-        <div className="flex gap-3 items-center">
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && load()} placeholder="Buscar nº, email, cliente…"
-              className="pl-9 pr-3 py-2 border border-gray-200 text-sm bg-white outline-none focus:border-black" data-testid="orders-search" />
-          </div>
-          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="border border-gray-200 px-3 py-2 text-sm bg-white" data-testid="orders-filter">
+        <div className="flex gap-3 items-center flex-wrap">
+          <TableFilter value={q} onChange={setQ} placeholder="Buscar por cualquier campo…" testid="orders-filter" />
+          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="border border-gray-200 px-3 py-2 text-sm bg-white" data-testid="orders-status-filter">
             <option value="">Todos los estados</option>
             {STATUSES.map((s) => <option key={s.v} value={s.v}>{s.l}</option>)}
           </select>
@@ -143,7 +142,7 @@ export default function OrdersAdmin() {
           </thead>
           <tbody>
             {orders.length === 0 && <tr><td colSpan={6} className="py-12 text-center text-gray-400">Sin pedidos</td></tr>}
-            {orders.map((o) => (
+            {filtered.map((o) => (
               <tr key={o.id} className="border-t border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => setSelected(o)} data-testid={`order-row-${o.id}`}>
                 <td className="px-4 py-3 mono">{o.order_number}</td>
                 <td className="text-gray-600">{new Date(o.created_at).toLocaleString("es-ES")}</td>
