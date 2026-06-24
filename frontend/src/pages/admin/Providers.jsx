@@ -4,6 +4,7 @@ import { api, formatApiError, formatMoney } from "@/lib/api";
 import { toast } from "sonner";
 import ExcelBar from "@/components/admin/ExcelBar";
 import TableFilter, { filterRows } from "@/components/admin/TableFilter";
+import useSort, { SortHeader } from "@/components/admin/useSort";
 
 const EMPTY = {
   name: "", company: "", contact_name: "", email: "", phone: "",
@@ -18,13 +19,25 @@ export default function ProvidersAdmin() {
   const [statsFor, setStatsFor] = useState(null);
   const [emailFor, setEmailFor] = useState(null);
 
+  const [selected, setSelected] = useState(new Set());
+
   const load = async () => {
     const { data } = await api.get("/providers");
     setProviders(data);
+    setSelected(new Set());
   };
   useEffect(() => { load(); }, []);
 
   const filtered = useMemo(() => filterRows(providers, q), [providers, q]);
+  const { sorted, sortBy, sort } = useSort(filtered);
+
+  const toggle = (id) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleAll = () => setSelected((s) => s.size === sorted.length ? new Set() : new Set(sorted.map((p) => p.id)));
+  const deleteSelected = async () => {
+    if (!selected.size || !window.confirm(`¿Eliminar ${selected.size} proveedor(es)?`)) return;
+    try { await Promise.all([...selected].map((id) => api.delete(`/providers/${id}`))); toast.success("Eliminados"); load(); }
+    catch (err) { toast.error(formatApiError(err)); }
+  };
 
   const onDelete = async (p) => {
     if (!confirm(`¿Eliminar proveedor ${p.name}?`)) return;
@@ -52,21 +65,32 @@ export default function ProvidersAdmin() {
       </div>
 
       <div className="cms-card overflow-hidden">
+        {selected.size > 0 && (
+          <div className="flex items-center justify-between px-4 py-2 bg-black text-white text-sm">
+            <div>{selected.size} seleccionado{selected.size === 1 ? "" : "s"}</div>
+            <div className="flex gap-3">
+              <button onClick={() => setSelected(new Set())} className="text-xs label-eyebrow">Limpiar</button>
+              <button onClick={deleteSelected} className="text-xs label-eyebrow text-red-300 hover:text-red-100" data-testid="providers-bulk-delete">Eliminar selección</button>
+            </div>
+          </div>
+        )}
         <table className="cms-table w-full text-sm">
           <thead>
             <tr className="text-left bg-gray-50">
-              <th className="py-3 px-4">Nombre</th>
-              <th>Empresa</th>
-              <th>Email</th>
-              <th>Teléfono</th>
-              <th>Estado</th>
+              <th className="py-3 px-4 w-8"><input type="checkbox" checked={selected.size > 0 && selected.size === sorted.length} onChange={toggleAll} data-testid="providers-select-all" /></th>
+              <SortHeader label="Nombre" sortKey="name" sort={sort} sortBy={sortBy} />
+              <SortHeader label="Empresa" sortKey="company" sort={sort} sortBy={sortBy} />
+              <SortHeader label="Email" sortKey="email" sort={sort} sortBy={sortBy} />
+              <SortHeader label="Teléfono" sortKey="phone" sort={sort} sortBy={sortBy} />
+              <SortHeader label="Estado" sortKey="is_active" sort={sort} sortBy={sortBy} />
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {providers.length === 0 && <tr><td colSpan={6} className="py-12 text-center text-gray-400">Sin proveedores. <button onClick={() => setEditing("new")} className="underline">Crea el primero</button>.</td></tr>}
-            {filtered.map((p) => (
+            {sorted.length === 0 && <tr><td colSpan={7} className="py-12 text-center text-gray-400">{providers.length === 0 ? <>Sin proveedores. <button onClick={() => setEditing("new")} className="underline">Crea el primero</button>.</> : "Ningún proveedor coincide."}</td></tr>}
+            {sorted.map((p) => (
               <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50" data-testid={`provider-row-${p.id}`}>
+                <td className="px-4 py-2"><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} data-testid={`provider-select-${p.id}`} /></td>
                 <td className="py-3 px-4 font-medium">{p.name}</td>
                 <td className="text-gray-600">{p.company}</td>
                 <td className="mono text-xs">{p.email}</td>

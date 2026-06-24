@@ -8,9 +8,13 @@ export const api = axios.create({
   withCredentials: true,
 });
 
-// Attach token from localStorage as fallback (for cookies blocked in some envs)
+// Interceptor: prioriza el token CMS si existe; si no, usa el token de cliente
+// (esto soluciona el "No autenticado" al postear reseñas como cliente WEB
+// porque antes solo se enviaba ldd_token).
 api.interceptors.request.use((config) => {
-  const t = localStorage.getItem("ldd_token");
+  const adminT = localStorage.getItem("ldd_token");
+  const customerT = localStorage.getItem("ldd_customer_token");
+  const t = adminT || customerT;
   if (t) config.headers.Authorization = `Bearer ${t}`;
   return config;
 });

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import ExcelBar from "@/components/admin/ExcelBar";
 import TableFilter, { filterRows } from "@/components/admin/TableFilter";
+import useSort, { SortHeader } from "@/components/admin/useSort";
 
 const PERMISSION_LABELS = {
   "dashboard.read": "Ver Dashboard",
@@ -38,6 +39,8 @@ export default function UsersAdmin() {
 
   const filteredCms = useMemo(() => filterRows(users, qCms), [users, qCms]);
   const filteredWeb = useMemo(() => filterRows(webUsers, qWeb), [webUsers, qWeb]);
+  const sCms = useSort(filteredCms, "email", "asc");
+  const sWeb = useSort(filteredWeb, "created_at", "desc");
 
   const load = async () => {
     const [u, p, w] = await Promise.all([
@@ -112,8 +115,8 @@ export default function UsersAdmin() {
                 </tr>
               </thead>
               <tbody>
-                {filteredCms.length === 0 && <tr><td colSpan={6} className="py-10 text-center text-gray-400">Ningún usuario coincide.</td></tr>}
-                {filteredCms.map((u) => (
+                {sCms.sorted.length === 0 && <tr><td colSpan={6} className="py-10 text-center text-gray-400">Ningún usuario coincide.</td></tr>}
+                {sCms.sorted.map((u) => (
                   <tr key={u.id} className="border-t border-gray-100" data-testid={`user-row-${u.id}`}>
                     <td className="px-4 py-3 flex items-center gap-2">
                       {u.is_superadmin && <Shield size={14} className="text-amber-600" />}
@@ -159,10 +162,10 @@ export default function UsersAdmin() {
                 </tr>
               </thead>
               <tbody>
-                {filteredWeb.length === 0 && (
+                {sWeb.sorted.length === 0 && (
                   <tr><td colSpan={8} className="py-12 text-center text-gray-400">{webUsers.length === 0 ? "Aún no hay clientes registrados." : "Ningún cliente coincide con el filtro."}</td></tr>
                 )}
-                {filteredWeb.map((u) => (
+                {sWeb.sorted.map((u) => (
                   <tr key={u.id} className="border-t border-gray-100" data-testid={`web-user-row-${u.id}`}>
                     <td className="px-4 py-3">{`${u.first_name || ""} ${u.last_name || ""}`.trim() || u.name || "—"}</td>
                     <td className="mono text-xs">{u.email}</td>

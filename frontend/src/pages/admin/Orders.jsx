@@ -3,6 +3,7 @@ import { Download, X, ChevronRight, FileSpreadsheet, Upload } from "lucide-react
 import { api, formatApiError, formatMoney } from "@/lib/api";
 import { toast } from "sonner";
 import TableFilter, { filterRows } from "@/components/admin/TableFilter";
+import useSort, { SortHeader } from "@/components/admin/useSort";
 
 const STATUSES = [
   { v: "pending_payment", l: "Pendiente de pago" },
@@ -31,6 +32,7 @@ export default function OrdersAdmin() {
   useEffect(() => { load(); }, [filter]);
 
   const filtered = useMemo(() => filterRows(orders, q), [orders, q]);
+  const { sorted, sortBy, sort } = useSort(filtered, "created_at", "desc");
 
   const togglePick = (id, e) => {
     e?.stopPropagation();
@@ -131,18 +133,18 @@ export default function OrdersAdmin() {
         <table className="cms-table w-full text-sm">
           <thead>
             <tr className="text-left bg-gray-50">
-              <th className="py-3 px-4 w-8"><input type="checkbox" checked={picked.size === orders.length && orders.length > 0} onChange={toggleAll} data-testid="orders-select-all" /></th>
-              <th>Pedido</th>
-              <th>Fecha</th>
-              <th>Cliente</th>
-              <th>Estado</th>
-              <th className="text-right">Total</th>
+              <th className="py-3 px-4 w-8"><input type="checkbox" checked={picked.size === sorted.length && sorted.length > 0} onChange={toggleAll} data-testid="orders-select-all" /></th>
+              <SortHeader label="Pedido" sortKey="order_number" sort={sort} sortBy={sortBy} />
+              <SortHeader label="Fecha" sortKey="created_at" sort={sort} sortBy={sortBy} />
+              <SortHeader label="Cliente" sortKey="customer_email" sort={sort} sortBy={sortBy} />
+              <SortHeader label="Estado" sortKey="status" sort={sort} sortBy={sortBy} />
+              <SortHeader label="Total" sortKey="total" sort={sort} sortBy={sortBy} className="text-right" />
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {orders.length === 0 && <tr><td colSpan={6} className="py-12 text-center text-gray-400">Sin pedidos</td></tr>}
-            {filtered.map((o) => (
+            {sorted.length === 0 && <tr><td colSpan={7} className="py-12 text-center text-gray-400">Sin pedidos</td></tr>}
+            {sorted.map((o) => (
               <tr key={o.id} className="border-t border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => setSelected(o)} data-testid={`order-row-${o.id}`}>
                 <td className="px-4 py-3 mono">{o.order_number}</td>
                 <td className="text-gray-600">{new Date(o.created_at).toLocaleString("es-ES")}</td>
