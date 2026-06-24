@@ -1,56 +1,42 @@
 import os
+import uuid
 import cloudinary
 import cloudinary.uploader
-from fastapi import HTTPException
 
-# Configuración de Cloudinary
 cloudinary.config(
     cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
     api_key=os.environ.get("CLOUDINARY_API_KEY"),
-    api_secret=os.environ.get("CLOUDINARY_API_SECRET")
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+    secure=True,
 )
 
-def upload_to_cloudinary(file_bytes, product_id):
-    """
-    Sube la imagen a Cloudinary aplicando una transformación editorial premium:
-    - Eliminación de fondo automática.
-    - Mejora de nitidez y calidad.
-    - Centrado y ajuste a fondo blanco.
-    """
-    try:
-        # Configuración de Transformación Editorial Premium
-        transformations = {
-            # 1. Calidad y Nitidez
-            "quality": "auto:best",         # Optimización inteligente de peso vs calidad
-            "fetch_format": "auto",         # Entrega en WebP/AVIF (mejor para web)
-            "e_sharpen": 100,               # Nitidez extrema para resaltar detalles
-            
-            # 2. Fondo y Estética
-            "background": "white",          # Fondo limpio y profesional
-            "e_background_removal": "true", # Quita el fondo original
-            
-            # 3. Composición profesional
-            "crop": "pad",                  # 'pad' coloca el producto centrado en el lienzo
-            "width": 1000,
-            "height": 1000,
-            "gravity": "center"             # Asegura que el producto esté en el medio
-        }
 
-        # Subir a carpeta de productos con las transformaciones aplicadas
+def upload_to_cloudinary(file_bytes, product_id):
+    """Sube la imagen a Cloudinary en carpeta products/<id>.
+
+    Genera un `public_id` único garantizado (UUID) para que CADA imagen subida
+    quede como un objeto distinto — antes el endpoint bulk solo guardaba la
+    última imagen porque Cloudinary podía deduplicar por content-hash.
+
+    Aplica optimización ligera: calidad auto y formato auto (webp/avif).
+    No usa `background_removal` (add-on de pago) ni `sharpen` (la nitidez la
+    aplica ya nuestro pipeline `image_ai.py`).
+    """
+    public_id = f"{product_id}-{uuid.uuid4().hex[:10]}"
+    try:
         response = cloudinary.uploader.upload(
-            file_bytes, 
+            file_bytes,
             folder=f"products/{product_id}",
-            transformation=transformations
+            public_id=public_id,
+            overwrite=False,
+            unique_filename=False,
+            quality="auto:good",
+            fetch_format="auto",
         )
-        
-        return {
-            "url": response["secure_url"],
-            "path": response["public_id"]
-        }
+        return {"url": response["secure_url"], "path": response["public_id"]}
     except Exception as e:
-        # Registramos el error y lanzamos excepción para que la API responda correctamente
-        raise Exception(f"Error en Cloudinary: {str(e)}")
+        raise Exception(f"Error en Cloudinary: {e}")
+
 
 def init_storage():
-    """Función de compatibilidad para evitar errores de importación."""
     pass
