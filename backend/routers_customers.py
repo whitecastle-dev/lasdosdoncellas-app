@@ -47,21 +47,61 @@ class ProfileIn(BaseModel):
 
 
 async def get_current_customer(request: Request) -> dict:
-    token = request.cookies.get("customer_token")
+    """Obtiene al cliente autenticado. Soporta DOS flujos:
+
+    1) Flujo unificado (actual): el cliente vive en `db.users` con role='customer'.
+       El token es type='access' y se envía vía Bearer (preferente) o cookie
+       `access_token`.
+    2) Flujo legacy: el cliente vive en `db.customers` con token type='customer'
+       y cookie `customer_token`.
+
+    Esto es necesario porque /api/auth/register/login (sistema unificado) escribe
+    en db.users, pero las reseñas / direcciones / pedidos del storefront se
+    diseñaron originalmente contra /api/customer/*. Si solo aceptásemos el
+    flujo legacy, los clientes registrados por el sistema unificado no podrían
+    reseñar ni gestionar direcciones.
+    """
+    # 1) Bearer header tiene prioridad (no se ve afectado por cookies del admin)
+    token = None
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+    # 2) Si no hay Bearer, probamos cookies — primero la nueva (access_token),
+    #    luego la legacy (customer_token)
     if not token:
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:]
+        token = request.cookies.get("access_token") or request.cookies.get("customer_token")
     if not token:
         raise HTTPException(status_code=401, detail="No autenticado")
+
     payload = decode_token(token)
-    if payload.get("type") != "customer":
-        raise HTTPException(status_code=401, detail="Tipo de token inválido")
-    customer = await db[CUSTOMER_COLLECTION].find_one({"id": payload["sub"]}, {"password_hash": 0})
-    if not customer:
-        raise HTTPException(status_code=401, detail="Cliente no encontrado")
-    customer.pop("_id", None)
-    return customer
+    ttype = payload.get("type")
+
+    # --- Flujo unificado ---
+    if ttype == "access":
+        user = await db.users.find_one({"id": payload["sub"]}, {"password_hash": 0})
+        if not user:
+            raise HTTPException(status_code=401, detail="Cuenta no encontrada")
+        if user.get("is_superadmin"):
+            raise HTTPException(status_code=403, detail="Esta acción requiere una cuenta de cliente")
+        if user.get("is_active") is False:
+            raise HTTPException(status_code=403, detail="Cuenta inactiva")
+        user.pop("_id", None)
+        # Normaliza el campo name (auth-system guarda first_name/last_name)
+        if not user.get("name"):
+            fn = user.get("first_name", "") or ""
+            ln = user.get("last_name", "") or ""
+            user["name"] = f"{fn} {ln}".strip() or user.get("email", "")
+        return user
+
+    # --- Flujo legacy ---
+    if ttype == "customer":
+        customer = await db[CUSTOMER_COLLECTION].find_one({"id": payload["sub"]}, {"password_hash": 0})
+        if not customer:
+            raise HTTPException(status_code=401, detail="Cliente no encontrado")
+        customer.pop("_id", None)
+        return customer
+
+    raise HTTPException(status_code=401, detail="Tipo de token inválido")
 
 
 def _create_customer_token(customer_id: str, email: str) -> str:

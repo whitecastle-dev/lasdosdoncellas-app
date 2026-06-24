@@ -2,21 +2,23 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import axios from "axios";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const AUTH_API = `${BACKEND_URL}/api/auth`; 
+const AUTH_API = `${BACKEND_URL}/api/auth`;
 
+// IMPORTANTE: usamos withCredentials:false en el contexto del CLIENTE para
+// que NO se envíen las cookies del admin (access_token) que viven en el mismo
+// dominio. Si las enviásemos, el backend respondería con los datos del admin
+// logueado en CMS y "Super" aparecería arriba a la derecha del storefront.
+// El token del cliente se manda exclusivamente vía Authorization Bearer.
 export const customerApi = axios.create({
   baseURL: `${BACKEND_URL}/api/customer`,
-  withCredentials: true,
+  withCredentials: false,
 });
 
-// authApi: registro, login, /me, reset password (sistema unificado)
 const authApi = axios.create({
   baseURL: AUTH_API,
-  withCredentials: true,
+  withCredentials: false,
 });
 
-// Interceptor: añade el Bearer token a ambas instancias (fallback si las
-// cookies cross-site son bloqueadas por el navegador)
 const attachToken = (config) => {
   const t = localStorage.getItem("ldd_customer_token");
   if (t) config.headers.Authorization = `Bearer ${t}`;
@@ -27,12 +29,22 @@ authApi.interceptors.request.use(attachToken);
 
 const CustomerCtx = createContext({ customer: null, loading: true });
 
+// Sólo aceptamos como "cliente" a usuarios cuyo role sea customer
+// (evitamos que un admin/superadmin aparezca logueado en el storefront).
+const isCustomerUser = (u) => {
+  if (!u) return false;
+  if (u.is_superadmin) return false;
+  const role = (u.role || "").toLowerCase();
+  return role === "" || role === "customer";
+};
+
 export function CustomerProvider({ children }) {
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    refresh(); // Usamos la función refresh para inicializar el estado
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const register = async (payload) => {
@@ -42,15 +54,12 @@ export function CustomerProvider({ children }) {
 
   const login = async (email, password) => {
     const { data } = await authApi.post("/login", { email, password });
-    // El backend ahora devuelve access_token + user en el body.
-    // Guardamos el token como fallback (cookies httpOnly se aplican en paralelo).
     if (data.access_token) {
       localStorage.setItem("ldd_customer_token", data.access_token);
     }
-    // Pinta el menú inmediatamente con el user del body (sin esperar al /me)
-    if (data.user) setCustomer(data.user);
-    // Después sincroniza con /me para confirmar y traer datos completos
-    await refresh();
+    if (data.user && isCustomerUser(data.user)) {
+      setCustomer(data.user);
+    }
     return data.user;
   };
 
@@ -63,13 +72,21 @@ export function CustomerProvider({ children }) {
   const refresh = async () => {
     setLoading(true);
     try {
-      // IMPORTANTE: usamos /api/customer/me (NO /auth/me) porque /auth/me
-      // devuelve tanto clientes como admins. Si admin estaba logueado, su
-      // sesión se filtraba al storefront y aparecía como "cliente" — bug
-      // visible como "Super" arriba a la derecha tras login CMS.
-      const { data } = await customerApi.get("/me");
-      setCustomer(data);
-      return data;
+      // Si no hay token de cliente, no hay nada que refrescar.
+      const t = localStorage.getItem("ldd_customer_token");
+      if (!t) {
+        setCustomer(null);
+        return null;
+      }
+      const { data } = await authApi.get("/me");
+      if (isCustomerUser(data)) {
+        setCustomer(data);
+        return data;
+      }
+      // El token guardado pertenece a un admin → lo limpiamos para evitar loops
+      localStorage.removeItem("ldd_customer_token");
+      setCustomer(null);
+      return null;
     } catch {
       setCustomer(null);
       return null;

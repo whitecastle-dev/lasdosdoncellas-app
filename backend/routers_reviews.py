@@ -63,6 +63,22 @@ class ReviewIn(BaseModel):
 
 
 # ---------- endpoints ----------
+@router.get("/recent")
+async def list_recent_reviews(limit: int = Query(6, le=24), min_rating: int = Query(4, ge=1, le=5)):
+    """Reseñas recientes aprobadas (público) — para mostrar testimonios en el home."""
+    cursor = db.reviews.find({"approved": True, "rating": {"$gte": min_rating}}) \
+        .sort("created_at", -1).limit(limit)
+    items = []
+    async for r in cursor:
+        r.pop("_id", None)
+        # Enriquecer con nombre del producto (sin exponer otra colección)
+        prod = await db.products.find_one({"id": r.get("product_id")}, {"_id": 0, "name": 1, "id": 1})
+        if prod:
+            r["product_name"] = prod.get("name")
+        items.append(r)
+    return items
+
+
 @router.get("/product/{product_id}")
 async def list_reviews_for_product(product_id: str, limit: int = Query(50, le=200)):
     cursor = db.reviews.find({"product_id": product_id, "approved": True}).sort("created_at", -1).limit(limit)
