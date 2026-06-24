@@ -55,7 +55,7 @@ export function CustomerProvider({ children }) {
   };
 
   const logout = async () => {
-    try { await authApi.post("/logout"); } catch {}
+    try { await authApi.post("/logout"); } catch { /* ignore */ }
     localStorage.removeItem("ldd_customer_token");
     setCustomer(null);
   };
@@ -63,10 +63,11 @@ export function CustomerProvider({ children }) {
   const refresh = async () => {
     setLoading(true);
     try {
-      // Usamos authApi (/api/auth/me) — endpoint unificado para clientes y admin.
-      // El interceptor añade el Bearer automáticamente; si no hay token y las
-      // cookies cross-site sí llegan, sigue funcionando.
-      const { data } = await authApi.get("/me");
+      // IMPORTANTE: usamos /api/customer/me (NO /auth/me) porque /auth/me
+      // devuelve tanto clientes como admins. Si admin estaba logueado, su
+      // sesión se filtraba al storefront y aparecía como "cliente" — bug
+      // visible como "Super" arriba a la derecha tras login CMS.
+      const { data } = await customerApi.get("/me");
       setCustomer(data);
       return data;
     } catch {

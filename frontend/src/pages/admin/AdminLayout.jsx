@@ -70,9 +70,9 @@ export default function AdminLayout() {
           ))}
         </nav>
         <div className="p-3 space-y-1" style={{ borderTop: "1px solid rgba(197,160,89,0.18)" }}>
-          <button onClick={() => navigate("/")} className="sidebar-link w-full text-left" data-testid="sidebar-shop">
+          <a href="/catalogo" target="_blank" rel="noopener noreferrer" className="sidebar-link w-full text-left" data-testid="sidebar-shop">
             <Store size={16} /> <span>Ver tienda</span>
-          </button>
+          </a>
           <div className="px-3 pt-2 pb-1 text-xs" style={{ color: "rgba(250,248,245,0.45)" }}>
             {user.name} <br />
             <span className="gold">{user.role}</span>
