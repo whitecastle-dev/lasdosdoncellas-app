@@ -239,3 +239,110 @@ async def delete_product_image(
     await db.products.update_one({"id": product_id}, {"$pull": {"images": storage_path}})
     await db.product_images.delete_many({"url": storage_path})
     return {"ok": True}
+
+
+# ---------- BULK image import by SKU ----------
+import re as _re
+
+
+def _parse_sku_from_filename(filename: str):
+    """Extrae (sku, order) del nombre de archivo.
+
+    - "JAM-BEL-50-5J.jpg"      -> ("JAM-BEL-50-5J", 1)
+    - "JAM-BEL-50-5J-2.png"    -> ("JAM-BEL-50-5J", 2)
+    - "EMB-CHO-PIC-200-3.webp" -> ("EMB-CHO-PIC-200", 3)
+    - "lote_corp_empresa.jpg"  -> ("lote_corp_empresa", 1)  (sin sufijo)
+    Acepta extensiones .jpg/.jpeg/.png/.webp y separador final guion (-N).
+    """
+    base = filename.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+    name, _, _ext = base.rpartition(".")
+    if not name:
+        name = base
+    m = _re.match(r"^(.+?)-(\d+)$", name)
+    if m:
+        return m.group(1), int(m.group(2))
+    return name, 1
+
+
+@router.post("/products/images/bulk-import")
+async def bulk_import_images(
+    files: List[UploadFile] = File(...),
+    enhance: bool = Query(True, description="Aplicar IA antes de subir"),
+    _=Depends(require_permission("products.write")),
+):
+    """Importa múltiples imágenes a la vez, asociándolas por SKU.
+
+    Convención de nombrado:
+      - `<SKU>.jpg`        → imagen principal del producto con ese SKU
+      - `<SKU>-2.jpg`      → segunda imagen
+      - `<SKU>-3.png`      → tercera (etc.)
+
+    Cada archivo pasa por la IA (vignette dorado, marco barrica, realce) si
+    `enhance=true` (por defecto). Se devuelven estadísticas y errores.
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="No se han enviado archivos")
+
+    # Pre-carga todos los SKU activos para mapear sin hacer N queries
+    skus_map = {}
+    async for p in db.products.find({}, {"_id": 0, "id": 1, "sku": 1}):
+        if p.get("sku"):
+            skus_map[p["sku"].upper()] = p["id"]
+
+    results = {"imported": 0, "skipped_no_sku_match": [], "errors": [], "by_sku": {}}
+
+    # Ordena los archivos por (sku, order) para garantizar el orden de inserción
+    parsed = []
+    for f in files:
+        sku, order = _parse_sku_from_filename(f.filename or "")
+        parsed.append((sku.upper(), order, f))
+    parsed.sort(key=lambda x: (x[0], x[1]))
+
+    for sku, order, file in parsed:
+        product_id = skus_map.get(sku)
+        if not product_id:
+            results["skipped_no_sku_match"].append({"filename": file.filename, "sku": sku})
+            continue
+
+        try:
+            raw = await file.read()
+            if not raw:
+                results["errors"].append({"filename": file.filename, "error": "vacío"})
+                continue
+
+            final_bytes = raw
+            ai_applied = False
+            if enhance:
+                try:
+                    enhanced = await enhance_product_image(raw)
+                    if enhanced and enhanced != raw:
+                        final_bytes = enhanced
+                        ai_applied = True
+                except Exception as e:
+                    logger.warning("IA falló en %s: %s — uso original", file.filename, e)
+
+            result = await asyncio.to_thread(upload_to_cloudinary, final_bytes, product_id)
+
+            await db.product_images.insert_one({
+                "id": str(uuid.uuid4()),
+                "product_id": product_id,
+                "storage_path": result["path"],
+                "url": result["url"],
+                "ai_enhanced": ai_applied,
+                "source_filename": file.filename,
+                "order": order,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            await db.products.update_one(
+                {"id": product_id},
+                {"$push": {"images": result["url"]},
+                 "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}},
+            )
+
+            results["imported"] += 1
+            results["by_sku"].setdefault(sku, []).append(result["url"])
+        except Exception as e:
+            logger.exception("Error procesando %s: %s", file.filename, e)
+            results["errors"].append({"filename": file.filename, "error": str(e)[:200]})
+
+    return results
