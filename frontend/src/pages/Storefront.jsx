@@ -8,6 +8,7 @@ import CategoriesBar from "@/components/storefront/CategoriesBar";
 import ProductCard from "@/components/storefront/ProductCard";
 import StarRating from "@/components/StarRating";
 import { api } from "@/lib/api";
+import useReveal from "@/hooks/useReveal";
 
 const HERO_IMAGES = [
   "https://images.unsplash.com/photo-1732565432358-a8c95bc24ea3?crop=entropy&cs=srgb&fm=jpg&q=85&w=2400",
@@ -47,7 +48,7 @@ function HeroSlider() {
     <section className="relative h-[78vh] min-h-[520px] overflow-hidden">
       {HERO_IMAGES.map((src, i) => (
         <div key={src} className="absolute inset-0 transition-opacity duration-[1800ms]" style={{ opacity: i === idx ? 1 : 0 }}>
-          <img src={src} alt="" className="w-full h-full object-cover" style={{ transform: i === idx ? "scale(1.06)" : "scale(1)", transition: "transform 8s ease-out" }} />
+          <img src={src} alt="" className={`w-full h-full object-cover ${i === idx ? "hero-zoom" : ""}`} />
         </div>
       ))}
       <div className="absolute inset-0 hero-gradient" />
@@ -63,7 +64,7 @@ function HeroSlider() {
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
             <Link to="/catalogo" className="ldd-btn-gold" data-testid="hero-cta-shop">
-              Comprar ahora <ArrowRight size={16} />
+              <span className="inline-flex items-center gap-2">Comprar ahora <ArrowRight size={16} /></span>
             </Link>
             <Link to="/lotes/configurador" className="ldd-btn-ghost" data-testid="hero-cta-lote">
               Configura tu lote
@@ -94,35 +95,41 @@ function CategoryTiles({ categories }) {
         </div>
         <Link to="/catalogo" className="ldd-btn-ghost" data-testid="home-tiles-all">Ver todo</Link>
       </div>
-      <div className={`grid ${cols} gap-4 sm:gap-6 lg:gap-8`}>
-        {tiles.map((c) => (
+      <div className={`grid ${cols} gap-3 sm:gap-6 lg:gap-8`}>
+        {tiles.map((c, i) => (
           <Link
             key={c.slug}
             to={categoryHref(c)}
-            className="group relative block overflow-hidden aspect-[3/4] border border-[rgba(197,160,89,0.18)]"
+            className="ldd-tile group relative block overflow-hidden aspect-[4/5] sm:aspect-[3/4] border border-[rgba(197,160,89,0.18)] hover:border-[#C5A059]"
             data-testid={`home-tile-${c.slug}`}
+            style={{ animationDelay: `${i * 80}ms` }}
           >
             <img
               src={categoryImage(c)}
               alt={c.name}
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-[1800ms] ease-out group-hover:scale-105"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-[1800ms] ease-out group-hover:scale-110"
             />
+            {/* Velo base + velo gold extra al hover */}
             <div
               className="absolute inset-0"
               style={{ background: "linear-gradient(180deg, rgba(10,10,10,0.25) 0%, rgba(10,10,10,0.55) 60%, rgba(10,10,10,0.92) 100%)" }}
             />
-            <div className="relative z-10 h-full flex flex-col justify-end p-8">
-              <div className="label-eyebrow gold mb-3">Categoría</div>
-              <h3 className="font-serif text-3xl md:text-4xl tracking-tight" style={{ color: "#FAF8F5" }}>
+            <div
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700"
+              style={{ background: "linear-gradient(160deg, rgba(197,160,89,0.18) 0%, rgba(0,0,0,0) 60%)" }}
+            />
+            <div className="relative z-10 h-full flex flex-col justify-end p-3 sm:p-6 md:p-8">
+              <div className="label-eyebrow gold mb-1 sm:mb-3 text-[9px] sm:text-[10px]">Categoría</div>
+              <h3 className="font-serif text-lg sm:text-2xl md:text-4xl leading-[1.05] tracking-tight" style={{ color: "#FAF8F5" }}>
                 {c.name}
               </h3>
               {c.description && (
-                <p className="mt-3 text-sm leading-relaxed max-w-xs" style={{ color: "rgba(250,248,245,0.75)" }}>
+                <p className="hidden md:block mt-3 text-sm leading-relaxed max-w-xs" style={{ color: "rgba(250,248,245,0.75)" }}>
                   {c.description}
                 </p>
               )}
-              <span className="mt-6 inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] gold opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                Descubrir <ArrowRight size={14} />
+              <span className="mt-3 sm:mt-6 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] gold opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-500">
+                Descubrir <ArrowRight size={12} className="transition-transform duration-500 group-hover:translate-x-1" />
               </span>
             </div>
           </Link>
@@ -176,22 +183,22 @@ function StatsStrip() {
 function ProcessSection() {
   return (
     <section className="max-w-[1500px] mx-auto px-6 lg:px-12 pt-28 pb-16" data-testid="home-process">
-      <div className="text-center mb-16">
+      <div className="text-center mb-16 reveal">
         <div className="label-eyebrow gold mb-3">El oficio</div>
         <h2 className="font-serif text-4xl md:text-5xl tracking-tight" style={{ color: "#FAF8F5" }}>
-          Tres pasos. <span className="font-script italic">Mucho tiempo.</span>
+          <span className="ldd-heading-line">Tres pasos.</span> <span className="font-script italic">Mucho tiempo.</span>
         </h2>
       </div>
       <div className="grid md:grid-cols-3 gap-10 md:gap-16">
         {PROCESS_STEPS.map((s, i) => (
-          <div key={s.title} className="flex flex-col items-start group">
+          <div key={s.title} className="flex flex-col items-start group reveal" style={{ transitionDelay: `${i * 120}ms` }}>
             <div className="flex items-center gap-4 mb-5">
               <span className="font-mono-data text-xs gold opacity-60" style={{ letterSpacing: "0.3em" }}>
                 {String(i + 1).padStart(2, "0")}
               </span>
-              <span className="h-px w-12 transition-all group-hover:w-20" style={{ background: "rgba(197,160,89,0.6)" }} />
+              <span className="h-px w-12 transition-all duration-700 group-hover:w-20" style={{ background: "rgba(197,160,89,0.6)" }} />
             </div>
-            <s.icon size={28} className="mb-5" style={{ color: "#C5A059" }} />
+            <s.icon size={28} className="mb-5 icon-floating" style={{ color: "#C5A059", animationDelay: `${i * 0.6}s` }} />
             <h3 className="font-serif text-2xl md:text-3xl tracking-tight mb-3" style={{ color: "#FAF8F5" }}>{s.title}</h3>
             <p className="text-sm leading-relaxed max-w-sm" style={{ color: "rgba(250,248,245,0.7)" }}>{s.text}</p>
           </div>
@@ -376,6 +383,7 @@ export default function Storefront() {
   const [reviews, setReviews] = useState([]);
   const [categories, setCategories] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const revealRef = useReveal();
 
   useEffect(() => {
     (async () => {
@@ -406,7 +414,7 @@ export default function Storefront() {
   }, []);
 
   return (
-    <div className="ldd-storefront min-h-screen relative">
+    <div className="ldd-storefront min-h-screen relative" ref={revealRef}>
       <StoreHeader onOpenCart={() => setCartOpen(true)} />
       <HeroSlider />
       <CategoriesBar />

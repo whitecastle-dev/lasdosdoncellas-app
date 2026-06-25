@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { NavLink, Outlet, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck, MessageCircle, Menu, X, Tag } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import FreshnessBadge from "@/components/admin/FreshnessBadge";
 
 const LINKS = [
   { to: "/admin", end: true, icon: LayoutDashboard, label: "Dashboard", perm: "dashboard.read" },
@@ -74,6 +75,7 @@ export default function AdminLayout() {
           <a href="/catalogo" target="_blank" rel="noopener noreferrer" className="sidebar-link w-full text-left" data-testid="sidebar-shop">
             <Store size={16} /> <span>Ver tienda</span>
           </a>
+          <FreshnessBadge />
           <div className="px-3 pt-2 pb-1 text-xs" style={{ color: "rgba(250,248,245,0.45)" }}>
             {user.name} <br />
             <span className="gold">{user.role}</span>
