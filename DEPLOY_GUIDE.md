@@ -92,7 +92,7 @@ Ya tienes cuenta y dos servicios funcionando, así que añadir el tercero es dir
    COMPANY_NAME=Las Dos Doncellas
    COMPANY_LEGAL_NAME=Las Dos Doncellas S.L.
    COMPANY_CIF=77815813M
-   COMPANY_ADDRESS=Calle Huerto del Cura, 2
+   COMPANY_ADDRESS=Plaza Amarilla, 3
    COMPANY_POSTAL=41230
    COMPANY_CITY=Castilblanco de los Arroyos
    COMPANY_PROVINCE=Sevilla
