@@ -101,14 +101,46 @@ async def on_startup():
     except Exception as e:
         logger.warning(f"Storage init failed (will retry per request): {e}")
 
-    # Auto-seed productos demo cuando la BD esté vacía. Esto soluciona
-    # definitivamente el caso "tras build no hay productos": basta con que la
-    # colección products esté a 0 y se inyectan los 15 productos demo (Jamones,
-    # Embutidos, Lotes). Ya tiene productos? No hace nada (idempotente).
+    # Auto-seed idempotente. Cubre 2 casos:
+    #   1) BD totalmente vacía → inyecta los 30+ productos demo.
+    #   2) BD ya tiene productos pero le faltan categorías nuevas (quesos,
+    #      vinos, aceites) → vuelve a correr el seed; los SKUs ya existentes
+    #      se saltan automáticamente (idempotente). Esto soluciona el caso
+    #      "después de un deploy nuevo no salen los demos de quesos/vinos/aceites".
+    #   3) Migración: rellena position e is_active en categorías legacy que
+    #      tenían esos campos a null (necesario para que se ordenen y aparezcan
+    #      en el storefront).
     try:
-        count = await db.products.count_documents({})
-        if count == 0:
-            logger.info("BD sin productos — auto-seed inyectando los 15 productos demo…")
+        # 1) Migración de categorías legacy ---------------------------------
+        POS_DEFAULTS = {"jamones": 1, "embutidos": 2, "quesos": 3,
+                        "vinos": 4, "aceites": 5, "lotes": 6}
+        legacy = db.categories.find({"$or": [{"position": None},
+                                              {"is_active": None},
+                                              {"position": {"$exists": False}},
+                                              {"is_active": {"$exists": False}}]})
+        async for c in legacy:
+            updates = {}
+            if c.get("position") is None:
+                updates["position"] = POS_DEFAULTS.get(c.get("slug"), 99)
+            if c.get("is_active") is None:
+                updates["is_active"] = True
+            if updates:
+                await db.categories.update_one({"_id": c["_id"]}, {"$set": updates})
+                logger.info("Migración categoría '%s' → %s", c.get("slug"), updates)
+
+        # 2) Auto-seed: vacía o faltan categorías clave ---------------------
+        prod_count = await db.products.count_documents({})
+        missing_cats = []
+        for s in ("quesos", "vinos", "aceites"):
+            if not await db.categories.find_one({"slug": s}):
+                missing_cats.append(s)
+        should_seed = prod_count == 0 or len(missing_cats) > 0
+
+        if should_seed:
+            if prod_count == 0:
+                logger.info("BD sin productos — auto-seed inyectando los 30+ productos demo…")
+            else:
+                logger.info("Faltan categorías %s — re-ejecutando seed (idempotente por SKU)…", missing_cats)
             try:
                 from scripts.seed_products import seed as seed_products
             except ImportError:
@@ -122,7 +154,7 @@ async def on_startup():
             new_count = await db.products.count_documents({})
             logger.info("Auto-seed completado. Productos en BD: %d", new_count)
         else:
-            logger.info("BD ya tiene %d productos — no se hace auto-seed.", count)
+            logger.info("BD ya tiene %d productos y todas las categorías clave — no se hace auto-seed.", prod_count)
     except Exception as e:
         logger.exception("Auto-seed de productos falló: %s", e)
 
