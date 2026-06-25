@@ -451,3 +451,32 @@ async def force_seed_demo(_=Depends(require_permission("products.write"))):
         "total_products": after_prod,
         "total_categories": after_cat,
     }
+
+
+
+# ---------- Freshness badge for CMS footer ----------
+@router.get("/admin/freshness")
+async def admin_freshness(_=Depends(require_permission("dashboard.read"))):
+    """Devuelve la fecha más reciente de cambio en productos/categorías para
+    mostrar un badge 'Última actualización: hace X' en el CMS. Esto ayuda al
+    cliente a saber cuándo la BD está sincronizada tras un deploy."""
+    pipelines = [
+        ("products", [{"$sort": {"updated_at": -1}}, {"$limit": 1},
+                       {"$project": {"_id": 0, "updated_at": 1, "created_at": 1}}]),
+        ("categories", [{"$sort": {"updated_at": -1}}, {"$limit": 1},
+                         {"$project": {"_id": 0, "updated_at": 1, "created_at": 1}}]),
+    ]
+    latest = {}
+    overall = None
+    for name, pipe in pipelines:
+        docs = await db[name].aggregate(pipe).to_list(1)
+        if docs:
+            ts = docs[0].get("updated_at") or docs[0].get("created_at")
+            latest[name] = ts
+            if ts and (overall is None or ts > overall):
+                overall = ts
+    return {
+        "latest_change_at": overall,
+        "by_entity": latest,
+        "now": datetime.now(timezone.utc).isoformat(),
+    }
