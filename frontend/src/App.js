@@ -7,6 +7,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { CustomerProvider } from "@/context/CustomerContext";
 import { CartProvider } from "@/context/CartContext";
 import GoogleTranslateLoader from "@/components/GoogleTranslateLoader";
+import ScrollToTop from "@/components/ScrollToTop";
 
 import Storefront from "@/pages/Storefront";
 import Catalog from "@/pages/Catalog";
@@ -48,6 +49,7 @@ function App() {
           <CartProvider>
             <Toaster position="top-right" richColors theme="dark" />
             <GoogleTranslateLoader />
+            <ScrollToTop />
             <Routes>
               <Route path="/" element={<Storefront />} />
               <Route path="/catalogo" element={<Catalog />} />
