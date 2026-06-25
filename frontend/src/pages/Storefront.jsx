@@ -78,9 +78,11 @@ function HeroSlider() {
 function CategoryTiles({ categories }) {
   if (!categories.length) return null;
   const tiles = categories;
-  // Grid auto-balanceado: 3 cols hasta 3 categorías, luego siempre 3 en desktop.
-  // Si hay más de 9, mantenemos 3 columnas (queda elegante en filas múltiples).
-  const cols = tiles.length <= 3 ? "md:grid-cols-3" : tiles.length === 4 ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3 lg:grid-cols-3";
+  // Grid: 2 columnas en móvil para que el bloque ocupe poco vertical aún con
+  // 7+ categorías; 3 columnas en desktop independientemente del nº (queda elegante en filas).
+  const cols = tiles.length <= 3
+    ? "grid-cols-2 md:grid-cols-3"
+    : "grid-cols-2 md:grid-cols-3";
   return (
     <section className="max-w-[1500px] mx-auto px-6 lg:px-12 pt-24 pb-4" data-testid="home-category-tiles">
       <div className="flex items-end justify-between mb-12 flex-wrap gap-4">
@@ -92,7 +94,7 @@ function CategoryTiles({ categories }) {
         </div>
         <Link to="/catalogo" className="ldd-btn-ghost" data-testid="home-tiles-all">Ver todo</Link>
       </div>
-      <div className={`grid ${cols} gap-6 lg:gap-8`}>
+      <div className={`grid ${cols} gap-4 sm:gap-6 lg:gap-8`}>
         {tiles.map((c) => (
           <Link
             key={c.slug}
@@ -143,7 +145,7 @@ function FeaturedProducts({ items }) {
         </div>
         <Link to="/catalogo" className="ldd-btn-ghost" data-testid="home-view-all">Ver catálogo completo</Link>
       </div>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 sm:gap-x-8 gap-y-10 sm:gap-y-12">
         {items.map((p) => <ProductCard key={p.id} p={p} />)}
       </div>
     </section>
@@ -340,7 +342,7 @@ function MiniCategorySection({ category, eyebrow, title, accent, side = "left" }
           Ver más <ArrowRight size={14} />
         </Link>
       </div>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 sm:gap-x-8 gap-y-10 sm:gap-y-12">
         {items.map((p) => <ProductCard key={p.id} p={p} />)}
       </div>
     </section>

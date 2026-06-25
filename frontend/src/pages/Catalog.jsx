@@ -35,6 +35,14 @@ export default function Catalog() {
     })();
   }, [sort, q]);
 
+  // Scroll al inicio al cambiar la categoría — así el cliente nunca aterriza
+  // "en mitad" del catálogo al pulsar una tarjeta desde el home.
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+  }, [categorySlug]);
+
   const activeCategory = useMemo(
     () => categories.find((c) => c.slug === categorySlug) || null,
     [categories, categorySlug]
@@ -154,7 +162,7 @@ export default function Catalog() {
             )}
           </div>
         )}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-16">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 sm:gap-x-8 gap-y-10 sm:gap-y-16">
           {filtered.map((p) => <ProductCard key={p.id} p={p} />)}
         </div>
       </div>
