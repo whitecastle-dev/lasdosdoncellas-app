@@ -258,7 +258,8 @@ DEFAULT_IMAGES = {
 
 
 async def _ensure_categories() -> dict:
-    """Crea las categorías base si no existen. Devuelve {slug: id}."""
+    """Crea las categorías base si no existen, y rellena position/is_active
+    a categorías legacy que pudieran tener esos campos a null."""
     CATS = [
         {"slug": "jamones", "name": "Jamones", "position": 1},
         {"slug": "embutidos", "name": "Embutidos", "position": 2},
@@ -271,6 +272,15 @@ async def _ensure_categories() -> dict:
     for c in CATS:
         existing = await db.categories.find_one({"slug": c["slug"]})
         if existing:
+            # Migración: completar position/is_active si están a null (legacy).
+            updates = {}
+            if existing.get("position") is None:
+                updates["position"] = c["position"]
+            if existing.get("is_active") is None:
+                updates["is_active"] = True
+            if updates:
+                await db.categories.update_one({"id": existing["id"]}, {"$set": updates})
+                print(f"  · categoría actualizada ({c['slug']}): {updates}")
             result[c["slug"]] = existing["id"]
             continue
         cat_id = str(uuid.uuid4())
@@ -334,7 +344,30 @@ async def seed():
             inserted += 1
             print(f"  ✓ {raw['sku']:<18} {raw['name']}")
 
-    print(f"\nResultado: {inserted} insertados · {skipped} ya existían (saltados).")
+    # Migración: productos sin imagen reciben la imagen por defecto de su
+    # categoría. Esto soluciona el caso de productos legacy que se subieron
+    # con images=[] y se ven sin foto en el storefront.
+    img_fixed = 0
+    for slug, cat_id in cats.items():
+        default_img = DEFAULT_IMAGES.get(slug)
+        if not default_img:
+            continue
+        res = await db.products.update_many(
+            {
+                "category_id": cat_id,
+                "$or": [
+                    {"images": {"$size": 0}},
+                    {"images": {"$exists": False}},
+                    {"images": None},
+                ],
+            },
+            {"$set": {"images": [default_img]}},
+        )
+        if res.modified_count:
+            img_fixed += res.modified_count
+            print(f"  · {slug}: imagen por defecto aplicada a {res.modified_count} producto(s)")
+
+    print(f"\nResultado: {inserted} insertados · {skipped} ya existían · {img_fixed} imágenes por defecto aplicadas.")
 
 
 if __name__ == "__main__":

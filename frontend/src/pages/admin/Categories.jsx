@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Pencil, Trash2, X, ImagePlus, Tag as TagIcon, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Pencil, Trash2, X, ImagePlus, Tag as TagIcon, ArrowUp, ArrowDown, Sparkles } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 import TableFilter, { filterRows } from "@/components/admin/TableFilter";
@@ -122,11 +122,28 @@ export default function CategoriesAdmin() {
           <div className="label-eyebrow text-gray-500">Estructura del catálogo</div>
           <h1 className="font-serif text-4xl tracking-tight mt-1">Categorías</h1>
           <p className="text-sm text-gray-500 mt-2">
-            Se muestran en la barra del storefront y en el bloque "Explora por categoría" del inicio.
+            Se muestran en la barra del storefront y en el bloque &quot;Explora por categoría&quot; del inicio.
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <TableFilter value={q} onChange={setQ} placeholder="Buscar por cualquier campo…" testid="categories-filter" />
+          <button
+            onClick={async () => {
+              if (!window.confirm("Esto inyectará los productos demo (categorías Quesos, Vinos, Aceites + ~18 productos) en la BD. Es seguro: no borra nada y los SKUs ya existentes se saltan. ¿Continuar?")) return;
+              try {
+                const { data } = await api.post("/seed/demo");
+                toast.success(`Seed completado: +${data.products_added} productos, +${data.categories_added} categorías (total ${data.total_products}/${data.total_categories})`);
+                load();
+              } catch (err) {
+                toast.error(formatApiError(err));
+              }
+            }}
+            className="px-3 py-2 border border-[#C5A059] text-[#C5A059] hover:bg-[#C5A059] hover:text-black text-sm flex items-center gap-2"
+            data-testid="categories-force-seed"
+            title="Re-inyecta categorías y productos demo (idempotente)"
+          >
+            <Sparkles size={14} /> Forzar seed demo
+          </button>
           <button onClick={openCreate} className="ldd-btn-gold" data-testid="categories-new">
             <Plus size={16} /> Nueva categoría
           </button>
@@ -190,7 +207,7 @@ export default function CategoriesAdmin() {
               </tr>
             ))}
             {sorted.length === 0 && (
-              <tr><td colSpan={7} className="p-12 text-center text-gray-400">No hay categorías. Crea la primera con el botón "Nueva categoría".</td></tr>
+              <tr><td colSpan={7} className="p-12 text-center text-gray-400">No hay categorías. Crea la primera con el botón &quot;Nueva categoría&quot;.</td></tr>
             )}
           </tbody>
         </table>

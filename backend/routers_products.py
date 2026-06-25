@@ -417,3 +417,37 @@ async def bulk_import_images(
             results["errors"].append({"filename": file.filename, "error": str(e)[:200]})
 
     return results
+
+
+# ---------- Force seed (admin) ----------
+@router.post("/seed/demo")
+async def force_seed_demo(_=Depends(require_permission("products.write"))):
+    """Re-inyecta el seed de demo. Idempotente: los productos con SKU ya
+    existente se saltan; las categorías ya existentes se mantienen. Útil
+    cuando un nuevo deploy de Render trae categorías/productos nuevos pero
+    la BD de producción todavía no los tiene."""
+    try:
+        from scripts.seed_products import seed as seed_products
+    except ImportError:
+        from pathlib import Path as _P
+        import importlib.util as _u
+        _spec = _u.spec_from_file_location(
+            "seed_products",
+            _P(__file__).resolve().parent / "scripts" / "seed_products.py",
+        )
+        _mod = _u.module_from_spec(_spec)
+        _spec.loader.exec_module(_mod)
+        seed_products = _mod.seed
+
+    before_prod = await db.products.count_documents({})
+    before_cat = await db.categories.count_documents({})
+    await seed_products()
+    after_prod = await db.products.count_documents({})
+    after_cat = await db.categories.count_documents({})
+    return {
+        "ok": True,
+        "products_added": after_prod - before_prod,
+        "categories_added": after_cat - before_cat,
+        "total_products": after_prod,
+        "total_categories": after_cat,
+    }
