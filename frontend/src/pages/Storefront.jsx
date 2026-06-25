@@ -15,26 +15,21 @@ const HERO_IMAGES = [
   "https://images.unsplash.com/photo-1695606392727-d8b959879721?crop=entropy&cs=srgb&fm=jpg&q=85&w=2400",
 ];
 
-const CATEGORY_TILES = [
-  {
-    slug: "jamones",
-    label: "Jamones",
-    sub: "Pieza entera, corte a cuchillo, loncheado al vacío.",
-    img: "https://images.unsplash.com/photo-1732565432358-a8c95bc24ea3?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600",
-  },
-  {
-    slug: "embutidos",
-    label: "Embutidos",
-    sub: "Chorizo, salchichón, lomo y caña de lomo — todo de bellota.",
-    img: "https://images.unsplash.com/photo-1695606392727-d8b959879721?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600",
-  },
-  {
-    slug: "lotes",
-    label: "Lotes & Regalos",
-    sub: "Cajas curadas para regalar, configura el tuyo a medida.",
-    img: "https://images.unsplash.com/photo-1656423739016-5de747b2c4fb?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600",
-  },
-];
+// Imagen de fallback por slug, en caso de que el admin todavía no haya subido
+// una imagen para la categoría. Si tampoco coincide el slug, usamos una
+// imagen genérica del hero. Esto evita tarjetas vacías en producción.
+const FALLBACK_CATEGORY_IMG = {
+  jamones:   "https://images.unsplash.com/photo-1732565432358-a8c95bc24ea3?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600",
+  embutidos: "https://images.unsplash.com/photo-1695606392727-d8b959879721?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600",
+  quesos:    "https://images.unsplash.com/photo-1452195100486-9cc805987862?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600",
+  vinos:     "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600",
+  aceites:   "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600",
+  lotes:     "https://images.unsplash.com/photo-1656423739016-5de747b2c4fb?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600",
+};
+const GENERIC_FALLBACK = "https://images.unsplash.com/photo-1534655882117-f9eff36a1574?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600";
+
+const categoryImage = (c) => c?.image_url || FALLBACK_CATEGORY_IMG[c?.slug] || GENERIC_FALLBACK;
+const categoryHref = (c) => (c?.slug === "lotes" ? "/lotes/configurador" : `/catalogo?categoria=${c?.slug}`);
 
 const PROCESS_STEPS = [
   { icon: Wheat, title: "Bellota & dehesa", text: "Cerdos ibéricos criados en libertad por la Sierra Norte de Sevilla." },
@@ -80,7 +75,12 @@ function HeroSlider() {
   );
 }
 
-function CategoryTiles() {
+function CategoryTiles({ categories }) {
+  if (!categories.length) return null;
+  const tiles = categories;
+  // Grid auto-balanceado: 3 cols hasta 3 categorías, luego siempre 3 en desktop.
+  // Si hay más de 9, mantenemos 3 columnas (queda elegante en filas múltiples).
+  const cols = tiles.length <= 3 ? "md:grid-cols-3" : tiles.length === 4 ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3 lg:grid-cols-3";
   return (
     <section className="max-w-[1500px] mx-auto px-6 lg:px-12 pt-24 pb-4" data-testid="home-category-tiles">
       <div className="flex items-end justify-between mb-12 flex-wrap gap-4">
@@ -92,17 +92,17 @@ function CategoryTiles() {
         </div>
         <Link to="/catalogo" className="ldd-btn-ghost" data-testid="home-tiles-all">Ver todo</Link>
       </div>
-      <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
-        {CATEGORY_TILES.map((c) => (
+      <div className={`grid ${cols} gap-6 lg:gap-8`}>
+        {tiles.map((c) => (
           <Link
             key={c.slug}
-            to={c.slug === "lotes" ? "/lotes/configurador" : `/categoria/${c.slug}`}
+            to={categoryHref(c)}
             className="group relative block overflow-hidden aspect-[3/4] border border-[rgba(197,160,89,0.18)]"
             data-testid={`home-tile-${c.slug}`}
           >
             <img
-              src={c.img}
-              alt={c.label}
+              src={categoryImage(c)}
+              alt={c.name}
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-[1800ms] ease-out group-hover:scale-105"
             />
             <div
@@ -112,11 +112,13 @@ function CategoryTiles() {
             <div className="relative z-10 h-full flex flex-col justify-end p-8">
               <div className="label-eyebrow gold mb-3">Categoría</div>
               <h3 className="font-serif text-3xl md:text-4xl tracking-tight" style={{ color: "#FAF8F5" }}>
-                {c.label}
+                {c.name}
               </h3>
-              <p className="mt-3 text-sm leading-relaxed max-w-xs" style={{ color: "rgba(250,248,245,0.75)" }}>
-                {c.sub}
-              </p>
+              {c.description && (
+                <p className="mt-3 text-sm leading-relaxed max-w-xs" style={{ color: "rgba(250,248,245,0.75)" }}>
+                  {c.description}
+                </p>
+              )}
               <span className="mt-6 inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] gold opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                 Descubrir <ArrowRight size={14} />
               </span>
@@ -296,29 +298,33 @@ function ClosingCTA() {
  * indicada (slug). Para que el cliente vea PRODUCTOS desde el minuto 1, sin
  * tener que entrar al catálogo.
  */
-function MiniCategorySection({ eyebrow, title, accent, slug, ctaLabel = "Ver todo", side = "left" }) {
+/**
+ * Mini-sección por categoría: muestra hasta 4 productos reales de la categoría
+ * indicada. Para que el cliente vea PRODUCTOS desde el minuto 1, sin
+ * tener que entrar al catálogo.
+ *
+ * Si la categoría no tiene productos, NO renderiza nada (el catálogo sí
+ * muestra el mensaje "Próximamente"). Así evitamos huecos visuales en el home.
+ */
+function MiniCategorySection({ category, eyebrow, title, accent, side = "left" }) {
   const [items, setItems] = useState([]);
-  const [cat, setCat] = useState(null);
 
   useEffect(() => {
+    if (!category?.id) return;
     (async () => {
       try {
-        const { data: cats } = await api.get("/categories");
-        const found = (cats || []).find((c) => c.slug === slug);
-        if (!found) return;
-        setCat(found);
         const { data } = await api.get("/products", {
-          params: { is_active: true, category_id: found.id, sort: "created_desc", limit: 4 },
+          params: { is_active: true, category_id: category.id, sort: "created_desc", limit: 4 },
         });
         setItems((data || []).slice(0, 4));
       } catch { /* ignore */ }
     })();
-  }, [slug]);
+  }, [category?.id]);
 
   if (!items.length) return null;
 
   return (
-    <section className="max-w-[1500px] mx-auto px-6 lg:px-12 pt-20 pb-4" data-testid={`home-mini-${slug}`}>
+    <section className="max-w-[1500px] mx-auto px-6 lg:px-12 pt-20 pb-4" data-testid={`home-mini-${category.slug}`}>
       <div className={`flex items-end justify-between mb-10 flex-wrap gap-4 ${side === "right" ? "md:flex-row-reverse md:text-right" : ""}`}>
         <div>
           <div className="label-eyebrow gold mb-3">{eyebrow}</div>
@@ -327,11 +333,11 @@ function MiniCategorySection({ eyebrow, title, accent, slug, ctaLabel = "Ver tod
           </h2>
         </div>
         <Link
-          to={`/catalogo?categoria=${slug}`}
+          to={`/catalogo?categoria=${category.slug}`}
           className="ldd-btn-ghost"
-          data-testid={`home-mini-${slug}-cta`}
+          data-testid={`home-mini-${category.slug}-cta`}
         >
-          {ctaLabel} <ArrowRight size={14} />
+          Ver más <ArrowRight size={14} />
         </Link>
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">
@@ -341,9 +347,32 @@ function MiniCategorySection({ eyebrow, title, accent, slug, ctaLabel = "Ver tod
   );
 }
 
+// Plantilla por slug para los títulos elegantes de las mini-secciones.
+// Si una categoría nueva no está aquí, usa un fallback genérico.
+const MINI_HEADINGS = {
+  jamones:   { eyebrow: "Pieza estrella",       title: "Los mejores",  accent: "jamones",   side: "left" },
+  embutidos: { eyebrow: "De la tabla",          title: "Embutidos",    accent: "artesanos", side: "right" },
+  quesos:    { eyebrow: "Curados de la sierra", title: "Los mejores",  accent: "quesos",    side: "left" },
+  vinos:     { eyebrow: "Bodega",               title: "Vinos de la",  accent: "sierra",    side: "right" },
+  aceites:   { eyebrow: "Oro líquido",          title: "Aceites y",    accent: "conservas", side: "left" },
+  lotes:     { eyebrow: "Para regalar",         title: "Lotes",        accent: "selectos",  side: "right" },
+};
+
+const miniHeadingFor = (cat, index) => {
+  const t = MINI_HEADINGS[cat.slug];
+  if (t) return t;
+  return {
+    eyebrow: "Selección",
+    title: "Lo mejor en",
+    accent: cat.name.toLowerCase(),
+    side: index % 2 === 0 ? "left" : "right",
+  };
+};
+
 export default function Storefront() {
   const [featured, setFeatured] = useState([]);
   const [reviews, setReviews] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
 
   useEffect(() => {
@@ -366,6 +395,11 @@ export default function Storefront() {
         const { data } = await api.get("/reviews/recent", { params: { limit: 6, min_rating: 4 } });
         setReviews(data || []);
       } catch { /* ignore */ }
+      try {
+        const { data } = await api.get("/categories");
+        // Solo categorías activas, ya ordenadas por position en el backend
+        setCategories((data || []).filter((c) => c.is_active !== false));
+      } catch { /* ignore */ }
     })();
   }, []);
 
@@ -374,46 +408,22 @@ export default function Storefront() {
       <StoreHeader onOpenCart={() => setCartOpen(true)} />
       <HeroSlider />
       <CategoriesBar />
-      <CategoryTiles />
+      <CategoryTiles categories={categories} />
 
-      {/* Mini-secciones por categoría — el cliente ve productos desde el minuto 1 */}
-      <MiniCategorySection
-        eyebrow="Pieza estrella"
-        title="Los mejores"
-        accent="jamones"
-        slug="jamones"
-        ctaLabel="Ver todos los jamones"
-      />
-      <MiniCategorySection
-        eyebrow="De la tabla"
-        title="Embutidos"
-        accent="artesanos"
-        slug="embutidos"
-        side="right"
-        ctaLabel="Ver embutidos"
-      />
-      <MiniCategorySection
-        eyebrow="Curados de la sierra"
-        title="Los mejores"
-        accent="quesos"
-        slug="quesos"
-        ctaLabel="Descubrir quesos"
-      />
-      <MiniCategorySection
-        eyebrow="Bodega"
-        title="Vinos de la"
-        accent="sierra"
-        slug="vinos"
-        side="right"
-        ctaLabel="Ver bodega"
-      />
-      <MiniCategorySection
-        eyebrow="Oro líquido"
-        title="Aceites y"
-        accent="conservas"
-        slug="aceites"
-        ctaLabel="Ver aceites"
-      />
+      {/* Mini-secciones por categoría — dinámicas: una por cada categoría activa */}
+      {categories.map((cat, i) => {
+        const h = miniHeadingFor(cat, i);
+        return (
+          <MiniCategorySection
+            key={cat.id}
+            category={cat}
+            eyebrow={h.eyebrow}
+            title={h.title}
+            accent={h.accent}
+            side={h.side}
+          />
+        );
+      })}
 
       <FeaturedProducts items={featured} />
       <StatsStrip />

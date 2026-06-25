@@ -133,8 +133,25 @@ export default function Catalog() {
 
         {loading && <div className="text-center py-20 gold">Cargando…</div>}
         {!loading && filtered.length === 0 && (
-          <div className="text-center py-20" style={{ color: "rgba(250,248,245,0.55)" }}>
-            No se han encontrado productos en esta categoría.
+          <div className="text-center py-24 max-w-xl mx-auto" data-testid="catalog-empty">
+            <div className="label-eyebrow gold mb-4">{activeCategory ? activeCategory.name : "Catálogo"}</div>
+            <h3 className="font-serif text-3xl md:text-4xl tracking-tight mb-4" style={{ color: "#FAF8F5" }}>
+              Próximamente
+            </h3>
+            <p className="text-sm leading-relaxed" style={{ color: "rgba(250,248,245,0.65)" }}>
+              {activeCategory
+                ? `Pronto añadiremos más productos a la categoría "${activeCategory.name}". Mientras tanto, descubre el resto de nuestro catálogo.`
+                : "Aún no hay productos en el catálogo."}
+            </p>
+            {activeCategory && (
+              <button
+                onClick={() => setParam("categoria", "")}
+                className="ldd-btn-ghost mt-8"
+                data-testid="catalog-empty-back"
+              >
+                Ver todo el catálogo
+              </button>
+            )}
           </div>
         )}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-16">
