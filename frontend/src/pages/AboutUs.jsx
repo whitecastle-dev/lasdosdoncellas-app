@@ -26,7 +26,7 @@ export default function AboutUs() {
         <div className="mt-12 grid sm:grid-cols-3 gap-6 text-sm border-t border-[rgba(197,160,89,0.2)] pt-10">
           <div>
             <div className="label-eyebrow gold mb-2">Domicilio fiscal</div>
-            <div>Calle Huerto del Cura, 2<br/>41230 Castilblanco de los Arroyos<br/>Sevilla, España</div>
+            <div>Plaza Amarilla, 3<br/>41230 Castilblanco de los Arroyos<br/>Sevilla, España</div>
           </div>
           <div>
             <div className="label-eyebrow gold mb-2">CIF</div>

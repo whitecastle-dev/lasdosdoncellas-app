@@ -34,7 +34,7 @@ export default function StoreFooter() {
           <div className="label-eyebrow gold mb-5">Contacto</div>
           <ul className="space-y-3 text-sm" style={{ color: "rgba(250,248,245,0.75)" }}>
             <li>info@lasdosdoncellasibericos.es</li>
-            <li>Calle Huerto del Cura, 2</li>
+            <li>Plaza Amarilla, 3</li>
             <li>41230 Castilblanco de los Arroyos</li>
             <li>Sevilla · España</li>
             <li className="pt-4"><Link to="/admin/login" className="label-eyebrow hover:text-[#C5A059]" data-testid="footer-admin-link">Acceso CMS</Link></li>

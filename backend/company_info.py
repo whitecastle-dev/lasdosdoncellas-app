@@ -7,7 +7,7 @@ def get_company():
         "name": os.environ.get("COMPANY_NAME", "Las Dos Doncellas"),
         "legal_name": os.environ.get("COMPANY_LEGAL_NAME", "Las Dos Doncellas S.L."),
         "cif": os.environ.get("COMPANY_CIF", "77815813M"),
-        "address": os.environ.get("COMPANY_ADDRESS", "Calle Huerto del Cura, 2"),
+        "address": os.environ.get("COMPANY_ADDRESS", "Plaza Amarilla, 3"),
         "postal": os.environ.get("COMPANY_POSTAL", "41230"),
         "city": os.environ.get("COMPANY_CITY", "Castilblanco de los Arroyos"),
         "province": os.environ.get("COMPANY_PROVINCE", "Sevilla"),

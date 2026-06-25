@@ -291,6 +291,56 @@ function ClosingCTA() {
   );
 }
 
+/**
+ * Mini-sección por categoría: muestra hasta 4 productos reales de la categoría
+ * indicada (slug). Para que el cliente vea PRODUCTOS desde el minuto 1, sin
+ * tener que entrar al catálogo.
+ */
+function MiniCategorySection({ eyebrow, title, accent, slug, ctaLabel = "Ver todo", side = "left" }) {
+  const [items, setItems] = useState([]);
+  const [cat, setCat] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: cats } = await api.get("/categories");
+        const found = (cats || []).find((c) => c.slug === slug);
+        if (!found) return;
+        setCat(found);
+        const { data } = await api.get("/products", {
+          params: { is_active: true, category_id: found.id, sort: "created_desc", limit: 4 },
+        });
+        setItems((data || []).slice(0, 4));
+      } catch { /* ignore */ }
+    })();
+  }, [slug]);
+
+  if (!items.length) return null;
+
+  return (
+    <section className="max-w-[1500px] mx-auto px-6 lg:px-12 pt-20 pb-4" data-testid={`home-mini-${slug}`}>
+      <div className={`flex items-end justify-between mb-10 flex-wrap gap-4 ${side === "right" ? "md:flex-row-reverse md:text-right" : ""}`}>
+        <div>
+          <div className="label-eyebrow gold mb-3">{eyebrow}</div>
+          <h2 className="font-serif text-3xl md:text-4xl tracking-tight" style={{ color: "#FAF8F5" }}>
+            {title} <span className="font-script italic">{accent}</span>
+          </h2>
+        </div>
+        <Link
+          to={`/catalogo?categoria=${slug}`}
+          className="ldd-btn-ghost"
+          data-testid={`home-mini-${slug}-cta`}
+        >
+          {ctaLabel} <ArrowRight size={14} />
+        </Link>
+      </div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">
+        {items.map((p) => <ProductCard key={p.id} p={p} />)}
+      </div>
+    </section>
+  );
+}
+
 export default function Storefront() {
   const [featured, setFeatured] = useState([]);
   const [reviews, setReviews] = useState([]);
@@ -325,6 +375,46 @@ export default function Storefront() {
       <HeroSlider />
       <CategoriesBar />
       <CategoryTiles />
+
+      {/* Mini-secciones por categoría — el cliente ve productos desde el minuto 1 */}
+      <MiniCategorySection
+        eyebrow="Pieza estrella"
+        title="Los mejores"
+        accent="jamones"
+        slug="jamones"
+        ctaLabel="Ver todos los jamones"
+      />
+      <MiniCategorySection
+        eyebrow="De la tabla"
+        title="Embutidos"
+        accent="artesanos"
+        slug="embutidos"
+        side="right"
+        ctaLabel="Ver embutidos"
+      />
+      <MiniCategorySection
+        eyebrow="Curados de la sierra"
+        title="Los mejores"
+        accent="quesos"
+        slug="quesos"
+        ctaLabel="Descubrir quesos"
+      />
+      <MiniCategorySection
+        eyebrow="Bodega"
+        title="Vinos de la"
+        accent="sierra"
+        slug="vinos"
+        side="right"
+        ctaLabel="Ver bodega"
+      />
+      <MiniCategorySection
+        eyebrow="Oro líquido"
+        title="Aceites y"
+        accent="conservas"
+        slug="aceites"
+        ctaLabel="Ver aceites"
+      />
+
       <FeaturedProducts items={featured} />
       <StatsStrip />
       <ProcessSection />
