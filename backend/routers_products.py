@@ -19,11 +19,38 @@ class CategoryIn(BaseModel):
     name: str
     slug: str
     description: Optional[str] = None
+    image_url: Optional[str] = None
+    position: Optional[int] = None
+    is_active: bool = True
+
+
+class CategoryPatch(BaseModel):
+    name: Optional[str] = None
+    slug: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    position: Optional[int] = None
+    is_active: Optional[bool] = None
+
 
 @router.get("/categories")
 async def list_categories():
-    cats = await db.categories.find({}, {"_id": 0}).sort("name", 1).to_list(1000)
+    cats = await db.categories.find({}, {"_id": 0}).to_list(1000)
+    # Orden por position si está definido, luego por nombre
+    cats.sort(key=lambda c: (c.get("position") if c.get("position") is not None else 999, c.get("name", "")))
     return cats
+
+
+@router.get("/categories/{cat_id}")
+async def get_category(cat_id: str):
+    cat = await db.categories.find_one({"id": cat_id}, {"_id": 0})
+    if not cat:
+        # también buscar por slug (DX)
+        cat = await db.categories.find_one({"slug": cat_id}, {"_id": 0})
+    if not cat:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    return cat
+
 
 @router.post("/categories")
 async def create_category(payload: CategoryIn, _=Depends(require_permission("products.write"))):
@@ -32,14 +59,58 @@ async def create_category(payload: CategoryIn, _=Depends(require_permission("pro
     doc = payload.model_dump()
     doc["id"] = str(uuid.uuid4())
     doc["created_at"] = datetime.now(timezone.utc).isoformat()
+    # Asigna position al final si no se especifica
+    if doc.get("position") is None:
+        total = await db.categories.count_documents({})
+        doc["position"] = total + 1
     await db.categories.insert_one(doc)
     doc.pop("_id", None)
     return doc
 
+
+@router.patch("/categories/{cat_id}")
+async def update_category(cat_id: str, payload: CategoryPatch, _=Depends(require_permission("products.write"))):
+    existing = await db.categories.find_one({"id": cat_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    update = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None or k == "image_url" or k == "description"}
+    # Si cambia el slug, verifica unicidad
+    if "slug" in update and update["slug"] != existing.get("slug"):
+        if await db.categories.find_one({"slug": update["slug"], "id": {"$ne": cat_id}}):
+            raise HTTPException(status_code=400, detail="El slug ya existe en otra categoría")
+    update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.categories.update_one({"id": cat_id}, {"$set": update})
+    updated = await db.categories.find_one({"id": cat_id}, {"_id": 0})
+    return updated
+
+
 @router.delete("/categories/{cat_id}")
 async def delete_category(cat_id: str, _=Depends(require_permission("products.delete"))):
+    # Desvincula los productos para no dejarlos con un category_id colgante.
+    await db.products.update_many({"category_id": cat_id}, {"$set": {"category_id": None}})
     await db.categories.delete_one({"id": cat_id})
     return {"ok": True}
+
+
+@router.post("/categories/{cat_id}/image")
+async def upload_category_image(
+    cat_id: str,
+    file: UploadFile = File(...),
+    _=Depends(require_permission("products.write")),
+):
+    cat = await db.categories.find_one({"id": cat_id})
+    if not cat:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Archivo vacío")
+    result = await asyncio.to_thread(upload_to_cloudinary, raw, f"category-{cat_id}")
+    await db.categories.update_one(
+        {"id": cat_id},
+        {"$set": {"image_url": result["url"], "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"url": result["url"]}
+
 
 # ---------- Products ----------
 class ProductIn(BaseModel):

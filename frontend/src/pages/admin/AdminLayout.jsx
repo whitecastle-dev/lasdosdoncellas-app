@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, Outlet, Navigate, useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck, MessageCircle, Menu, X } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck, MessageCircle, Menu, X, Tag } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const LINKS = [
   { to: "/admin", end: true, icon: LayoutDashboard, label: "Dashboard", perm: "dashboard.read" },
   { to: "/admin/products", icon: Package, label: "Productos", perm: "products.read" },
+  { to: "/admin/categories", icon: Tag, label: "Categorías", perm: "products.read" },
   { to: "/admin/orders", icon: ShoppingCart, label: "Pedidos", perm: "orders.read" },
   { to: "/admin/providers", icon: Truck, label: "Proveedores", perm: "products.read" },
   { to: "/admin/users", icon: Users, label: "Usuarios", perm: "users.read" },
