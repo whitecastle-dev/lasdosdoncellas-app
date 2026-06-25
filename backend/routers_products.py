@@ -221,7 +221,7 @@ async def delete_product(product_id: str, _=Depends(require_permission("products
 
 
 @router.post("/products/admin/seed-demo")
-async def force_seed_demo(_=Depends(require_permission("products.write"))):
+async def force_seed_demo_legacy(_=Depends(require_permission("products.write"))):
     """Endpoint admin para forzar la inyección de los 15 productos demo cuando
     la BD está vacía. Idempotente: salta los SKUs que ya existen."""
     try:
