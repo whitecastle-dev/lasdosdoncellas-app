@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, Outlet, Navigate, useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck, Settings as SettingsIcon, Menu, X, Tag, Building2 } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck, Settings as SettingsIcon, Menu, X, Tag, Building2, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import FreshnessBadge from "@/components/admin/FreshnessBadge";
 
@@ -12,6 +12,7 @@ const LINKS = [
   { to: "/admin/providers", icon: Truck, label: "Proveedores", perm: "products.read" },
   { to: "/admin/users", icon: Users, label: "Usuarios", perm: "users.read" },
   { to: "/admin/empresas", icon: Building2, label: "Usuarios Empresa", perm: "customers.read" },
+  { to: "/admin/stock-alerts", icon: AlertTriangle, label: "Alertas Stock", perm: "stock.read" },
   { to: "/admin/configuracion", icon: SettingsIcon, label: "Configuración", perm: "users.write" },
 ];
 
