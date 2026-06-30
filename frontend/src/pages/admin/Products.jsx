@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import ExcelBar from "@/components/admin/ExcelBar";
 import TableFilter, { filterRows } from "@/components/admin/TableFilter";
 import useSort, { SortHeader } from "@/components/admin/useSort";
+import VariantsEditor from "@/components/admin/VariantsEditor";
+import CategoryAttributes from "@/components/admin/CategoryAttributes";
 
 const EMPTY = {
   name: "", sku: "", description: "", long_description: "",
@@ -12,7 +14,10 @@ const EMPTY = {
   category_id: "", provider_id: "", tags: "", stock: 0, low_stock_threshold: 5,
   weight_grams: 0, origin: "", curing_months: 0, breed: "Ibérico",
   feed: "Bellota", is_featured: false, is_active: true,
+  variants: [], attributes: {},
 };
+
+const EMPTY_VARIANT = { label: "", price: 0, compare_at_price: 0, stock: null, sku_suffix: "", attributes: {} };
 
 function imgSrc(img) {
   if (!img) return "";
@@ -287,7 +292,17 @@ function ProductDrawer({ initial, startedNew, categories, providers, onClose, on
   const [uploading, setUploading] = useState(false);
   const [enhance, setEnhance] = useState(true);
   const [created, setCreated] = useState(!startedNew); // true once we have an id
+  const [cheeses, setCheeses] = useState([]); // para el maridaje en vinos
   const fileRef = useRef();
+
+  // Carga ligera de los quesos del catálogo (para el selector de maridaje)
+  useEffect(() => {
+    const cheeseCat = categories.find((c) => c.slug === "quesos");
+    if (!cheeseCat) return;
+    api.get("/products", { params: { category_id: cheeseCat.id, is_active: true } })
+      .then(({ data }) => setCheeses((data || []).map((p) => ({ id: p.id, name: p.name }))))
+      .catch(() => {});
+  }, [categories]);
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value });
   const setNum = (k) => (e) => setForm({ ...form, [k]: e.target.value === "" ? 0 : Number(e.target.value) });
@@ -310,6 +325,16 @@ function ProductDrawer({ initial, startedNew, categories, providers, onClose, on
       images: form.images || [],
       provider_id: form.provider_id || null,
       category_id: form.category_id || null,
+      // Variantes y atributos por categoría (Fase 2)
+      variants: (form.variants || []).map((v) => ({
+        label: v.label,
+        price: Number(v.price) || 0,
+        compare_at_price: v.compare_at_price ? Number(v.compare_at_price) : null,
+        stock: v.stock === "" || v.stock === null || v.stock === undefined ? null : Number(v.stock),
+        sku_suffix: v.sku_suffix || null,
+        attributes: v.attributes || null,
+      })).filter((v) => v.label && v.price > 0),
+      attributes: form.attributes || {},
     };
     try {
       if (!created) {
@@ -417,6 +442,15 @@ function ProductDrawer({ initial, startedNew, categories, providers, onClose, on
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.is_active} onChange={set("is_active")} data-testid="prod-active" /> Activo</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.is_featured} onChange={set("is_featured")} data-testid="prod-featured" /> Destacado</label>
           </div>
+
+          <CategoryAttributes
+            form={form}
+            setForm={setForm}
+            categorySlug={categories.find((c) => c.id === form.category_id)?.slug}
+            allCheeses={cheeses}
+          />
+
+          <VariantsEditor variants={form.variants || []} onChange={(variants) => setForm({ ...form, variants })} />
 
           <button type="submit" disabled={saving} className="px-5 py-2.5 bg-black text-[#C5A059] disabled:opacity-50" data-testid="prod-save">
             {saving ? "Guardando…" : (!created ? "Crear producto" : "Guardar cambios")}

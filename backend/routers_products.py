@@ -3,7 +3,7 @@ import uuid
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from pydantic import BaseModel, Field
 from db import db
@@ -113,6 +113,19 @@ async def upload_category_image(
 
 
 # ---------- Products ----------
+class ProductVariant(BaseModel):
+    """Variante de presentación del mismo producto (mismo SKU base).
+    P.ej. para un jamón: '7-8 kg · Pieza entera · Curación en punto' a 450€.
+    El frontend muestra un selector y el precio del producto refleja la
+    variante elegida al añadir a la cesta."""
+    label: str  # 'Pieza entera · 8-9kg · Tierno'
+    price: float
+    compare_at_price: Optional[float] = None
+    stock: Optional[int] = None  # None = usar stock del producto
+    sku_suffix: Optional[str] = None  # se concatena al SKU base si está
+    attributes: Optional[Dict[str, Any]] = None  # ej. {peso:'8-9kg', curacion:'tierno'}
+
+
 class ProductIn(BaseModel):
     name: str
     sku: str
@@ -134,6 +147,13 @@ class ProductIn(BaseModel):
     images: List[str] = Field(default_factory=list)
     is_featured: bool = False
     is_active: bool = True
+    # Nuevos en Fase 2 —————————
+    variants: List[ProductVariant] = Field(default_factory=list)
+    # Atributos libres y específicos por categoría. Ej:
+    #   quesos: {denominacion_origen, milk_origin, milk_type}
+    #   jamones: {curing_level, cut_type}  (también pueden vivir en variants)
+    #   vinos: {pairing_text, paired_cheese_ids:[id, id]}
+    attributes: Dict[str, Any] = Field(default_factory=dict)
 
 def _product_with_image_urls(prod: dict) -> dict:
     prod.pop("_id", None)
@@ -141,6 +161,10 @@ def _product_with_image_urls(prod: dict) -> dict:
     # Asegura campos de reseñas siempre presentes para que el front no rompa
     prod.setdefault("avg_rating", 0.0)
     prod.setdefault("review_count", 0)
+    # Garantiza presencia de variants/attributes en la respuesta para que el
+    # frontend no tenga que hacer comprobaciones de existencia.
+    prod.setdefault("variants", [])
+    prod.setdefault("attributes", {})
     return prod
 
 @router.get("/products")
@@ -184,6 +208,52 @@ async def get_product(product_id: str):
     if not prod:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return _product_with_image_urls(prod)
+
+
+@router.get("/products/{product_id}/related")
+async def get_related_products(product_id: str, limit: int = Query(6, le=12)):
+    """Productos relacionados (misma categoría, activos, sin incluirse a sí mismo).
+    Si no hay suficientes en la misma categoría, completa con los más recientes
+    de cualquier categoría activa.
+    """
+    prod = await db.products.find_one({"id": product_id})
+    if not prod:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    cat_id = prod.get("category_id")
+    items = []
+    if cat_id:
+        cursor = db.products.find({
+            "category_id": cat_id,
+            "is_active": True,
+            "id": {"$ne": product_id},
+        }).sort("created_at", -1).limit(limit)
+        items = [_product_with_image_urls(p) async for p in cursor]
+    if len(items) < limit:
+        existing = {p["id"] for p in items}
+        existing.add(product_id)
+        need = limit - len(items)
+        cursor = db.products.find({
+            "is_active": True,
+            "id": {"$nin": list(existing)},
+        }).sort("created_at", -1).limit(need)
+        async for p in cursor:
+            items.append(_product_with_image_urls(p))
+    return items
+
+
+@router.get("/products/{product_id}/pairing-cheeses")
+async def get_pairing_cheeses(product_id: str):
+    """Para un vino con attributes.paired_cheese_ids, devuelve los productos
+    queso recomendados como maridaje. Si no es vino o no tiene maridaje,
+    devuelve []."""
+    prod = await db.products.find_one({"id": product_id})
+    if not prod:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    ids = (prod.get("attributes") or {}).get("paired_cheese_ids") or []
+    if not ids:
+        return []
+    cursor = db.products.find({"id": {"$in": list(ids)}, "is_active": True})
+    return [_product_with_image_urls(p) async for p in cursor]
 
 @router.post("/products")
 async def create_product(payload: ProductIn, _=Depends(require_permission("products.write"))):
