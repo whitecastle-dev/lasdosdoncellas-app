@@ -20,7 +20,10 @@ export default function ProductCard({ p }) {
         {img ? (
           <img src={imgSrc(img)} alt={p.name} className="product-card-img w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center font-script gold text-3xl">Las Dos Doncellas</div>
+          <div className="w-full h-full flex flex-col items-center justify-center text-center px-4" style={{ background: "linear-gradient(135deg, #1f1410 0%, #0A0A0A 100%)" }}>
+            <span className="font-script gold text-2xl mb-1">Las Dos Doncellas</span>
+            <span className="label-eyebrow gold opacity-70 text-[10px]">Próximamente</span>
+          </div>
         )}
         {p.compare_at_price && p.compare_at_price > p.price && (
           <span className="absolute top-4 left-4 bg-[#8C211E] text-white text-[10px] uppercase tracking-[0.2em] px-3 py-1">Oferta</span>
