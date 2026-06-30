@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, Outlet, Navigate, useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck, MessageCircle, Menu, X, Tag } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck, Settings as SettingsIcon, Menu, X, Tag } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import FreshnessBadge from "@/components/admin/FreshnessBadge";
 
@@ -11,7 +11,7 @@ const LINKS = [
   { to: "/admin/orders", icon: ShoppingCart, label: "Pedidos", perm: "orders.read" },
   { to: "/admin/providers", icon: Truck, label: "Proveedores", perm: "products.read" },
   { to: "/admin/users", icon: Users, label: "Usuarios", perm: "users.read" },
-  { to: "/admin/chat", icon: MessageCircle, label: "Chat", perm: "users.read" },
+  { to: "/admin/configuracion", icon: SettingsIcon, label: "Configuración", perm: "users.write" },
 ];
 
 export default function AdminLayout() {
