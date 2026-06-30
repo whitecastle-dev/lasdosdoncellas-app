@@ -17,7 +17,7 @@ def _enabled() -> bool:
     return bool(os.environ.get("BREVO_API_KEY"))
 
 
-async def _send(subject: str, html: str, text: str, to_email: str, to_name: str = "") -> bool:
+async def _send(subject: str, html: str, text: str, to_email: str, to_name: str = "", attachments: list | None = None) -> bool:
     if not _enabled():
         logger.info(f"[brevo:disabled] would send '{subject}' to {to_email}")
         return False
@@ -31,8 +31,10 @@ async def _send(subject: str, html: str, text: str, to_email: str, to_name: str 
         "htmlContent": html,
         "textContent": text,
     }
+    if attachments:
+        payload["attachment"] = attachments
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=20.0) as client:
             r = await client.post(BREVO_URL, json=payload, headers={"api-key": api_key, "Content-Type": "application/json"})
             r.raise_for_status()
             return True
@@ -154,6 +156,56 @@ async def send_provider_message(provider_email: str, provider_name: str, subject
       <div style="color:#222;font-size:14px;line-height:1.7;white-space:pre-wrap;">{body}</div>
     """)
     return await _send(subject=subject, html=html, text=body, to_email=provider_email, to_name=provider_name)
+
+
+async def send_proforma_to_provider(provider: dict, proforma: dict, pdf_bytes: bytes) -> bool:
+    """Sends the approved proforma PDF to the provider (and CC to pedidos@...).
+
+    `proforma` must include: proforma_number, items list, total, notes.
+    """
+    import base64
+    rows = ""
+    for it in proforma.get("items", []):
+        rows += f"""
+        <tr>
+          <td style="padding:6px 0;border-bottom:1px solid #eee;">{it.get('name','')} <span style='color:#888;font-family:monospace;font-size:11px;'>{it.get('sku','')}</span></td>
+          <td style="padding:6px 0;border-bottom:1px solid #eee;text-align:right;font-family:monospace;">× {it.get('qty',0)}</td>
+        </tr>"""
+
+    html = _shell(f"""
+      <h1 style="font-family:Georgia,serif;font-weight:normal;font-size:28px;margin:0 0 8px;">Pedido proforma</h1>
+      <p style="color:#555;margin:0 0 12px;line-height:1.6;">Estimados {provider.get('company') or provider.get('name','')}:</p>
+      <p style="color:#555;margin:0 0 18px;line-height:1.6;">
+        Adjuntamos pedido proforma <strong style="color:#C5A059;font-family:monospace;">{proforma.get('proforma_number','')}</strong>
+        con los productos que necesitamos reponer. Por favor, confirmen disponibilidad, precio definitivo y plazo de entrega
+        respondiendo a este correo.
+      </p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        {rows}
+        <tr><td style="padding:12px 0;border-top:2px solid #0A0A0A;font-size:16px;">Total estimado</td>
+            <td style="text-align:right;font-size:16px;font-family:Georgia,serif;border-top:2px solid #0A0A0A;padding-top:12px;">{_money(proforma.get('total',0))}</td></tr>
+      </table>
+      {f'<p style="margin-top:18px;color:#555;font-size:13px;"><b>Notas:</b> {proforma.get("notes")}</p>' if proforma.get('notes') else ''}
+      <p style="color:#666;font-size:12px;margin-top:24px;line-height:1.6;">
+        El PDF de la proforma se adjunta a este correo. Esto no es una factura; sirve únicamente como solicitud de reposición.
+      </p>
+    """)
+    text = (
+        f"Pedido proforma {proforma.get('proforma_number')}.\n"
+        f"Total estimado: {_money(proforma.get('total',0))}.\n"
+        "PDF adjunto. Por favor confirmen disponibilidad y plazo."
+    )
+    attachment = [{
+        "name": f"proforma_{proforma.get('proforma_number','')}.pdf",
+        "content": base64.b64encode(pdf_bytes).decode("ascii"),
+    }]
+    return await _send(
+        subject=f"Pedido proforma {proforma.get('proforma_number','')} · Las Dos Doncellas",
+        html=html, text=text,
+        to_email=provider.get("email", ""),
+        to_name=provider.get("name", ""),
+        attachments=attachment,
+    )
 
 
 async def send_chat_notification(customer_name: str, customer_email: str, message: str) -> bool:
