@@ -35,6 +35,7 @@ import ProductsAdmin from "@/pages/admin/Products";
 import CategoriesAdmin from "@/pages/admin/Categories";
 import OrdersAdmin from "@/pages/admin/Orders";
 import UsersAdmin from "@/pages/admin/Users";
+import BusinessUsersAdmin from "@/pages/admin/BusinessUsers";
 import ProvidersAdmin from "@/pages/admin/Providers";
 import Configuracion from "@/pages/admin/Configuracion";
 
@@ -84,6 +85,7 @@ function App() {
                 <Route path="orders" element={<OrdersAdmin />} />
                 <Route path="providers" element={<ProvidersAdmin />} />
                 <Route path="users" element={<UsersAdmin />} />
+                <Route path="empresas" element={<BusinessUsersAdmin />} />
                 <Route path="chat" element={<Configuracion />} />
                 <Route path="configuracion" element={<Configuracion />} />
               </Route>
