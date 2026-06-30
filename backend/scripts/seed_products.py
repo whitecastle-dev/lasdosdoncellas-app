@@ -316,6 +316,17 @@ async def _ensure_categories() -> dict:
         await db.categories.insert_one(doc)
         result[c["slug"]] = cat_id
         print(f"  + categoría creada: {c['slug']}")
+
+    # Desactivar (no borrar) cualquier categoría legacy que NO esté en la
+    # lista definitiva. Sus productos siguen vinculados pero la categoría
+    # queda oculta del storefront. El admin puede re-activarla desde el CMS.
+    definitive_slugs = [c["slug"] for c in CATS]
+    res = await db.categories.update_many(
+        {"slug": {"$nin": definitive_slugs}, "is_active": {"$ne": False}},
+        {"$set": {"is_active": False}},
+    )
+    if res.modified_count:
+        print(f"  · {res.modified_count} categoría(s) legacy fuera de la lista definitiva → ocultadas (is_active=false)")
     return result
 
 
