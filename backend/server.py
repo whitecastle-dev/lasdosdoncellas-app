@@ -22,6 +22,7 @@ from routers_dashboard import router as dashboard_router
 from routers_files import router as files_router
 from routers_providers import router as providers_router
 from routers_customers import router as customers_router
+from routers_business_customers import router as business_customers_router
 from routers_excel import router as excel_router
 from routers_excel_all import router as excel_all_router
 
@@ -62,6 +63,7 @@ app.include_router(dashboard_router)
 app.include_router(files_router)
 app.include_router(providers_router)
 app.include_router(customers_router)
+app.include_router(business_customers_router)
 app.include_router(excel_router)
 app.include_router(excel_all_router)
 from routers_chat import router as chat_router
@@ -85,6 +87,8 @@ async def on_startup():
         await db.payment_transactions.create_index("session_id")
         await db.categories.create_index("slug", unique=True)
         await db.providers.create_index("email", unique=True)
+        await db.business_customers.create_index("email", unique=True)
+        await db.business_customers.create_index("tax_id", unique=True)
         await db.reviews.create_index([("product_id", 1), ("created_at", -1)])
         await db.reviews.create_index([("product_id", 1), ("customer_id", 1)], unique=True)
         logger.info("Indexes ensured")

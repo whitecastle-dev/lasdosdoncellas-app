@@ -79,6 +79,34 @@ async def list_web_users(_=Depends(require_permission("customers.read"))):
     return items
 
 
+@router.get("/web/by-email/{email}")
+async def get_web_user_by_email(email: str, _=Depends(require_permission("customers.read"))):
+    """Lookup web customer by email (lowercase, case-insensitive)."""
+    import re as _re
+    em = email.strip().lower()
+    c = await db.customers.find_one(
+        {"email": {"$regex": f"^{_re.escape(em)}$", "$options": "i"}},
+        {"_id": 0, "password_hash": 0, "verification_token": 0, "reset_token": 0,
+         "reset_token_expires": 0, "verification_expires": 0},
+    )
+    if not c:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    return c
+
+
+@router.get("/web/{customer_id}")
+async def get_web_user(customer_id: str, _=Depends(require_permission("customers.read"))):
+    """Fetch single web customer by id — used by relational modals from Orders."""
+    c = await db.customers.find_one(
+        {"id": customer_id},
+        {"_id": 0, "password_hash": 0, "verification_token": 0, "reset_token": 0,
+         "reset_token_expires": 0, "verification_expires": 0},
+    )
+    if not c:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    return c
+
+
 class WebUserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None

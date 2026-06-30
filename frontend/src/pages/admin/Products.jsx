@@ -7,6 +7,7 @@ import TableFilter, { filterRows } from "@/components/admin/TableFilter";
 import useSort, { SortHeader } from "@/components/admin/useSort";
 import VariantsEditor from "@/components/admin/VariantsEditor";
 import CategoryAttributes from "@/components/admin/CategoryAttributes";
+import RelationModal from "@/components/admin/RelationModal";
 
 const EMPTY = {
   name: "", sku: "", description: "", long_description: "",
@@ -37,6 +38,7 @@ export default function ProductsAdmin() {
   const [bulkUploading, setBulkUploading] = useState(false);
   const [selected, setSelected] = useState(new Set());
   const [dragOver, setDragOver] = useState(false);
+  const [relation, setRelation] = useState(null); // {type, id}
 
   const load = async () => {
     setLoading(true);
@@ -233,7 +235,17 @@ export default function ProductsAdmin() {
                 <td className="mono">{p.sku}</td>
                 <td className="font-medium">{p.name}</td>
                 <td className="text-gray-600">{categories.find((c) => c.id === p.category_id)?.name || "—"}</td>
-                <td className="text-gray-600 text-xs">{providers.find((pr) => pr.id === p.provider_id)?.name || "—"}</td>
+                <td className="text-gray-600 text-xs">
+                  {p.provider_id ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setRelation({ type: "provider", id: p.provider_id }); }}
+                      className="text-[#C5A059] hover:underline"
+                      data-testid={`product-provider-link-${p.id}`}
+                    >
+                      {providers.find((pr) => pr.id === p.provider_id)?.name || "Ver proveedor"}
+                    </button>
+                  ) : "—"}
+                </td>
                 <td className="text-xs text-gray-500 mono">{(p.created_at || "").slice(0, 10)}</td>
                 <td className={`mono text-right ${p.stock <= (p.low_stock_threshold || 5) ? "text-red-600" : ""}`}>{p.stock}</td>
                 <td className="mono text-right">{formatMoney(p.price)}</td>
@@ -282,6 +294,7 @@ export default function ProductsAdmin() {
           }}
         />
       )}
+      {relation && <RelationModal type={relation.type} id={relation.id} onClose={() => setRelation(null)} />}
     </div>
   );
 }

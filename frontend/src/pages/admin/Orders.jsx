@@ -4,6 +4,7 @@ import { api, formatApiError, formatMoney } from "@/lib/api";
 import { toast } from "sonner";
 import TableFilter, { filterRows } from "@/components/admin/TableFilter";
 import useSort, { SortHeader } from "@/components/admin/useSort";
+import RelationModal from "@/components/admin/RelationModal";
 
 const STATUSES = [
   { v: "pending_payment", l: "Pendiente de pago" },
@@ -22,6 +23,7 @@ export default function OrdersAdmin() {
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState(null);
   const [picked, setPicked] = useState(new Set());
+  const [relation, setRelation] = useState(null); // {type, id}
   const fileRef = useRef();
 
   const load = async () => {
@@ -103,6 +105,16 @@ export default function OrdersAdmin() {
     } catch (err) { toast.error(formatApiError(err)); }
   };
 
+  const openCustomerCard = async (email) => {
+    if (!email) return;
+    try {
+      const { data } = await api.get(`/users/web/by-email/${encodeURIComponent(email)}`);
+      setRelation({ type: "web-customer", id: data.id });
+    } catch (err) {
+      toast.message("Pedido de invitado", { description: `No hay ficha registrada para ${email}.` });
+    }
+  };
+
   return (
     <div className="p-8 lg:p-10 max-w-[1600px] mx-auto">
       <div className="flex items-end justify-between mb-8 gap-4 flex-wrap">
@@ -148,7 +160,17 @@ export default function OrdersAdmin() {
               <tr key={o.id} className="border-t border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => setSelected(o)} data-testid={`order-row-${o.id}`}>
                 <td className="px-4 py-3 mono">{o.order_number}</td>
                 <td className="text-gray-600">{new Date(o.created_at).toLocaleString("es-ES")}</td>
-                <td>{o.customer?.name}<div className="text-xs text-gray-500">{o.customer?.email}</div></td>
+                <td>{o.customer?.name}
+                  <div className="text-xs">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openCustomerCard(o.customer?.email); }}
+                      className="text-[#C5A059] hover:underline"
+                      data-testid={`order-customer-link-${o.id}`}
+                    >
+                      {o.customer?.email}
+                    </button>
+                  </div>
+                </td>
                 <td><span className="text-xs px-2 py-0.5 bg-black text-[#C5A059]">{statusLabel[o.status]}</span></td>
                 <td className="mono text-right">{formatMoney(o.total)}</td>
                 <td className="text-right pr-4"><ChevronRight size={16} className="text-gray-400" /></td>
@@ -158,12 +180,13 @@ export default function OrdersAdmin() {
         </table>
       </div>
 
-      {selected && <OrderDrawer order={selected} onClose={() => setSelected(null)} setStatus={setStatus} downloadInvoice={downloadInvoice} />}
+      {selected && <OrderDrawer order={selected} onClose={() => setSelected(null)} setStatus={setStatus} downloadInvoice={downloadInvoice} openCustomerCard={openCustomerCard} />}
+      {relation && <RelationModal type={relation.type} id={relation.id} onClose={() => setRelation(null)} />}
     </div>
   );
 }
 
-function OrderDrawer({ order, onClose, setStatus, downloadInvoice }) {
+function OrderDrawer({ order, onClose, setStatus, downloadInvoice, openCustomerCard }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/40" onClick={onClose}>
       <div className="absolute right-0 top-0 bottom-0 w-full max-w-2xl bg-white overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="order-drawer">
@@ -183,7 +206,16 @@ function OrderDrawer({ order, onClose, setStatus, downloadInvoice }) {
 
         <div className="p-6 space-y-6">
           <div>
-            <div className="label-eyebrow text-gray-500 mb-2">Cliente</div>
+            <div className="label-eyebrow text-gray-500 mb-2 flex items-center justify-between">
+              <span>Cliente</span>
+              <button
+                onClick={() => openCustomerCard?.(order.customer?.email)}
+                className="text-xs text-[#C5A059] hover:underline"
+                data-testid="order-view-customer"
+              >
+                Ver ficha de cliente →
+              </button>
+            </div>
             <div className="text-sm leading-relaxed">
               <div className="font-medium">{order.customer?.name}</div>
               <div>{order.customer?.email}{order.customer?.phone && ` · ${order.customer.phone}`}</div>
