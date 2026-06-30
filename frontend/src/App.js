@@ -37,6 +37,15 @@ import OrdersAdmin from "@/pages/admin/Orders";
 import UsersAdmin from "@/pages/admin/Users";
 import BusinessUsersAdmin from "@/pages/admin/BusinessUsers";
 import StockAlertsAdmin from "@/pages/admin/StockAlerts";
+import ErpLayout from "@/pages/admin/erp/ErpLayout";
+import ErpSync from "@/pages/admin/erp/ErpSync";
+import ErpSlicings from "@/pages/admin/erp/ErpSlicings";
+import ErpEmployees from "@/pages/admin/erp/ErpEmployees";
+import ErpSalaries from "@/pages/admin/erp/ErpSalaries";
+import ErpClients from "@/pages/admin/erp/ErpClients";
+import ErpProdProducts from "@/pages/admin/erp/ErpProdProducts";
+import ErpEvents from "@/pages/admin/erp/ErpEvents";
+import ErpLabels from "@/pages/admin/erp/ErpLabels";
 import ProvidersAdmin from "@/pages/admin/Providers";
 import Configuracion from "@/pages/admin/Configuracion";
 
@@ -88,6 +97,16 @@ function App() {
                 <Route path="users" element={<UsersAdmin />} />
                 <Route path="empresas" element={<BusinessUsersAdmin />} />
                 <Route path="stock-alerts" element={<StockAlertsAdmin />} />
+                <Route path="erp" element={<ErpLayout />}>
+                  <Route path="loncheados" element={<ErpSlicings />} />
+                  <Route path="empleados" element={<ErpEmployees />} />
+                  <Route path="salarios" element={<ErpSalaries />} />
+                  <Route path="clientes" element={<ErpClients />} />
+                  <Route path="productos" element={<ErpProdProducts />} />
+                  <Route path="eventos" element={<ErpEvents />} />
+                  <Route path="etiquetas" element={<ErpLabels />} />
+                  <Route path="sync" element={<ErpSync />} />
+                </Route>
                 <Route path="chat" element={<Configuracion />} />
                 <Route path="configuracion" element={<Configuracion />} />
               </Route>

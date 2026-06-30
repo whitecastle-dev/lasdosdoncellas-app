@@ -24,6 +24,8 @@ from routers_providers import router as providers_router
 from routers_customers import router as customers_router
 from routers_business_customers import router as business_customers_router
 from routers_stock_alerts import router as stock_alerts_router
+from routers_erp_production import router as erp_production_router
+from routers_supabase_sync import router as supabase_sync_router
 from routers_excel import router as excel_router
 from routers_excel_all import router as excel_all_router
 
@@ -66,6 +68,8 @@ app.include_router(providers_router)
 app.include_router(customers_router)
 app.include_router(business_customers_router)
 app.include_router(stock_alerts_router)
+app.include_router(erp_production_router)
+app.include_router(supabase_sync_router)
 app.include_router(excel_router)
 app.include_router(excel_all_router)
 from routers_chat import router as chat_router
@@ -93,6 +97,11 @@ async def on_startup():
         await db.business_customers.create_index("tax_id", unique=True)
         await db.stock_alerts.create_index([("provider_id", 1), ("status", 1)])
         await db.stock_alerts.create_index("created_at")
+        await db.production_slicings.create_index("created_at")
+        await db.production_slicings.create_index("cliente_id")
+        await db.production_slicings.create_index("empleado_id")
+        await db.production_salaries.create_index([("empleado_id", 1), ("created_at", -1)])
+        await db.production_events.create_index("fecha")
         await db.reviews.create_index([("product_id", 1), ("created_at", -1)])
         await db.reviews.create_index([("product_id", 1), ("customer_id", 1)], unique=True)
         logger.info("Indexes ensured")
