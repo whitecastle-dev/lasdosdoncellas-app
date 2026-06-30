@@ -48,10 +48,40 @@ export default function Catalog() {
     [categories, categorySlug]
   );
 
+  // Filtros adicionales en URL (para Quesos: DO, leche origen, tipo leche)
+  const doFilter = params.get("do") || "";
+  const milkOriginFilter = params.get("milk_origin") || "";
+  const milkTypeFilter = params.get("milk_type") || "";
+
   const filtered = useMemo(() => {
-    if (!activeCategory) return products;
-    return products.filter((p) => p.category_id === activeCategory.id);
-  }, [products, activeCategory]);
+    let list = activeCategory ? products.filter((p) => p.category_id === activeCategory.id) : products;
+    if (categorySlug === "quesos") {
+      if (doFilter) list = list.filter((p) => (p.attributes?.denominacion_origen || "").toLowerCase().includes(doFilter.toLowerCase()));
+      if (milkOriginFilter) list = list.filter((p) => p.attributes?.milk_origin === milkOriginFilter);
+      if (milkTypeFilter) list = list.filter((p) => p.attributes?.milk_type === milkTypeFilter);
+    }
+    return list;
+  }, [products, activeCategory, categorySlug, doFilter, milkOriginFilter, milkTypeFilter]);
+
+  // Valores únicos para los selects de filtros de queso
+  const cheeseFacets = useMemo(() => {
+    if (categorySlug !== "quesos") return null;
+    const dos = new Set();
+    const milks = new Set();
+    const types = new Set();
+    for (const p of products) {
+      if (activeCategory && p.category_id !== activeCategory.id) continue;
+      const a = p.attributes || {};
+      if (a.denominacion_origen) dos.add(a.denominacion_origen);
+      if (a.milk_origin) milks.add(a.milk_origin);
+      if (a.milk_type) types.add(a.milk_type);
+    }
+    return {
+      dos: Array.from(dos).sort(),
+      milks: Array.from(milks).sort(),
+      types: Array.from(types).sort(),
+    };
+  }, [products, activeCategory, categorySlug]);
 
   // Cuenta de productos por categoría
   const counts = useMemo(() => {
@@ -138,6 +168,36 @@ export default function Catalog() {
             />
           ))}
         </div>
+
+        {/* Filtros específicos de Quesos */}
+        {categorySlug === "quesos" && cheeseFacets && (
+          <div className="flex flex-wrap items-center gap-3 mb-8 pb-6" style={{ borderBottom: "1px solid rgba(197,160,89,0.18)" }} data-testid="catalog-cheese-filters">
+            <span className="label-eyebrow gold">Refinar:</span>
+            {cheeseFacets.dos.length > 0 && (
+              <select value={doFilter} onChange={(e) => setParam("do", e.target.value)} className="bg-transparent border border-[rgba(250,248,245,0.2)] focus:border-[#C5A059] outline-none px-3 py-2 text-sm text-[#FAF8F5]" data-testid="cheese-filter-do">
+                <option value="" className="bg-black">D.O. (todas)</option>
+                {cheeseFacets.dos.map((d) => <option key={d} value={d} className="bg-black">{d}</option>)}
+              </select>
+            )}
+            {cheeseFacets.milks.length > 0 && (
+              <select value={milkOriginFilter} onChange={(e) => setParam("milk_origin", e.target.value)} className="bg-transparent border border-[rgba(250,248,245,0.2)] focus:border-[#C5A059] outline-none px-3 py-2 text-sm text-[#FAF8F5]" data-testid="cheese-filter-milk-origin">
+                <option value="" className="bg-black">Leche (todas)</option>
+                {cheeseFacets.milks.map((m) => <option key={m} value={m} className="bg-black">{m}</option>)}
+              </select>
+            )}
+            {cheeseFacets.types.length > 0 && (
+              <select value={milkTypeFilter} onChange={(e) => setParam("milk_type", e.target.value)} className="bg-transparent border border-[rgba(250,248,245,0.2)] focus:border-[#C5A059] outline-none px-3 py-2 text-sm text-[#FAF8F5]" data-testid="cheese-filter-milk-type">
+                <option value="" className="bg-black">Tipo (todos)</option>
+                {cheeseFacets.types.map((t) => <option key={t} value={t} className="bg-black">{t}</option>)}
+              </select>
+            )}
+            {(doFilter || milkOriginFilter || milkTypeFilter) && (
+              <button onClick={() => { setParam("do", ""); setParam("milk_origin", ""); setParam("milk_type", ""); }} className="text-xs uppercase tracking-widest gold hover:underline" data-testid="cheese-filter-clear">
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+        )}
 
         {loading && <div className="text-center py-20 gold">Cargando…</div>}
         {!loading && filtered.length === 0 && (
