@@ -79,11 +79,9 @@ function HeroSlider() {
 function CategoryTiles({ categories }) {
   if (!categories.length) return null;
   const tiles = categories;
-  // Grid: 2 columnas en móvil para que el bloque ocupe poco vertical aún con
-  // 7+ categorías; 3 columnas en desktop independientemente del nº (queda elegante en filas).
-  const cols = tiles.length <= 3
-    ? "grid-cols-2 md:grid-cols-3"
-    : "grid-cols-2 md:grid-cols-3";
+  // Grid: 2 columnas en móvil, 4 en desktop (más pequeñas y más por fila para
+  // que se vean varias categorías sin scroll excesivo).
+  const cols = "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
   return (
     <section className="max-w-[1500px] mx-auto px-6 lg:px-12 pt-24 pb-4" data-testid="home-category-tiles">
       <div className="flex items-end justify-between mb-12 flex-wrap gap-4">
@@ -152,7 +150,7 @@ function FeaturedProducts({ items }) {
         </div>
         <Link to="/catalogo" className="ldd-btn-ghost" data-testid="home-view-all">Ver catálogo completo</Link>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 sm:gap-x-8 gap-y-10 sm:gap-y-12">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-x-4 sm:gap-x-6 gap-y-10 sm:gap-y-12">
         {items.map((p) => <ProductCard key={p.id} p={p} />)}
       </div>
     </section>
@@ -323,9 +321,9 @@ function MiniCategorySection({ category, eyebrow, title, accent, side = "left" }
     (async () => {
       try {
         const { data } = await api.get("/products", {
-          params: { is_active: true, category_id: category.id, sort: "created_desc", limit: 4 },
+          params: { is_active: true, category_id: category.id, sort: "created_desc", limit: 6 },
         });
-        setItems((data || []).slice(0, 4));
+        setItems((data || []).slice(0, 6));
       } catch { /* ignore */ }
     })();
   }, [category?.id]);
@@ -349,7 +347,7 @@ function MiniCategorySection({ category, eyebrow, title, accent, side = "left" }
           Ver más <ArrowRight size={14} />
         </Link>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 sm:gap-x-8 gap-y-10 sm:gap-y-12">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-x-4 sm:gap-x-6 gap-y-10 sm:gap-y-12">
         {items.map((p) => <ProductCard key={p.id} p={p} />)}
       </div>
     </section>
@@ -389,13 +387,13 @@ export default function Storefront() {
     (async () => {
       try {
         const { data } = await api.get("/products", { params: { is_active: true, featured: true } });
-        let list = (data || []).slice(0, 4);
-        if (list.length < 4) {
+        let list = (data || []).slice(0, 6);
+        if (list.length < 6) {
           // Si no hay suficientes destacados, completar con los más recientes
           const { data: all } = await api.get("/products", { params: { is_active: true } });
           const ids = new Set(list.map((p) => p.id));
           for (const p of all || []) {
-            if (list.length >= 4) break;
+            if (list.length >= 6) break;
             if (!ids.has(p.id)) list.push(p);
           }
         }

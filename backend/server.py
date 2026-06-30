@@ -68,6 +68,8 @@ from routers_chat import router as chat_router
 app.include_router(chat_router)
 from routers_reviews import router as reviews_router
 app.include_router(reviews_router)
+from routers_settings import router as settings_router
+app.include_router(settings_router)
 
 
 @app.on_event("startup")
@@ -131,7 +133,9 @@ async def on_startup():
         # 2) Auto-seed: vacía o faltan categorías clave ---------------------
         prod_count = await db.products.count_documents({})
         missing_cats = []
-        for s in ("quesos", "vinos", "aceites"):
+        for s in ("jamones", "paletillas", "quesos", "loncheados", "embutidos",
+                  "aceites", "conservas", "aceitunas", "miel", "sal", "bebidas",
+                  "vinos", "vino-granel", "bebidas-alcoholicas", "cortes", "varios"):
             if not await db.categories.find_one({"slug": s}):
                 missing_cats.append(s)
         should_seed = prod_count == 0 or len(missing_cats) > 0

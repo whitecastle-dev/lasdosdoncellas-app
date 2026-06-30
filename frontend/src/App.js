@@ -8,6 +8,7 @@ import { CustomerProvider } from "@/context/CustomerContext";
 import { CartProvider } from "@/context/CartContext";
 import GoogleTranslateLoader from "@/components/GoogleTranslateLoader";
 import ScrollToTop from "@/components/ScrollToTop";
+import WhatsAppFloat from "@/components/storefront/WhatsAppFloat";
 
 import Storefront from "@/pages/Storefront";
 import Catalog from "@/pages/Catalog";
@@ -35,7 +36,7 @@ import CategoriesAdmin from "@/pages/admin/Categories";
 import OrdersAdmin from "@/pages/admin/Orders";
 import UsersAdmin from "@/pages/admin/Users";
 import ProvidersAdmin from "@/pages/admin/Providers";
-import AdminChat from "@/pages/admin/AdminChat";
+import Configuracion from "@/pages/admin/Configuracion";
 
 import AvisoLegal from "@/pages/legal/AvisoLegal";
 import PoliticaPrivacidad from "@/pages/legal/PoliticaPrivacidad";
@@ -50,6 +51,7 @@ function App() {
             <Toaster position="top-right" richColors theme="dark" />
             <GoogleTranslateLoader />
             <ScrollToTop />
+            <WhatsAppFloat />
             <Routes>
               <Route path="/" element={<Storefront />} />
               <Route path="/catalogo" element={<Catalog />} />
@@ -82,7 +84,8 @@ function App() {
                 <Route path="orders" element={<OrdersAdmin />} />
                 <Route path="providers" element={<ProvidersAdmin />} />
                 <Route path="users" element={<UsersAdmin />} />
-                <Route path="chat" element={<AdminChat />} />
+                <Route path="chat" element={<Configuracion />} />
+                <Route path="configuracion" element={<Configuracion />} />
               </Route>
 
               <Route path="*" element={<Navigate to="/" />} />

@@ -261,12 +261,22 @@ async def _ensure_categories() -> dict:
     """Crea las categorías base si no existen, y rellena position/is_active
     a categorías legacy que pudieran tener esos campos a null."""
     CATS = [
-        {"slug": "jamones", "name": "Jamones", "position": 1},
-        {"slug": "embutidos", "name": "Embutidos", "position": 2},
-        {"slug": "quesos", "name": "Quesos", "position": 3},
-        {"slug": "vinos", "name": "Vinos & Generosos", "position": 4},
-        {"slug": "aceites", "name": "Aceites & Conservas", "position": 5},
-        {"slug": "lotes", "name": "Lotes Selectos", "position": 6},
+        {"slug": "jamones",              "name": "Jamones",                 "position": 1},
+        {"slug": "paletillas",           "name": "Paletillas",              "position": 2},
+        {"slug": "quesos",               "name": "Quesos",                  "position": 3},
+        {"slug": "loncheados",           "name": "Loncheados",              "position": 4},
+        {"slug": "embutidos",            "name": "Embutidos",               "position": 5},
+        {"slug": "cortes",               "name": "Cortes",                  "position": 6},
+        {"slug": "aceites",              "name": "Aceites",                 "position": 7},
+        {"slug": "conservas",            "name": "Conservas",               "position": 8},
+        {"slug": "aceitunas",            "name": "Aceitunas",               "position": 9},
+        {"slug": "miel",                 "name": "Miel",                    "position": 10},
+        {"slug": "sal",                  "name": "Sal",                     "position": 11},
+        {"slug": "bebidas",              "name": "Bebidas",                 "position": 12},
+        {"slug": "vinos",                "name": "Vinos",                   "position": 13},
+        {"slug": "vino-granel",          "name": "Vino Granel",             "position": 14},
+        {"slug": "bebidas-alcoholicas",  "name": "Bebidas Alcohólicas",     "position": 15, "age_restricted": True},
+        {"slug": "varios",               "name": "Varios",                  "position": 16},
     ]
     result = {}
     for c in CATS:
@@ -276,22 +286,34 @@ async def _ensure_categories() -> dict:
             updates = {}
             if existing.get("position") is None:
                 updates["position"] = c["position"]
+            elif existing.get("position") != c["position"]:
+                # También actualizar si la posición legacy no coincide con la
+                # definitiva (p.ej. tras una reorganización del catálogo).
+                updates["position"] = c["position"]
             if existing.get("is_active") is None:
                 updates["is_active"] = True
+            if c.get("age_restricted") and not existing.get("age_restricted"):
+                updates["age_restricted"] = True
+            # Migración: actualizar el nombre si cambió (p.ej. 'Vinos & Generosos' → 'Vinos')
+            if existing.get("name") != c["name"]:
+                updates["name"] = c["name"]
             if updates:
                 await db.categories.update_one({"id": existing["id"]}, {"$set": updates})
                 print(f"  · categoría actualizada ({c['slug']}): {updates}")
             result[c["slug"]] = existing["id"]
             continue
         cat_id = str(uuid.uuid4())
-        await db.categories.insert_one({
+        doc = {
             "id": cat_id,
             "slug": c["slug"],
             "name": c["name"],
             "position": c["position"],
             "is_active": True,
             "created_at": datetime.now(timezone.utc).isoformat(),
-        })
+        }
+        if c.get("age_restricted"):
+            doc["age_restricted"] = True
+        await db.categories.insert_one(doc)
         result[c["slug"]] = cat_id
         print(f"  + categoría creada: {c['slug']}")
     return result
@@ -303,7 +325,10 @@ async def seed():
 
     inserted = skipped = 0
     for slug, items in PRODUCTS.items():
-        cat_id = cats[slug]
+        cat_id = cats.get(slug)
+        if not cat_id:
+            print(f"  ! categoría {slug!r} no registrada — saltando {len(items)} producto(s)")
+            continue
         for raw in items:
             if await db.products.find_one({"sku": raw["sku"]}):
                 skipped += 1
