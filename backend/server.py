@@ -27,6 +27,7 @@ from routers_stock_alerts import router as stock_alerts_router
 from routers_erp_production import router as erp_production_router
 from routers_supabase_sync import router as supabase_sync_router
 from routers_inventory import router as inventory_router
+from routers_treasury import router as treasury_router, inv_router as issued_invoices_router
 from routers_excel import router as excel_router
 from routers_excel_all import router as excel_all_router
 
@@ -72,6 +73,8 @@ app.include_router(stock_alerts_router)
 app.include_router(erp_production_router)
 app.include_router(supabase_sync_router)
 app.include_router(inventory_router)
+app.include_router(treasury_router)
+app.include_router(issued_invoices_router)
 app.include_router(excel_router)
 app.include_router(excel_all_router)
 from routers_chat import router as chat_router
@@ -109,6 +112,10 @@ async def on_startup():
         await db.purchase_orders.create_index([("status", 1), ("created_at", -1)])
         await db.goods_receipts.create_index("created_at")
         await db.supplier_invoices.create_index([("status", 1), ("due_date", 1)])
+        await db.bank_accounts.create_index("nombre")
+        await db.treasury_movements.create_index([("account_id", 1), ("fecha", -1)])
+        await db.treasury_movements.create_index("fecha")
+        await db.issued_invoices.create_index([("status", 1), ("due_date", 1)])
         await db.reviews.create_index([("product_id", 1), ("created_at", -1)])
         await db.reviews.create_index([("product_id", 1), ("customer_id", 1)], unique=True)
         logger.info("Indexes ensured")

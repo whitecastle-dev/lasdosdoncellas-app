@@ -53,6 +53,12 @@ import InventoryLocations from "@/pages/admin/inventory/InventoryLocations";
 import PurchaseOrders from "@/pages/admin/inventory/PurchaseOrders";
 import GoodsReceipts from "@/pages/admin/inventory/GoodsReceipts";
 import SupplierInvoices from "@/pages/admin/inventory/SupplierInvoices";
+import TreasuryLayout from "@/pages/admin/treasury/TreasuryLayout";
+import Cashflow from "@/pages/admin/treasury/Cashflow";
+import Accounts from "@/pages/admin/treasury/Accounts";
+import Movements from "@/pages/admin/treasury/Movements";
+import IssuedInvoices from "@/pages/admin/treasury/IssuedInvoices";
+import Reminders from "@/pages/admin/treasury/Reminders";
 import ProvidersAdmin from "@/pages/admin/Providers";
 import Configuracion from "@/pages/admin/Configuracion";
 
@@ -121,6 +127,13 @@ function App() {
                   <Route path="pedidos" element={<PurchaseOrders />} />
                   <Route path="recepciones" element={<GoodsReceipts />} />
                   <Route path="facturas-proveedor" element={<SupplierInvoices />} />
+                </Route>
+                <Route path="tesoreria" element={<TreasuryLayout />}>
+                  <Route path="cashflow" element={<Cashflow />} />
+                  <Route path="cuentas" element={<Accounts />} />
+                  <Route path="movimientos" element={<Movements />} />
+                  <Route path="facturas-emitidas" element={<IssuedInvoices />} />
+                  <Route path="recordatorios" element={<Reminders />} />
                 </Route>
                 <Route path="chat" element={<Configuracion />} />
                 <Route path="configuracion" element={<Configuracion />} />

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api, formatApiError, formatMoney } from "@/lib/api";
 import { toast } from "sonner";
 import { FileText, CheckCircle2 } from "lucide-react";
+import { PayModal } from "../treasury/IssuedInvoices";
 
 const STATUS = { pending_payment: "Pendiente pago", paid: "Pagada", overdue: "Vencida", cancelled: "Cancelada" };
 const COLORS = { pending_payment: "bg-amber-100 text-amber-900", paid: "bg-green-100 text-green-900", overdue: "bg-red-100 text-red-900", cancelled: "bg-gray-200 text-gray-700" };
@@ -10,6 +11,7 @@ export default function SupplierInvoices() {
   const [rows, setRows] = useState([]);
   const [summary, setSummary] = useState(null);
   const [filter, setFilter] = useState("");
+  const [paying, setPaying] = useState(null);
   const load = async () => {
     try {
       const params = filter ? `?status=${filter}` : "";
@@ -18,11 +20,7 @@ export default function SupplierInvoices() {
     } catch (err) { toast.error(formatApiError(err)); }
   };
   useEffect(() => { load(); }, [filter]);
-  const markPaid = async (i) => {
-    if (!window.confirm(`¿Marcar factura ${i.invoice_number} como PAGADA?`)) return;
-    try { await api.patch(`/supplier-invoices/${i.id}`, { status: "paid" }); toast.success("Marcada como pagada"); load(); }
-    catch (err) { toast.error(formatApiError(err)); }
-  };
+  const markPaid = (i) => setPaying(i);
   return (
     <div className="space-y-6">
       {summary && (
@@ -72,6 +70,7 @@ export default function SupplierInvoices() {
           </tbody>
         </table>
       </div>
+      {paying && <PayModal invoice={paying} kind="supplier" onClose={() => setPaying(null)} onDone={() => { setPaying(null); load(); }} />}
     </div>
   );
 }
