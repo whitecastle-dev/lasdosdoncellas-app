@@ -372,6 +372,19 @@ function AlertDrawer({ alertId, isSuper, onClose, onChanged }) {
                     El email no se envió (servicio Brevo desactivado o error temporal). Puedes descargar el PDF y enviarlo manualmente.
                   </div>
                 )}
+                <button
+                  onClick={async () => {
+                    try {
+                      const { data } = await api.post(`/stock-alerts/${alertId}/convert-to-po`);
+                      toast.success(`Pedido a proveedor ${data.po_number} creado`);
+                      onChanged(); onClose();
+                    } catch (err) { toast.error(formatApiError(err)); }
+                  }}
+                  className="mt-3 px-3 py-1.5 text-xs bg-blue-900 text-white hover:bg-blue-800 flex items-center gap-1"
+                  data-testid="stock-convert-po"
+                >
+                  → Convertir en pedido a proveedor
+                </button>
               </div>
             </div>
           )}

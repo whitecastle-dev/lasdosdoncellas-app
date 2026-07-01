@@ -219,6 +219,8 @@ class SlicingIn(BaseModel):
     coste: Optional[float] = 0.0
     observaciones: Optional[str] = ""
     fecha: Optional[str] = None  # ISO date
+    # Engranaje 3: si se indica, descuenta peso_bruto (o peso_loncheado si no) del stock
+    producto_inventario_id: Optional[str] = None
 
 
 @router.get("/slicings")
@@ -303,6 +305,25 @@ async def create_slicing(payload: SlicingIn, _=Depends(require_permission(PERM_W
     doc["created_at"] = doc.get("fecha") or _now()
     doc["updated_at"] = _now()
     doc["source"] = "cms"
+    doc["stock_consumed"] = None
+
+    # ENGRANAJE 3: descontar del inventario si se enlaza un producto de stock (FIFO por lote)
+    if payload.producto_inventario_id:
+        qty_to_consume = payload.peso_bruto or payload.peso_loncheado or 0
+        if qty_to_consume > 0:
+            from routers_inventory import _consume_fifo
+            try:
+                result = await _consume_fifo(
+                    payload.producto_inventario_id, qty_to_consume,
+                    reference=f"slicing:{doc['id']}",
+                )
+                doc["stock_consumed"] = result
+                total_cost = sum((l["qty_consumed"] or 0) * (l["unit_cost"] or 0) for l in result.get("lots", []))
+                if total_cost > 0 and not doc.get("coste"):
+                    doc["coste"] = round(total_cost, 2)
+            except Exception as e:
+                doc["stock_consumed"] = {"error": str(e)[:200]}
+
     await db.production_slicings.insert_one(doc)
     doc.pop("_id", None)
     return doc
