@@ -12,16 +12,17 @@ export default function ErpSlicings() {
   const [clients, setClients] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [products, setProducts] = useState([]);
+  const [inventoryProducts, setInventoryProducts] = useState([]);
   const [q, setQ] = useState("");
   const [filters, setFilters] = useState({ cliente_id: "", empleado_id: "", desde: "", hasta: "" });
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const loadAux = async () => {
-    const [c, e, p] = await Promise.all([
-      api.get("/erp/clients"), api.get("/erp/employees"), api.get("/erp/products"),
+    const [c, e, p, ip] = await Promise.all([
+      api.get("/erp/clients"), api.get("/erp/employees"), api.get("/erp/products"), api.get("/products"),
     ]);
-    setClients(c.data); setEmployees(e.data); setProducts(p.data);
+    setClients(c.data); setEmployees(e.data); setProducts(p.data); setInventoryProducts(ip.data);
   };
 
   const load = async () => {
@@ -142,6 +143,7 @@ export default function ErpSlicings() {
         <SlicingDrawer
           initial={editing === "new" ? null : editing}
           clients={clients} employees={employees} products={products}
+          inventoryProducts={inventoryProducts}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); load(); }}
         />
@@ -179,7 +181,7 @@ function FilterDate({ label, value, onChange }) {
   );
 }
 
-function SlicingDrawer({ initial, clients, employees, products, onClose, onSaved }) {
+function SlicingDrawer({ initial, clients, employees, products, inventoryProducts = [], onClose, onSaved }) {
   const isNew = !initial;
   const [form, setForm] = useState(initial || {
     cliente_id: clients[0]?.id || "", empleado_id: employees[0]?.id || "", producto_id: products[0]?.id || "",
@@ -195,11 +197,25 @@ function SlicingDrawer({ initial, clients, employees, products, onClose, onSaved
 
   const save = async (e) => {
     e.preventDefault();
-    const payload = { ...form, emplatado: form.tipo === "EMPLATADO" || form.emplatado };
+    const payload = {
+      ...form,
+      emplatado: form.tipo === "EMPLATADO" || form.emplatado,
+      producto_inventario_id: form.producto_inventario_id || null,
+    };
     try {
-      if (isNew) await api.post("/erp/slicings", payload);
-      else await api.patch(`/erp/slicings/${form.id}`, payload);
-      toast.success(isNew ? "Loncheado registrado" : "Cambios guardados");
+      if (isNew) {
+        const { data } = await api.post("/erp/slicings", payload);
+        if (data.stock_consumed && data.stock_consumed.unmet > 0) {
+          toast.warning(`Loncheado registrado, pero faltó stock: ${data.stock_consumed.unmet} kg no cubiertos.`);
+        } else if (data.stock_consumed && data.stock_consumed.consumed_total > 0) {
+          toast.success(`Loncheado registrado · descontados ${data.stock_consumed.consumed_total} kg del stock`);
+        } else {
+          toast.success("Loncheado registrado");
+        }
+      } else {
+        await api.patch(`/erp/slicings/${form.id}`, payload);
+        toast.success("Cambios guardados");
+      }
       onSaved();
     } catch (err) { toast.error(formatApiError(err)); }
   };
@@ -267,6 +283,25 @@ function SlicingDrawer({ initial, clients, employees, products, onClose, onSaved
           <Field label="Observaciones">
             <textarea rows={2} value={form.observaciones || ""} onChange={set("observaciones")} className="w-full border border-gray-200 px-3 py-2 text-sm" />
           </Field>
+
+          {isNew && inventoryProducts && inventoryProducts.length > 0 && (
+            <div className="border-t border-gray-100 pt-4">
+              <Field label="🔗 Enlazar a producto del inventario (opcional — descontará FIFO)">
+                <select value={form.producto_inventario_id || ""} onChange={set("producto_inventario_id")}
+                        className="w-full border border-gray-200 px-3 py-2 text-sm bg-white" data-testid="slicing-inv-product">
+                  <option value="">— no descontar del inventario —</option>
+                  {inventoryProducts.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} · stock actual: {p.stock || 0}</option>
+                  ))}
+                </select>
+              </Field>
+              {form.producto_inventario_id && (
+                <div className="text-xs text-amber-800 mt-2 bg-amber-50 border border-amber-200 p-2">
+                  Se descontará <strong>{form.peso_bruto || form.peso_loncheado || 0} kg</strong> del lote más antiguo por caducidad. El coste real se calculará automáticamente.
+                </div>
+              )}
+            </div>
+          )}
 
           <button type="submit" className="px-5 py-2.5 bg-black text-[#C5A059]" data-testid="slicing-save">
             {isNew ? "Crear loncheado" : "Guardar cambios"}

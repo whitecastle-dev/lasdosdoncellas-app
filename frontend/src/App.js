@@ -46,6 +46,13 @@ import ErpClients from "@/pages/admin/erp/ErpClients";
 import ErpProdProducts from "@/pages/admin/erp/ErpProdProducts";
 import ErpEvents from "@/pages/admin/erp/ErpEvents";
 import ErpLabels from "@/pages/admin/erp/ErpLabels";
+import InventoryLayout from "@/pages/admin/inventory/InventoryLayout";
+import InventoryValuation from "@/pages/admin/inventory/InventoryValuation";
+import InventoryLots from "@/pages/admin/inventory/InventoryLots";
+import InventoryLocations from "@/pages/admin/inventory/InventoryLocations";
+import PurchaseOrders from "@/pages/admin/inventory/PurchaseOrders";
+import GoodsReceipts from "@/pages/admin/inventory/GoodsReceipts";
+import SupplierInvoices from "@/pages/admin/inventory/SupplierInvoices";
 import ProvidersAdmin from "@/pages/admin/Providers";
 import Configuracion from "@/pages/admin/Configuracion";
 
@@ -106,6 +113,14 @@ function App() {
                   <Route path="eventos" element={<ErpEvents />} />
                   <Route path="etiquetas" element={<ErpLabels />} />
                   <Route path="sync" element={<ErpSync />} />
+                </Route>
+                <Route path="inventario" element={<InventoryLayout />}>
+                  <Route path="valoracion" element={<InventoryValuation />} />
+                  <Route path="lotes" element={<InventoryLots />} />
+                  <Route path="ubicaciones" element={<InventoryLocations />} />
+                  <Route path="pedidos" element={<PurchaseOrders />} />
+                  <Route path="recepciones" element={<GoodsReceipts />} />
+                  <Route path="facturas-proveedor" element={<SupplierInvoices />} />
                 </Route>
                 <Route path="chat" element={<Configuracion />} />
                 <Route path="configuracion" element={<Configuracion />} />
