@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, Outlet, Navigate, useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck, Settings as SettingsIcon, Menu, X, Tag, Building2, AlertTriangle, Factory, Boxes, Wallet, ShoppingBag } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck, Settings as SettingsIcon, Menu, X, Tag, Building2, AlertTriangle, Factory, Boxes, Wallet, ShoppingBag, Calculator } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import FreshnessBadge from "@/components/admin/FreshnessBadge";
 
@@ -18,6 +18,7 @@ const LINKS = [
   { to: "/admin/tesoreria", icon: Wallet, label: "Tesorería · Facturación", perm: "products.read" },
   { to: "/admin/tpv", icon: ShoppingBag, label: "TPV · Tienda física", perm: "products.read" },
   { to: "/admin/distribucion", icon: Truck, label: "Distribución · Albaranes", perm: "products.read" },
+  { to: "/admin/contabilidad", icon: Calculator, label: "Contabilidad", perm: "products.read" },
   { to: "/admin/configuracion", icon: SettingsIcon, label: "Configuración", perm: "users.write" },
 ];
 

@@ -66,6 +66,13 @@ import PosSessions from "@/pages/admin/pos/PosSessions";
 import DistributionLayout from "@/pages/admin/distribution/DistributionLayout";
 import DeliveryNotes from "@/pages/admin/distribution/DeliveryNotes";
 import DeliveryRoutes from "@/pages/admin/distribution/DeliveryRoutes";
+import AccountingLayout from "@/pages/admin/accounting/AccountingLayout";
+import ChartOfAccounts from "@/pages/admin/accounting/ChartOfAccounts";
+import Journal from "@/pages/admin/accounting/Journal";
+import Ledger from "@/pages/admin/accounting/Ledger";
+import VatReport from "@/pages/admin/accounting/VatReport";
+import PnL from "@/pages/admin/accounting/PnL";
+import Analytical from "@/pages/admin/accounting/Analytical";
 import ProvidersAdmin from "@/pages/admin/Providers";
 import Configuracion from "@/pages/admin/Configuracion";
 
@@ -152,6 +159,15 @@ function App() {
                   <Route index element={<DeliveryNotes />} />
                   <Route path="albaranes" element={<DeliveryNotes />} />
                   <Route path="rutas" element={<DeliveryRoutes />} />
+                </Route>
+                <Route path="contabilidad" element={<AccountingLayout />}>
+                  <Route index element={<ChartOfAccounts />} />
+                  <Route path="plan" element={<ChartOfAccounts />} />
+                  <Route path="diario" element={<Journal />} />
+                  <Route path="mayor" element={<Ledger />} />
+                  <Route path="iva" element={<VatReport />} />
+                  <Route path="resultado" element={<PnL />} />
+                  <Route path="analitica" element={<Analytical />} />
                 </Route>
                 <Route path="chat" element={<Configuracion />} />
                 <Route path="configuracion" element={<Configuracion />} />
