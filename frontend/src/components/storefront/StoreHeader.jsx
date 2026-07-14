@@ -39,7 +39,7 @@ export default function StoreHeader({ onOpenCart }) {
     >
       <div className="max-w-[1500px] mx-auto px-6 lg:px-12 flex items-center justify-between py-4">
         <Link to="/" data-testid="header-logo-link" className="flex items-center">
-          <Logo size={52} />
+          <Logo size={72} variant="full" />
         </Link>
         <nav className="hidden md:flex items-center gap-10" style={{ color: "#FAF8F5" }}>
           <Link to="/" className="nav-link" data-testid="nav-home" translate="yes">Inicio</Link>
