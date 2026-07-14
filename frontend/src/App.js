@@ -59,6 +59,13 @@ import Accounts from "@/pages/admin/treasury/Accounts";
 import Movements from "@/pages/admin/treasury/Movements";
 import IssuedInvoices from "@/pages/admin/treasury/IssuedInvoices";
 import Reminders from "@/pages/admin/treasury/Reminders";
+import PosLayout from "@/pages/admin/pos/PosLayout";
+import PosRegister from "@/pages/admin/pos/PosRegister";
+import PosTickets from "@/pages/admin/pos/PosTickets";
+import PosSessions from "@/pages/admin/pos/PosSessions";
+import DistributionLayout from "@/pages/admin/distribution/DistributionLayout";
+import DeliveryNotes from "@/pages/admin/distribution/DeliveryNotes";
+import DeliveryRoutes from "@/pages/admin/distribution/DeliveryRoutes";
 import ProvidersAdmin from "@/pages/admin/Providers";
 import Configuracion from "@/pages/admin/Configuracion";
 
@@ -134,6 +141,17 @@ function App() {
                   <Route path="movimientos" element={<Movements />} />
                   <Route path="facturas-emitidas" element={<IssuedInvoices />} />
                   <Route path="recordatorios" element={<Reminders />} />
+                </Route>
+                <Route path="tpv" element={<PosLayout />}>
+                  <Route index element={<PosRegister />} />
+                  <Route path="caja" element={<PosRegister />} />
+                  <Route path="tickets" element={<PosTickets />} />
+                  <Route path="sesiones" element={<PosSessions />} />
+                </Route>
+                <Route path="distribucion" element={<DistributionLayout />}>
+                  <Route index element={<DeliveryNotes />} />
+                  <Route path="albaranes" element={<DeliveryNotes />} />
+                  <Route path="rutas" element={<DeliveryRoutes />} />
                 </Route>
                 <Route path="chat" element={<Configuracion />} />
                 <Route path="configuracion" element={<Configuracion />} />
