@@ -73,8 +73,10 @@ export default function AdminLayout() {
           <Menu size={22} />
         </button>
         <div className="flex items-center gap-2">
-          <img src="/brand/logo.png" alt="LDD" className="h-8 w-auto" draggable={false} />
-          <div className="font-script gold text-base">CMS</div>
+          <div className="w-8 h-8 overflow-hidden">
+            <img src="/brand/logo.png" alt="LDD" className="w-full" style={{ objectFit: "cover", objectPosition: "50% 0%", height: "160%" }} draggable={false} />
+          </div>
+          <div className="font-script gold text-base">Las Dos Doncellas · CMS</div>
         </div>
         <div style={{ width: 22 }} />
       </header>
@@ -92,13 +94,19 @@ export default function AdminLayout() {
         style={{ background: "#0A0A0A", color: "#FAF8F5" }}
         data-testid="admin-sidebar"
       >
-        <div className="px-5 py-6 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(197,160,89,0.18)" }}>
-          <div className="flex items-center gap-3">
-            <img src="/brand/logo.png" alt="Las Dos Doncellas" className="h-14 w-auto object-contain" draggable={false} />
-            <div>
-              <div className="font-serif text-lg leading-tight">Las Dos Doncellas</div>
-              <div className="font-script gold text-sm -mt-0.5">CMS</div>
-            </div>
+        <div className="px-5 py-6 flex items-center gap-3" style={{ borderBottom: "1px solid rgba(197,160,89,0.18)" }}>
+          <div className="w-11 h-11 flex-shrink-0 overflow-hidden rounded-sm" style={{ background: "#0A0A0A" }}>
+            <img
+              src="/brand/logo.png"
+              alt="LDD"
+              className="w-full"
+              style={{ objectFit: "cover", objectPosition: "50% 0%", height: "160%" }}
+              draggable={false}
+            />
+          </div>
+          <div className="flex-1">
+            <div className="font-serif text-lg leading-tight">Las Dos Doncellas</div>
+            <div className="font-script gold text-sm -mt-0.5">Panel CMS</div>
           </div>
           <button onClick={() => setMobileOpen(false)} className="lg:hidden text-[#FAF8F5] p-1" aria-label="Cerrar menú" data-testid="admin-mobile-menu-close">
             <X size={20} />

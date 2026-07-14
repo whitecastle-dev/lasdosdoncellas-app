@@ -1,3 +1,36 @@
+## Iteración 23 (2026-02-14) — UX pass · Engranaje salario · Analytics ERP · Reorg CMS
+
+### Marca
+- ✅ Logo oficial `/brand/logo.png` propagado a Header, Footer, AdminLayout, AdminLogin, favicon y PDFs (invoice/proforma).
+- ✅ Componente `Logo` reescrito: renderiza la imagen real (sin SVG procedural).
+
+### Storefront
+- ✅ **CategoriesBar** rediseñado: flechas laterales con hover, gradiente fade, scroll-snap suave, scrollbar nativo oculto.
+- ✅ **Bulk products endpoint** `GET /api/products/by-categories?slugs=a,b,c&per_category=6` → el home pasa de 15+ llamadas paralelas a 1 sola (mejor TTI).
+- ✅ **CustomerAccount**: pestaña `Contacta por WhatsApp` (sustituye chat antiguo) con panel dedicado y CTA a `wa.me/{phone}` con mensaje predefinido.
+- ✅ **ReviewsSection**: modal Google Maps aparece tras reseñas ≥4★ si Google está configurado (opción "b" acordada con el usuario, sin API bidireccional).
+
+### ERP · Sala de loncheado
+- ✅ **`created_at` con hora exacta** en cada loncheado (ISO con timestamp).
+- ✅ **ENGRANAJE 4 (nuevo)**: al crear loncheado con `empleado.tarifa_loncheado_normal/emplatado > 0`, se genera automáticamente una línea de salario `importe = kg × tarifa` (`source: "auto:slicing"`). DELETE hace rollback de la línea generada.
+- ✅ **Nuevos endpoints analíticos**: `/erp/analytics/{evolution,top-employees,top-clients,top-products}`.
+- ✅ **Nueva pestaña "Panel · Evolución"** (ErpAnalytics.jsx) es la ruta índice de `/admin/erp`: KPIs (piezas/kg/ingresos/coste/beneficio), gráfico de barras diario con tooltips, 3 tops paralelos (empleados/clientes/productos).
+- ✅ **ErpSlicings**: columna Fecha muestra `YYYY-MM-DD` + hora `HH:MM` monospace.
+- ✅ **ErpEvents**: nueva vista **Calendario interactivo** (grid mensual completo con navegación ←/→/Hoy, colores por estado, día actual resaltado, click en día vacío para crear, click en evento para editar). Toggle Calendario ↔ Listado.
+
+### CMS
+- ✅ **Sidebar reorganizado** en 6 secciones agrupadas con subtítulos descriptivos: Vista general · Catálogo · Ventas · Operaciones · Finanzas · Configuración. Cada entrada tiene tooltip `title`.
+
+### Ajustes
+- ✅ **Google Reviews settings**: nuevo bloque en `routers_settings.py` con `{enabled, place_id, business_name, write_review_url}`. `/api/settings/public` devuelve el enlace construido automáticamente (Place ID > URL > búsqueda por nombre).
+- ✅ **Panel Configuración** → nueva sección "Reseñas en Google Maps" con formulario + preview del enlace.
+
+- ✅ **Testing agent iter 19**: 10/10 backend pytest PASS + frontend E2E completo.
+- 🚀 Pusheado a GitHub `main` — commit `5590222`.
+
+---
+
+
 ## Iteración 22 (2026-02-14) — FASE 10: Dashboard Ejecutivo 360º
 
 - ✅ **`GET /api/executive/kpis?days=N`** — endpoint único que consolida KPIs de todos los módulos:
