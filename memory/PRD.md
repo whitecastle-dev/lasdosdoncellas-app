@@ -1,3 +1,27 @@
+## Iteración 21 (2026-02-14) — FASE 9: Contabilidad analítica (PGC ES simplificado)
+
+- ✅ **15 cuentas del plan contable** auto-sembradas (`accounting_accounts`): 400/430/465/472/476/477 (grupo 4), 570/572 (5), 600/621/628/629/640/642 (6), 700 (7).
+- ✅ **`journal_entries`** con `source_ref` único → **idempotencia** garantizada por upsert onInsert. Cada asiento valida `debe == haber` (±0.02 tolerancia).
+- ✅ **`POST /api/accounting/backfill`** — escáner que genera asientos desde los documentos fuente:
+  - **POS tickets** → (D) 570 caja + 572 tarjeta (según reparto pago) / (H) 700 subtotal + 477 IVA.
+  - **Issued invoices** → devengo (D 430 / H 700 + 477) y cobro (D 572 / H 430).
+  - **Supplier invoices** → devengo (D 600 + 472 / H 400) y pago (D 400 / H 572).
+  - **Salarios pagados** → (D 640 + 642) / (H 465 + 476).
+  - **Treasury movements manuales** → (D/H) según `categoria` (venta→700, compra→600, salario→640, gasto/impuestos/otros→629) + contrapartida cuenta caja/banco.
+- ✅ **Endpoints de consulta**: `/journal` (filtros from/to/account_code) · `/ledger/{code}` (saldo rodante) · `/vat` (repercutido − soportado = liquidación, con `a_ingresar`/`a_compensar`) · `/pnl` (cuenta de resultados grupo 7 vs 6) · `/analytical` (margen bruto por producto = ventas − qty × `products.average_cost` FIFO) · `/summary`.
+- ✅ **Frontend `/admin/contabilidad`** (icono `Calculator`) con 6 pestañas:
+  - **Plan contable** — tablas agrupadas por grupo + botón "Regenerar asientos".
+  - **Libro diario** — tabla multi-línea con debe/haber por cuenta y filtros.
+  - **Libro mayor** — selector de cuenta + saldo rodante + totales debe/haber.
+  - **IVA** — 3 cards + fórmula visual + presets Q1..Q4/año.
+  - **Cuenta de resultados** — Ingresos/Gastos/Resultado con % margen neto + panels de detalle.
+  - **Analítica** — tabla margen por producto con unidades/ventas/coste/margen/%.
+- ✅ **Testing agent iter 17**: 9/9 backend pytest PASS + E2E frontend + **idempotencia verificada** (2ª ejecución de backfill = 0 nuevos asientos).
+- 🚀 Pusheado a GitHub `main` — commit `558084e`.
+
+---
+
+
 ## Iteración 20 (2026-02-14) — FASE 8: TPV (Punto de venta tienda física) + Distribución (albaranes y rutas)
 
 - ✅ **4 colecciones nuevas** en `routers_distribution.py`:
