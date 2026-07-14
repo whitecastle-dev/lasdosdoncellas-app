@@ -29,8 +29,8 @@ export default function AdminLogin() {
     <div className="min-h-screen flex items-center justify-center px-6" style={{ background: "#0A0A0A", color: "#FAF8F5" }}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
-          <div className="font-serif text-3xl">Las Dos Doncellas</div>
-          <div className="font-script gold text-xl mt-1">Panel CMS</div>
+          <img src="/brand/logo.png" alt="Las Dos Doncellas" className="h-28 w-auto mx-auto mb-4" draggable={false} />
+          <div className="font-script gold text-lg mt-1">Panel CMS</div>
         </div>
         <form onSubmit={onSubmit} className="space-y-5" data-testid="admin-login-form">
           <div>

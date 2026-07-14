@@ -313,21 +313,7 @@ function ClosingCTA() {
  * Si la categoría no tiene productos, NO renderiza nada (el catálogo sí
  * muestra el mensaje "Próximamente"). Así evitamos huecos visuales en el home.
  */
-function MiniCategorySection({ category, eyebrow, title, accent, side = "left" }) {
-  const [items, setItems] = useState([]);
-
-  useEffect(() => {
-    if (!category?.id) return;
-    (async () => {
-      try {
-        const { data } = await api.get("/products", {
-          params: { is_active: true, category_id: category.id, sort: "created_desc", limit: 6 },
-        });
-        setItems((data || []).slice(0, 6));
-      } catch { /* ignore */ }
-    })();
-  }, [category?.id]);
-
+function MiniCategorySection({ category, eyebrow, title, accent, side = "left", items = [] }) {
   if (!items.length) return null;
 
   return (
@@ -380,6 +366,7 @@ export default function Storefront() {
   const [featured, setFeatured] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [productsBySlug, setProductsBySlug] = useState({});
   const [cartOpen, setCartOpen] = useState(false);
   const revealRef = useReveal();
 
@@ -406,7 +393,17 @@ export default function Storefront() {
       try {
         const { data } = await api.get("/categories");
         // Solo categorías activas, ya ordenadas por position en el backend
-        setCategories((data || []).filter((c) => c.is_active !== false));
+        const cats = (data || []).filter((c) => c.is_active !== false);
+        setCategories(cats);
+        // Bulk: una sola llamada para productos de todas las categorías (mejora
+        // drasticamente el TTI en el home, era 1 llamada por categoría antes).
+        if (cats.length) {
+          const slugs = cats.map((c) => c.slug).join(",");
+          const { data: bulk } = await api.get("/products/by-categories", {
+            params: { slugs, per_category: 6 },
+          });
+          setProductsBySlug(bulk?.by_slug || {});
+        }
       } catch { /* ignore */ }
     })();
   }, []);
@@ -429,6 +426,7 @@ export default function Storefront() {
             title={h.title}
             accent={h.accent}
             side={h.side}
+            items={productsBySlug[cat.slug] || []}
           />
         );
       })}

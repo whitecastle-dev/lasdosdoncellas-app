@@ -40,6 +40,7 @@ import BusinessUsersAdmin from "@/pages/admin/BusinessUsers";
 import StockAlertsAdmin from "@/pages/admin/StockAlerts";
 import ErpLayout from "@/pages/admin/erp/ErpLayout";
 import ErpSync from "@/pages/admin/erp/ErpSync";
+import ErpAnalytics from "@/pages/admin/erp/ErpAnalytics";
 import ErpSlicings from "@/pages/admin/erp/ErpSlicings";
 import ErpEmployees from "@/pages/admin/erp/ErpEmployees";
 import ErpSalaries from "@/pages/admin/erp/ErpSalaries";
@@ -127,6 +128,8 @@ function App() {
                 <Route path="empresas" element={<BusinessUsersAdmin />} />
                 <Route path="stock-alerts" element={<StockAlertsAdmin />} />
                 <Route path="erp" element={<ErpLayout />}>
+                  <Route index element={<ErpAnalytics />} />
+                  <Route path="panel" element={<ErpAnalytics />} />
                   <Route path="loncheados" element={<ErpSlicings />} />
                   <Route path="empleados" element={<ErpEmployees />} />
                   <Route path="salarios" element={<ErpSalaries />} />

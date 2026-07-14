@@ -27,7 +27,18 @@ export default function ReviewsSection({ productId, initialAvg = 0, initialCount
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [lightbox, setLightbox] = useState(null);
+  const [googleReview, setGoogleReview] = useState(null); // {enabled, write_review_url}
+  const [showGooglePrompt, setShowGooglePrompt] = useState(false);
   const fileRef = useRef(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await api.get("/settings/public");
+        if (r.data?.google?.enabled) setGoogleReview(r.data.google);
+      } catch { /* ignore */ }
+    })();
+  }, []);
 
   const load = async () => {
     try {
@@ -71,8 +82,12 @@ export default function ReviewsSection({ productId, initialAvg = 0, initialCount
       toast.success(ownReview ? "Reseña actualizada" : "Gracias por tu reseña");
       setShowForm(false);
       setComment("");
-      setRating(0);
       setImageUrls([]);
+      // Solo proponemos Google si la puntuación era alta (4-5 estrellas) — buena práctica
+      if (!ownReview && googleReview?.write_review_url && rating >= 4) {
+        setShowGooglePrompt(true);
+      }
+      setRating(0);
       await load();
     } catch (err) { toast.error(formatApiError(err)); }
     finally { setSending(false); }
@@ -220,6 +235,70 @@ export default function ReviewsSection({ productId, initialAvg = 0, initialCount
           data-testid="review-lightbox"
         >
           <img src={lightbox} alt="" className="max-w-full max-h-full object-contain" />
+        </div>
+      )}
+
+      {/* Prompt Google Maps tras enviar reseña positiva */}
+      {showGooglePrompt && googleReview?.write_review_url && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-6"
+          onClick={() => setShowGooglePrompt(false)}
+          data-testid="google-review-prompt"
+        >
+          <div
+            className="max-w-md w-full p-8 relative"
+            style={{ background: "#0A0A0A", border: "1px solid rgba(197,160,89,0.35)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowGooglePrompt(false)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-white"
+              aria-label="Cerrar"
+              data-testid="google-prompt-close"
+            >
+              <X size={18} />
+            </button>
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-4"
+                   style={{ background: "rgba(66,133,244,0.15)", border: "1px solid rgba(66,133,244,0.4)" }}>
+                <svg viewBox="0 0 48 48" width="26" height="26" aria-hidden="true">
+                  <path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                  <path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                  <path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                </svg>
+              </div>
+              <h3 className="font-serif text-2xl mb-2" style={{ color: "#FAF8F5" }}>
+                ¿Nos ayudas también en Google?
+              </h3>
+              <p className="text-sm mb-6" style={{ color: "rgba(250,248,245,0.7)" }}>
+                Gracias por tus <span className="gold">{rating || 5} estrellas</span>. Publicar la misma
+                reseña en <strong>Google Maps</strong> nos ayuda muchísimo a que otros amantes del
+                ibérico nos descubran. Sólo te llevará 30 segundos.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <a
+                  href={googleReview.write_review_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setShowGooglePrompt(false)}
+                  data-testid="google-review-open"
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-medium"
+                  style={{ background: "#C5A059", color: "#0A0A0A" }}
+                >
+                  Publicar en Google Maps
+                </a>
+                <button
+                  onClick={() => setShowGooglePrompt(false)}
+                  data-testid="google-review-skip"
+                  className="flex-1 px-5 py-3 text-sm border"
+                  style={{ borderColor: "rgba(197,160,89,0.3)", color: "rgba(250,248,245,0.7)" }}
+                >
+                  Ahora no
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </section>

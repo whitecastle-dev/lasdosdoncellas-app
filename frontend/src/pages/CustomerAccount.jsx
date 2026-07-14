@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
-import ChatPanel from "@/components/storefront/ChatPanel";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Pencil, Trash2, LogOut, MapPin, Package, Check } from "lucide-react";
 import StoreHeader from "@/components/storefront/StoreHeader";
 import StoreFooter from "@/components/storefront/StoreFooter";
 import { useCustomer, customerApi } from "@/context/CustomerContext";
-import { formatApiError, formatMoney } from "@/lib/api";
+import { api, formatApiError, formatMoney } from "@/lib/api";
 import { toast } from "sonner";
 
 export default function CustomerAccount() {
@@ -63,7 +62,7 @@ export default function CustomerAccount() {
             <TabBtn id="addresses" tab={tab} setTab={setTab} label="Direcciones" testid="tab-addresses" />
             <TabBtn id="orders" tab={tab} setTab={setTab} label="Mis pedidos" testid="tab-orders" />
             <TabBtn id="payment" tab={tab} setTab={setTab} label="Pagos guardados" testid="tab-payment" />
-            <TabBtn id="chat" tab={tab} setTab={setTab} label="Contacta con nosotros" testid="tab-chat" />
+            <TabBtn id="whatsapp" tab={tab} setTab={setTab} label="Contacta por WhatsApp" testid="tab-whatsapp" />
           </nav>
 
           <div>
@@ -77,12 +76,12 @@ export default function CustomerAccount() {
                 <div className="label-eyebrow gold mb-3">Próximamente</div>
                 <p style={{ color: "rgba(250,248,245,0.7)" }}>
                   Pronto podrás guardar tu tarjeta de forma segura (vía Stripe) para activar el botón
-                  <span className="gold"> "Comprar ya"</span>. Por ahora, paga con Stripe en cada compra y guarda tu dirección
+                  <span className="gold"> &ldquo;Comprar ya&rdquo;</span>. Por ahora, paga con Stripe en cada compra y guarda tu dirección
                   para acelerar el proceso.
                 </p>
               </div>
             )}
-            {tab === "chat" && <ChatPanel />}
+            {tab === "whatsapp" && <WhatsAppPanel customer={customer} />}
           </div>
         </div>
       </div>
@@ -272,6 +271,59 @@ function OrdersList({ orders }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function WhatsAppPanel({ customer }) {
+  const [conf, setConf] = useState(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await api.get("/settings/public");
+        setConf(r.data.whatsapp || null);
+      } catch { /* ignore */ }
+    })();
+  }, []);
+  const phone = (conf?.phone || "").replace(/[^0-9]/g, "");
+  const enabled = conf?.enabled && phone.length >= 8;
+  const defaultMsg = conf?.default_message
+    || `Hola, soy ${customer.first_name || customer.name || "cliente"} — me gustaría hablar con vosotros.`;
+  const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(defaultMsg)}`;
+  return (
+    <div className="border border-[rgba(197,160,89,0.25)] p-8" data-testid="whatsapp-panel">
+      <div className="label-eyebrow gold mb-3">Estamos a una conversación</div>
+      <h2 className="font-serif text-2xl mb-4" style={{ color: "#FAF8F5" }}>Contacta con nosotros por WhatsApp</h2>
+      <p className="mb-6" style={{ color: "rgba(250,248,245,0.75)" }}>
+        Preferimos hablar contigo directamente para resolver dudas de pedidos, sugerir productos,
+        planificar cestas o gestionar entregas B2B. Escríbenos y te responde una persona real,
+        normalmente en menos de una hora en horario comercial.
+      </p>
+      {enabled ? (
+        <a
+          href={waUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="whatsapp-open-btn"
+          className="inline-flex items-center gap-3 px-6 py-3 text-sm font-medium tracking-wide transition"
+          style={{ background: "#25D366", color: "#0A0A0A" }}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+            <path d="M20.52 3.48A11.87 11.87 0 0 0 12.03 0C5.4 0 .06 5.34.06 11.97c0 2.11.55 4.17 1.6 5.99L0 24l6.2-1.62a11.9 11.9 0 0 0 5.83 1.49h.01c6.63 0 11.97-5.34 11.97-11.97 0-3.2-1.24-6.2-3.5-8.42Zm-8.5 18.36h-.01a9.9 9.9 0 0 1-5.05-1.38l-.36-.22-3.68.96.98-3.58-.24-.37a9.9 9.9 0 1 1 18.28-5.28c0 5.46-4.44 9.87-9.92 9.87Zm5.44-7.4c-.3-.15-1.77-.87-2.05-.97-.28-.1-.48-.15-.68.15-.2.3-.78.97-.96 1.17-.18.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.5-1.77-1.68-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.53.15-.18.2-.3.3-.5.1-.2.05-.38-.02-.53-.08-.15-.68-1.62-.93-2.22-.24-.58-.5-.5-.68-.51l-.58-.01c-.2 0-.53.08-.8.38-.28.3-1.05 1.03-1.05 2.5s1.08 2.9 1.23 3.1c.15.2 2.12 3.24 5.13 4.55.72.31 1.28.5 1.72.64.72.23 1.37.2 1.9.12.58-.09 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.13-.27-.2-.57-.35Z"/>
+          </svg>
+          Abrir chat en WhatsApp
+        </a>
+      ) : (
+        <div className="text-sm" style={{ color: "rgba(250,248,245,0.6)" }}>
+          El WhatsApp de la tienda aún no está publicado. Vuelve a intentarlo pronto o envíanos un
+          email a <span className="gold">pedidos@lasdosdoncellasibericos.es</span>.
+        </div>
+      )}
+      {enabled && (
+        <div className="mt-6 text-xs" style={{ color: "rgba(250,248,245,0.5)" }}>
+          Horario: L–V 09:00–18:00 · S 10:00–14:00 (península). Fuera de horario respondemos lo antes posible.
+        </div>
+      )}
     </div>
   );
 }

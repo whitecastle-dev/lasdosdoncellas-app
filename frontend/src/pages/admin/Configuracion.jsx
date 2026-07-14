@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { MessageCircle, Save, ExternalLink } from "lucide-react";
+import { MessageCircle, Save, ExternalLink, Star } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -9,6 +9,12 @@ const EMPTY = {
     phone: "",
     default_message: "Hola, me gustaría preguntaros por…",
     label: "Chatea con nosotros",
+  },
+  google: {
+    enabled: false,
+    place_id: "",
+    business_name: "",
+    write_review_url: "",
   },
 };
 
@@ -23,7 +29,10 @@ export default function Configuracion() {
     (async () => {
       try {
         const { data } = await api.get("/settings");
-        setSettings({ whatsapp: { ...EMPTY.whatsapp, ...(data.whatsapp || {}) } });
+        setSettings({
+          whatsapp: { ...EMPTY.whatsapp, ...(data.whatsapp || {}) },
+          google: { ...EMPTY.google, ...(data.google || {}) },
+        });
       } catch (err) {
         toast.error(formatApiError(err));
       } finally {
@@ -40,9 +49,10 @@ export default function Configuracion() {
           ...settings.whatsapp,
           phone: normalizePhone(settings.whatsapp.phone),
         },
+        google: { ...settings.google },
       };
       const { data } = await api.put("/settings", payload);
-      setSettings({ whatsapp: data.whatsapp });
+      setSettings({ whatsapp: data.whatsapp, google: data.google || EMPTY.google });
       toast.success("Configuración guardada");
     } catch (err) {
       toast.error(formatApiError(err));
@@ -52,6 +62,7 @@ export default function Configuracion() {
   };
 
   const setWa = (patch) => setSettings((s) => ({ ...s, whatsapp: { ...s.whatsapp, ...patch } }));
+  const setGoogle = (patch) => setSettings((s) => ({ ...s, google: { ...s.google, ...patch } }));
 
   const previewHref = settings.whatsapp.phone
     ? `https://wa.me/${normalizePhone(settings.whatsapp.phone)}${
@@ -60,6 +71,14 @@ export default function Configuracion() {
           : ""
       }`
     : null;
+
+  const googlePreview =
+    settings.google.write_review_url ||
+    (settings.google.place_id
+      ? `https://search.google.com/local/writereview?placeid=${settings.google.place_id}`
+      : settings.google.business_name
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.google.business_name)}`
+      : "");
 
   return (
     <div className="p-8 lg:p-10 max-w-[1100px] mx-auto" data-testid="configuracion-admin">
@@ -154,6 +173,92 @@ export default function Configuracion() {
 
           <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
             <button onClick={save} disabled={saving} className="ldd-btn-gold disabled:opacity-50" data-testid="config-save">
+              <span className="inline-flex items-center gap-2">
+                <Save size={14} /> {saving ? "Guardando…" : "Guardar configuración"}
+              </span>
+            </button>
+          </div>
+        </section>
+      )}
+
+      {!loading && (
+        <section className="bg-white border border-gray-200 mt-6" data-testid="config-google">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
+            <Star size={18} className="text-amber-500" />
+            <div>
+              <div className="font-serif text-lg">Reseñas en Google Maps</div>
+              <div className="text-xs text-gray-500">
+                Cuando un cliente publique una reseña positiva (4-5 ★) en la web, le mostraremos un aviso
+                para invitarle a publicar la misma reseña en tu Ficha de Google. Todo con un solo clic.
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-5">
+            <label className="flex items-center gap-3 cursor-pointer" data-testid="config-google-enabled">
+              <input
+                type="checkbox"
+                className="w-4 h-4"
+                checked={settings.google.enabled}
+                onChange={(e) => setGoogle({ enabled: e.target.checked })}
+              />
+              <span className="text-sm">Activar la invitación a publicar en Google Maps</span>
+            </label>
+
+            <Field label="Place ID (recomendado)" hint="Cógelo en https://developers.google.com/maps/documentation/places/web-service/place-id — es el más fiable.">
+              <input
+                type="text"
+                value={settings.google.place_id || ""}
+                onChange={(e) => setGoogle({ place_id: e.target.value.trim() })}
+                placeholder="ChIJxxxxxxxxxxxxxxxx"
+                className="w-full border border-gray-300 px-3 py-2 font-mono text-sm focus:outline-none focus:border-[#C5A059]"
+                data-testid="config-google-placeid"
+              />
+            </Field>
+
+            <Field label="Nombre del negocio en Google" hint="Fallback si no tienes el Place ID. Se usa para hacer una búsqueda en Maps.">
+              <input
+                type="text"
+                value={settings.google.business_name || ""}
+                onChange={(e) => setGoogle({ business_name: e.target.value })}
+                placeholder="Las Dos Doncellas Ibéricos Sevilla"
+                className="w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-[#C5A059]"
+                data-testid="config-google-name"
+              />
+            </Field>
+
+            <Field label="URL directa (opcional, sobrescribe todo)" hint="Si ya tienes el enlace generado de 'Escribir una reseña', pégalo aquí.">
+              <input
+                type="url"
+                value={settings.google.write_review_url || ""}
+                onChange={(e) => setGoogle({ write_review_url: e.target.value.trim() })}
+                placeholder="https://g.page/r/xxxxxxxx/review"
+                className="w-full border border-gray-300 px-3 py-2 font-mono text-xs focus:outline-none focus:border-[#C5A059]"
+                data-testid="config-google-url"
+              />
+            </Field>
+
+            {googlePreview && (
+              <div className="rounded border border-amber-200 bg-amber-50 p-4 flex items-center justify-between">
+                <div className="text-sm text-amber-900">
+                  <div className="font-semibold mb-1">Enlace que verá el cliente</div>
+                  <code className="text-xs break-all opacity-80">{googlePreview}</code>
+                </div>
+                <a
+                  href={googlePreview}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-4 text-xs uppercase tracking-widest text-amber-700 hover:text-amber-900 flex items-center gap-1 whitespace-nowrap"
+                  data-testid="config-google-preview"
+                >
+                  Probar <ExternalLink size={12} />
+                </a>
+              </div>
+            )}
+          </div>
+
+          <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+            <button onClick={save} disabled={saving} className="ldd-btn-gold disabled:opacity-50" data-testid="config-save-google">
               <span className="inline-flex items-center gap-2">
                 <Save size={14} /> {saving ? "Guardando…" : "Guardar configuración"}
               </span>

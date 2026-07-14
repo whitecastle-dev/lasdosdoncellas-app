@@ -4,23 +4,53 @@ import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck, Se
 import { useAuth } from "@/context/AuthContext";
 import FreshnessBadge from "@/components/admin/FreshnessBadge";
 
-const LINKS = [
-  { to: "/admin", end: true, icon: LayoutDashboard, label: "Dashboard 360º", perm: "dashboard.read" },
-  { to: "/admin/ecommerce", icon: Store, label: "Dashboard e-commerce", perm: "dashboard.read" },
-  { to: "/admin/products", icon: Package, label: "Productos", perm: "products.read" },
-  { to: "/admin/categories", icon: Tag, label: "Categorías", perm: "products.read" },
-  { to: "/admin/orders", icon: ShoppingCart, label: "Pedidos", perm: "orders.read" },
-  { to: "/admin/providers", icon: Truck, label: "Proveedores", perm: "products.read" },
-  { to: "/admin/users", icon: Users, label: "Usuarios", perm: "users.read" },
-  { to: "/admin/empresas", icon: Building2, label: "Usuarios Empresa", perm: "customers.read" },
-  { to: "/admin/stock-alerts", icon: AlertTriangle, label: "Alertas Stock", perm: "stock.read" },
-  { to: "/admin/erp", icon: Factory, label: "ERP · Sala Loncheado", perm: "products.read" },
-  { to: "/admin/inventario", icon: Boxes, label: "Inventario · Compras", perm: "products.read" },
-  { to: "/admin/tesoreria", icon: Wallet, label: "Tesorería · Facturación", perm: "products.read" },
-  { to: "/admin/tpv", icon: ShoppingBag, label: "TPV · Tienda física", perm: "products.read" },
-  { to: "/admin/distribucion", icon: Truck, label: "Distribución · Albaranes", perm: "products.read" },
-  { to: "/admin/contabilidad", icon: Calculator, label: "Contabilidad", perm: "products.read" },
-  { to: "/admin/configuracion", icon: SettingsIcon, label: "Configuración", perm: "users.write" },
+const SECTIONS = [
+  {
+    label: "Vista general",
+    links: [
+      { to: "/admin", end: true, icon: LayoutDashboard, label: "Dashboard 360º", desc: "KPIs consolidados", perm: "dashboard.read" },
+      { to: "/admin/ecommerce", icon: Store, label: "E-commerce", desc: "Pedidos web y reseñas", perm: "dashboard.read" },
+    ],
+  },
+  {
+    label: "Catálogo",
+    links: [
+      { to: "/admin/products", icon: Package, label: "Productos", desc: "Alta, precios, imágenes", perm: "products.read" },
+      { to: "/admin/categories", icon: Tag, label: "Categorías", desc: "Familias del catálogo", perm: "products.read" },
+      { to: "/admin/providers", icon: Truck, label: "Proveedores", desc: "Ficha y contactos", perm: "products.read" },
+    ],
+  },
+  {
+    label: "Ventas",
+    links: [
+      { to: "/admin/orders", icon: ShoppingCart, label: "Pedidos online", desc: "Preparación y envíos", perm: "orders.read" },
+      { to: "/admin/tpv", icon: ShoppingBag, label: "TPV tienda física", desc: "Caja y tickets", perm: "products.read" },
+      { to: "/admin/distribucion", icon: Truck, label: "Distribución B2B", desc: "Albaranes y rutas", perm: "products.read" },
+      { to: "/admin/empresas", icon: Building2, label: "Clientes empresa", desc: "Cuentas B2B", perm: "customers.read" },
+      { to: "/admin/users", icon: Users, label: "Usuarios web", desc: "Clientes registrados", perm: "users.read" },
+    ],
+  },
+  {
+    label: "Operaciones",
+    links: [
+      { to: "/admin/erp", icon: Factory, label: "Sala de loncheado", desc: "Producción y salarios", perm: "products.read" },
+      { to: "/admin/inventario", icon: Boxes, label: "Inventario · Compras", desc: "Lotes, FIFO y coste medio", perm: "products.read" },
+      { to: "/admin/stock-alerts", icon: AlertTriangle, label: "Alertas de stock", desc: "Reposición asistida", perm: "stock.read" },
+    ],
+  },
+  {
+    label: "Finanzas",
+    links: [
+      { to: "/admin/tesoreria", icon: Wallet, label: "Tesorería", desc: "Cuentas, cobros, pagos", perm: "products.read" },
+      { to: "/admin/contabilidad", icon: Calculator, label: "Contabilidad", desc: "Asientos, IVA, PnL", perm: "products.read" },
+    ],
+  },
+  {
+    label: "Configuración",
+    links: [
+      { to: "/admin/configuracion", icon: SettingsIcon, label: "Ajustes", desc: "WhatsApp y datos empresa", perm: "users.write" },
+    ],
+  },
 ];
 
 export default function AdminLayout() {
@@ -42,7 +72,10 @@ export default function AdminLayout() {
         <button onClick={() => setMobileOpen(true)} className="text-[#FAF8F5] p-1" data-testid="admin-mobile-menu-open" aria-label="Abrir menú">
           <Menu size={22} />
         </button>
-        <div className="font-script gold text-base">Las Dos Doncellas · CMS</div>
+        <div className="flex items-center gap-2">
+          <img src="/brand/logo.png" alt="LDD" className="h-8 w-auto" draggable={false} />
+          <div className="font-script gold text-base">CMS</div>
+        </div>
         <div style={{ width: 22 }} />
       </header>
 
@@ -60,25 +93,45 @@ export default function AdminLayout() {
         data-testid="admin-sidebar"
       >
         <div className="px-5 py-6 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(197,160,89,0.18)" }}>
-          <div>
-            <div className="font-serif text-xl leading-tight">Las Dos Doncellas</div>
-            <div className="font-script gold text-base -mt-0.5">CMS</div>
+          <div className="flex items-center gap-3">
+            <img src="/brand/logo.png" alt="Las Dos Doncellas" className="h-14 w-auto object-contain" draggable={false} />
+            <div>
+              <div className="font-serif text-lg leading-tight">Las Dos Doncellas</div>
+              <div className="font-script gold text-sm -mt-0.5">CMS</div>
+            </div>
           </div>
           <button onClick={() => setMobileOpen(false)} className="lg:hidden text-[#FAF8F5] p-1" aria-label="Cerrar menú" data-testid="admin-mobile-menu-close">
             <X size={20} />
           </button>
         </div>
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {LINKS.filter((l) => hasPermission(l.perm)).map((l) => (
-            <NavLink
-              key={l.to} to={l.to} end={l.end}
-              className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
-              data-testid={`sidebar-${l.label.toLowerCase()}`}
-            >
-              <l.icon size={16} />
-              <span>{l.label}</span>
-            </NavLink>
-          ))}
+        <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
+          {SECTIONS.map((section) => {
+            const visible = section.links.filter((l) => hasPermission(l.perm));
+            if (!visible.length) return null;
+            return (
+              <div key={section.label}>
+                <div className="px-3 pb-1 label-eyebrow" style={{ color: "rgba(197,160,89,0.55)", fontSize: 10 }}>
+                  {section.label}
+                </div>
+                <div className="space-y-0.5">
+                  {visible.map((l) => (
+                    <NavLink
+                      key={l.to} to={l.to} end={l.end}
+                      className={({ isActive }) => `sidebar-link group ${isActive ? "active" : ""}`}
+                      data-testid={`sidebar-${l.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                      title={l.desc}
+                    >
+                      <l.icon size={16} className="flex-shrink-0" />
+                      <span className="flex-1">
+                        <span className="block">{l.label}</span>
+                        <span className="block text-[10px] leading-tight opacity-60 group-hover:opacity-80 truncate">{l.desc}</span>
+                      </span>
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </nav>
         <div className="p-3 space-y-1" style={{ borderTop: "1px solid rgba(197,160,89,0.18)" }}>
           <a href="/catalogo" target="_blank" rel="noopener noreferrer" className="sidebar-link w-full text-left" data-testid="sidebar-shop">

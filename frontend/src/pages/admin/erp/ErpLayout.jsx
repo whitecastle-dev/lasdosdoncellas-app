@@ -1,10 +1,11 @@
 import React from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import {
-  Users, Factory, UserCircle2, Coins, Calendar, Tag, Tags, RefreshCw, ChevronRight
+  Users, Factory, UserCircle2, Coins, Calendar, Tag, Tags, RefreshCw, ChevronRight, TrendingUp
 } from "lucide-react";
 
 const TABS = [
+  { to: "panel", icon: TrendingUp, label: "Panel · Evolución" },
   { to: "loncheados", icon: Factory, label: "Loncheados" },
   { to: "empleados", icon: UserCircle2, label: "Empleados" },
   { to: "salarios", icon: Coins, label: "Salarios" },
@@ -47,7 +48,7 @@ export default function ErpLayout() {
         ))}
       </div>
 
-      {isRoot ? <ErpHome /> : <Outlet />}
+      <Outlet />
     </div>
   );
 }

@@ -167,6 +167,27 @@ def _product_with_image_urls(prod: dict) -> dict:
     prod.setdefault("attributes", {})
     return prod
 
+@router.get("/products/by-categories")
+async def products_by_categories(
+    slugs: str = Query(..., description="Slugs de categoría separados por coma"),
+    per_category: int = Query(6, ge=1, le=24),
+):
+    """Bulk: devuelve hasta `per_category` productos activos por cada slug de categoría.
+    Reduce el número de round-trips en el home (una llamada en vez de 1 por categoría).
+    Response: {"by_slug": {"jamones": [...], "quesos": [...]}}"""
+    slug_list = [s.strip() for s in slugs.split(",") if s.strip()]
+    if not slug_list:
+        return {"by_slug": {}}
+    cats = [c async for c in db.categories.find({"slug": {"$in": slug_list}}, {"_id": 0, "id": 1, "slug": 1})]
+    out = {s: [] for s in slug_list}
+    for c in cats:
+        cursor = db.products.find(
+            {"category_id": c["id"], "is_active": True}
+        ).sort("created_at", -1).limit(per_category)
+        out[c["slug"]] = [_product_with_image_urls(p) async for p in cursor]
+    return {"by_slug": out}
+
+
 @router.get("/products")
 async def list_products(
     q: Optional[str] = None,
