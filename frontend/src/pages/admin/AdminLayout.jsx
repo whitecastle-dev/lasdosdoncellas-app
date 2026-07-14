@@ -3,6 +3,7 @@ import { NavLink, Outlet, Navigate, useNavigate, useLocation } from "react-route
 import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck, Settings as SettingsIcon, Menu, X, Tag, Building2, AlertTriangle, Factory, Boxes, Wallet, ShoppingBag, Calculator } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import FreshnessBadge from "@/components/admin/FreshnessBadge";
+import { Logo } from "@/components/storefront/Logo";
 
 const SECTIONS = [
   {
@@ -73,9 +74,7 @@ export default function AdminLayout() {
           <Menu size={22} />
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 overflow-hidden">
-            <img src="/brand/logo.png" alt="LDD" className="w-full" style={{ objectFit: "cover", objectPosition: "50% 0%", height: "160%" }} draggable={false} />
-          </div>
+          <Logo size={30} variant="mark" />
           <div className="font-script gold text-base">Las Dos Doncellas · CMS</div>
         </div>
         <div style={{ width: 22 }} />
@@ -95,15 +94,7 @@ export default function AdminLayout() {
         data-testid="admin-sidebar"
       >
         <div className="px-5 py-6 flex items-center gap-3" style={{ borderBottom: "1px solid rgba(197,160,89,0.18)" }}>
-          <div className="w-11 h-11 flex-shrink-0 overflow-hidden rounded-sm" style={{ background: "#0A0A0A" }}>
-            <img
-              src="/brand/logo.png"
-              alt="LDD"
-              className="w-full"
-              style={{ objectFit: "cover", objectPosition: "50% 0%", height: "160%" }}
-              draggable={false}
-            />
-          </div>
+          <Logo size={44} variant="mark" />
           <div className="flex-1">
             <div className="font-serif text-lg leading-tight">Las Dos Doncellas</div>
             <div className="font-script gold text-sm -mt-0.5">Panel CMS</div>
