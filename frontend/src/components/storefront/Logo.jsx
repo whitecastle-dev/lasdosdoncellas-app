@@ -1,43 +1,40 @@
 import React from "react";
 
 /**
- * Logo — usa la imagen oficial de la marca `/brand/logo.png`.
+ * Logo oficial de Las Dos Doncellas (portrait, fondo negro, aspecto ~0.7).
+ * El PNG en `/brand/logo.png` es un rectángulo vertical con:
+ *   · Icono superior (~68% de altura): marco blanco con L | D + rama de olivo.
+ *   · Texto inferior (~32% de altura): "Las Dos Doncellas / Productos Ibéricos".
  *
- * El PNG oficial contiene DOS partes verticalmente:
- *   1. Un cuadro con las iniciales L|D y una rama de olivo (icono).
- *   2. El texto "Las Dos Doncellas / Productos Ibéricos" debajo.
- *
- * Modos:
- *   variant="full"  → muestra la imagen completa (icono + texto).
- *                     Usar en Footer o pantallas amplias (login, hero).
- *   variant="mark"  → sólo el icono cuadrado (recorta la parte inferior).
- *                     Usar en headers compactos donde el nombre ya aparece
- *                     como texto lateral, o cuando el espacio vertical es
- *                     limitado. Se aplica clip-path para ocultar el texto.
- *
- * `size` es la altura en px de la imagen final.
+ * Variantes:
+ *   variant="full"  — imagen entera. `size` es la ALTURA en px.
+ *   variant="mark"  — sólo el icono cuadrado (recorta el 32% inferior de texto).
+ *                     Ideal para headers/sidebars compactos donde el nombre de
+ *                     la marca ya aparece como texto adyacente.
  */
-export function Logo({ size = 56, variant = "full", className = "" }) {
+export function Logo({ size = 96, variant = "full", className = "" }) {
   const src = "/brand/logo.png";
   if (variant === "mark") {
-    // La zona del icono ocupa aprox. el 68% superior del PNG.
-    // Recortamos el 32% inferior con inset-clip para eliminar el texto.
+    // La imagen es 899×1280 (aspect 0.7). El icono ocupa aprox. la parte superior
+    // (~68% de la altura). Para que quede cuadrado (tamaño × tamaño) escalamos la
+    // imagen a que su ancho ≈ size y recortamos abajo para dejar sólo el icono.
+    // Como el icono es más alto que ancho dentro de la caja (marco vertical),
+    // usamos width=size y height proporcional; luego cortamos altura al tamaño.
+    const scaledHeight = size / 0.7; // altura completa a la que quedaría la imagen
     return (
       <span
         className={`inline-block overflow-hidden ${className}`}
-        style={{ height: size, width: size, lineHeight: 0 }}
+        style={{ width: size, height: size, lineHeight: 0 }}
       >
         <img
           src={src}
           alt="Las Dos Doncellas"
           draggable={false}
           style={{
-            // La imagen es más alta que ancha; escalamos por altura y
-            // recortamos abajo para quedarnos con el icono cuadrado.
-            height: size * 1.47,
-            width: "auto",
+            width: size,
+            height: scaledHeight,
             objectFit: "cover",
-            objectPosition: "50% 0%",
+            objectPosition: "50% 6%",
             display: "block",
           }}
         />

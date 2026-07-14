@@ -1,3 +1,23 @@
+## Iteración 24 (2026-02-14) — Fix logo: tamaño suficiente para que se vea el brand-mark completo
+
+**Bug reportado por el usuario**: el logo mostrado no coincidía con el que había enviado.
+
+**Root cause**: la imagen `/brand/logo.png` era la correcta (contiene marco + iniciales L|D + rama de olivo + texto "Las Dos Doncellas / Productos Ibéricos"), pero se renderizaba a **52px de alto** en el header, lo que sólo mostraba un recorte del icono sin la textualidad de la marca.
+
+**Fix aplicado**:
+- Componente `Logo.jsx` refactorizado con prop `variant`:
+  - `full` → imagen completa (icono + texto de marca).
+  - `mark` → recorta la parte inferior de texto para mostrar sólo el icono cuadrado (útil en headers compactos con nombre lateral).
+- Tamaños actualizados: Header **72px** (antes 52), Footer **140px**, AdminLogin **224px**, sidebar CMS **44x44 con crop al icono**, header móvil CMS igual.
+- Favicon usando el mismo PNG.
+
+**Testing agent iter 20**: verificación visual 6/6 emplazamientos (Playwright screenshots) → todos muestran el brand-mark correcto. Sin regresiones.
+
+🚀 Pusheado a GitHub `main` — commit `0a7540b`.
+
+---
+
+
 ## Iteración 23 (2026-02-14) — UX pass · Engranaje salario · Analytics ERP · Reorg CMS
 
 ### Marca
