@@ -97,7 +97,7 @@ export default function ErpSlicings() {
         <table className="cms-table w-full text-sm">
           <thead className="bg-gray-50">
             <tr className="text-left">
-              <th className="px-4 py-3">Fecha</th>
+              <th className="px-4 py-3">Fecha / hora</th>
               <th>Cliente</th>
               <th>Empleado</th>
               <th>Producto</th>
@@ -115,9 +115,15 @@ export default function ErpSlicings() {
             )}
             {filtered.slice(0, 300).map((r) => {
               const eurKg = r.peso_loncheado > 0 ? r.precio_cliente / r.peso_loncheado : 0;
+              const ts = r.created_at || r.fecha || "";
+              const day = ts.slice(0, 10);
+              const hour = ts.length >= 16 ? ts.slice(11, 16) : "";
               return (
                 <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50" data-testid={`slicing-row-${r.id}`}>
-                  <td className="px-4 py-2 text-xs">{(r.fecha || r.created_at || "").slice(0, 10)}</td>
+                  <td className="px-4 py-2 text-xs">
+                    <div>{day}</div>
+                    {hour && <div className="text-[10px] text-gray-400 mono">{hour}</div>}
+                  </td>
                   <td>{nameOf(clients, r.cliente_id)}</td>
                   <td className="text-gray-600">{nameOf(employees, r.empleado_id)}</td>
                   <td className="text-gray-600 text-xs">{nameOf(products, r.producto_id)}</td>

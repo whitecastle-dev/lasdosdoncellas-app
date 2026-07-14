@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { api, formatApiError, formatMoney } from "@/lib/api";
 import { toast } from "sonner";
-import { Plus, X, Pencil, Trash2, Calendar, MapPin } from "lucide-react";
+import { Plus, X, Pencil, Trash2, Calendar, MapPin, ChevronLeft, ChevronRight, LayoutGrid, List } from "lucide-react";
 
 const TIPOS = ["PRIVADO", "EVENTO", "CATERING", "OTRO"];
 const ESTADOS = ["PROGRAMADO", "CONFIRMADO", "COMPLETADO", "CANCELADO"];
@@ -17,6 +17,10 @@ export default function ErpEvents() {
   const [employees, setEmployees] = useState([]);
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState("");
+  const [view, setView] = useState("calendar"); // calendar | list
+  const [cursor, setCursor] = useState(() => {
+    const d = new Date(); d.setDate(1); return d;
+  });
 
   const load = async () => {
     try {
@@ -44,11 +48,33 @@ export default function ErpEvents() {
             </button>
           ))}
         </div>
-        <button onClick={() => setEditing("new")} className="px-4 py-2 bg-black text-[#C5A059] text-sm flex items-center gap-2" data-testid="evt-new">
-          <Plus size={14} /> Nuevo evento
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex border border-gray-300" data-testid="evt-view-toggle">
+            <button onClick={() => setView("calendar")} data-testid="evt-view-calendar"
+              className={`px-3 py-1.5 text-xs flex items-center gap-1 ${view === "calendar" ? "bg-black text-[#C5A059]" : "hover:bg-gray-100"}`}>
+              <LayoutGrid size={12} />Calendario
+            </button>
+            <button onClick={() => setView("list")} data-testid="evt-view-list"
+              className={`px-3 py-1.5 text-xs flex items-center gap-1 ${view === "list" ? "bg-black text-[#C5A059]" : "hover:bg-gray-100"}`}>
+              <List size={12} />Listado
+            </button>
+          </div>
+          <button onClick={() => setEditing("new")} className="px-4 py-2 bg-black text-[#C5A059] text-sm flex items-center gap-2" data-testid="evt-new">
+            <Plus size={14} /> Nuevo evento
+          </button>
+        </div>
       </div>
 
+      {view === "calendar" && (
+        <CalendarView
+          cursor={cursor} setCursor={setCursor}
+          events={filtered} empName={empName}
+          onDayClick={(d) => setEditing({ ...EMPTY, fecha: d })}
+          onEventClick={(e) => setEditing(e)}
+        />
+      )}
+
+      {view === "list" && (
       <div className="cms-card overflow-hidden">
         <table className="cms-table w-full text-sm">
           <thead className="bg-gray-50 text-left"><tr><th className="px-4 py-3">Fecha</th><th>Hora</th><th>Cliente</th><th>Ubicación</th><th>Tipo</th><th>Empleado</th><th>Piezas</th><th className="text-right">Precio</th><th>Estado</th><th></th></tr></thead>
@@ -74,8 +100,123 @@ export default function ErpEvents() {
           </tbody>
         </table>
       </div>
+      )}
 
-      {editing && <Drawer initial={editing === "new" ? EMPTY : editing} isNew={editing === "new"} employees={employees} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
+      {editing && <Drawer initial={editing === "new" ? EMPTY : editing} isNew={editing === "new" || !editing.id} employees={employees} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
+    </div>
+  );
+}
+
+const WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const STATE_COLORS = {
+  PROGRAMADO: "bg-amber-100 border-amber-300 text-amber-900",
+  CONFIRMADO: "bg-blue-100 border-blue-300 text-blue-900",
+  COMPLETADO: "bg-green-100 border-green-300 text-green-900",
+  CANCELADO: "bg-gray-200 border-gray-300 text-gray-500 line-through",
+};
+
+function CalendarView({ cursor, setCursor, events, empName, onDayClick, onEventClick }) {
+  const y = cursor.getFullYear();
+  const m = cursor.getMonth();
+  const firstDay = new Date(y, m, 1);
+  const lastDay = new Date(y, m + 1, 0);
+  // Semana empieza en lunes (0=Mon..6=Sun)
+  const startOffset = (firstDay.getDay() + 6) % 7;
+  const daysInMonth = lastDay.getDate();
+
+  const cells = useMemo(() => {
+    const arr = [];
+    for (let i = 0; i < startOffset; i++) arr.push(null);
+    for (let d = 1; d <= daysInMonth; d++) {
+      const iso = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      arr.push(iso);
+    }
+    while (arr.length % 7 !== 0) arr.push(null);
+    return arr;
+  }, [y, m, startOffset, daysInMonth]);
+
+  const eventsByDay = useMemo(() => {
+    const map = {};
+    for (const e of events) {
+      (map[e.fecha] = map[e.fecha] || []).push(e);
+    }
+    return map;
+  }, [events]);
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  const shift = (delta) => {
+    const d = new Date(cursor);
+    d.setMonth(d.getMonth() + delta);
+    setCursor(d);
+  };
+  const goToday = () => {
+    const d = new Date(); d.setDate(1); setCursor(d);
+  };
+
+  return (
+    <div className="cms-card border border-gray-200 overflow-hidden" data-testid="evt-calendar">
+      <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+        <div className="flex items-center gap-2">
+          <button onClick={() => shift(-1)} className="p-1.5 hover:bg-gray-200" data-testid="evt-cal-prev" aria-label="Mes anterior"><ChevronLeft size={14} /></button>
+          <div className="font-serif text-xl min-w-[180px] text-center">{MONTHS[m]} {y}</div>
+          <button onClick={() => shift(1)} className="p-1.5 hover:bg-gray-200" data-testid="evt-cal-next" aria-label="Mes siguiente"><ChevronRight size={14} /></button>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={goToday} className="px-3 py-1 text-xs border border-gray-300 hover:border-black" data-testid="evt-cal-today">Hoy</button>
+          <div className="text-xs text-gray-500">{events.length} eventos visibles</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 border-b bg-gray-50">
+        {WEEKDAYS.map((w) => (
+          <div key={w} className="px-2 py-2 text-[10px] uppercase tracking-widest text-gray-500 text-center">{w}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7">
+        {cells.map((iso, i) => {
+          if (!iso) return <div key={i} className="min-h-[110px] border-b border-r border-gray-100 bg-gray-50/50" />;
+          const dayEvents = eventsByDay[iso] || [];
+          const isToday = iso === todayIso;
+          const day = Number(iso.slice(8, 10));
+          return (
+            <div
+              key={iso}
+              className={`min-h-[110px] p-1.5 border-b border-r border-gray-100 flex flex-col gap-1 hover:bg-amber-50/40 transition-colors cursor-pointer group ${isToday ? "bg-amber-50/60" : ""}`}
+              onClick={() => onDayClick(iso)}
+              data-testid={`evt-cal-day-${iso}`}
+            >
+              <div className={`flex items-center justify-between text-xs ${isToday ? "font-bold" : ""}`}>
+                <span className={isToday ? "text-[#C5A059]" : "text-gray-500"}>{day}</span>
+                <Plus size={10} className="opacity-0 group-hover:opacity-60" />
+              </div>
+              {dayEvents.slice(0, 3).map((ev) => (
+                <button
+                  key={ev.id}
+                  onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}
+                  data-testid={`evt-cal-item-${ev.id}`}
+                  className={`text-left border-l-2 px-1.5 py-1 text-[10px] leading-tight ${STATE_COLORS[ev.estado] || "bg-gray-100"}`}
+                  title={`${ev.hora_inicio ? ev.hora_inicio.slice(0, 5) + " · " : ""}${ev.cliente} · ${ev.tipo_servicio}`}
+                >
+                  <div className="font-medium truncate">{ev.hora_inicio?.slice(0, 5)} {ev.cliente}</div>
+                  <div className="opacity-70 truncate">{empName(ev.empleado_id)}</div>
+                </button>
+              ))}
+              {dayEvents.length > 3 && (
+                <div className="text-[10px] text-gray-500 px-1.5">+{dayEvents.length - 3} más…</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="px-5 py-2 border-t bg-gray-50 flex flex-wrap gap-3 text-[10px]">
+        {ESTADOS.map((e) => (
+          <div key={e} className="flex items-center gap-1.5">
+            <span className={`w-3 h-3 border ${STATE_COLORS[e]}`} />
+            <span className="text-gray-500">{e}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,3 +1,27 @@
+## Iteración 22 (2026-02-14) — FASE 10: Dashboard Ejecutivo 360º
+
+- ✅ **`GET /api/executive/kpis?days=N`** — endpoint único que consolida KPIs de todos los módulos:
+  - **3 fuentes de ingresos**: online (`orders paid`) + TPV (`pos_tickets`) + B2B (`issued_invoices`), con serie diaria apilada.
+  - **Tesorería**: saldos calculados por cuenta, `saldo_total`, `pending_income` (facturas emitidas pdtes.), `pending_expense` (facturas proveedor), `saldo_proyectado`.
+  - **Inventario**: valoración (`stock × average_cost`), bajo stock, alertas pdtes., lotes que caducan en 30d.
+  - **Contabilidad**: PnL del mes + IVA del trimestre en curso (leídos desde `journal_entries`).
+  - **Producción**: loncheados y kilos del mes.
+  - **Orders pipeline** + `today` counters (todos canales).
+  - **Top productos** combinados (online + TPV + B2B) y **Top clientes B2B**.
+- ✅ **Frontend `/admin` (index)** — `ExecutiveDashboard.jsx`:
+  - Range selector 7 / 30 / 90 días.
+  - Hero de ingresos (fondo negro/oro) + 3 cards clicables por canal.
+  - Gráfico diario de barras apiladas (blue online / amber TPV / purple B2B) con tooltip.
+  - Grid clicable: Tesorería · Inventario · Contabilidad (cada card navega al módulo).
+  - Pipeline pedidos (pending_payment / paid / shipped) + counters hoy.
+  - Producción + tablas Top productos / Top clientes B2B.
+- ✅ **Sidebar**: nueva entrada principal "Dashboard 360º"; el dashboard antiguo pasa a `/admin/ecommerce` con label "Dashboard e-commerce".
+- ✅ **Testing agent iter 18**: 7/7 backend pytest PASS + E2E frontend 100% (shape, math, range reactividad, navegación, sidebar).
+- 🚀 Pusheado a GitHub `main` — commit `74df56d`.
+
+---
+
+
 ## Iteración 21 (2026-02-14) — FASE 9: Contabilidad analítica (PGC ES simplificado)
 
 - ✅ **15 cuentas del plan contable** auto-sembradas (`accounting_accounts`): 400/430/465/472/476/477 (grupo 4), 570/572 (5), 600/621/628/629/640/642 (6), 700 (7).

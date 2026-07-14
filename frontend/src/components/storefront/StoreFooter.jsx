@@ -7,7 +7,7 @@ export default function StoreFooter() {
     <footer className="mt-32 pt-20 pb-12" style={{ borderTop: "1px solid rgba(197,160,89,0.18)" }}>
       <div className="max-w-[1500px] mx-auto px-6 lg:px-12 grid md:grid-cols-5 gap-12">
         <div className="md:col-span-2">
-          <Logo size={56} />
+          <Logo size={72} />
           <p className="mt-6 max-w-md text-sm leading-relaxed" style={{ color: "rgba(250,248,245,0.65)" }}>
             Ibéricos curados con tiempo y mimo en Castilblanco de los Arroyos —
             corazón de la Sierra Norte de Sevilla.
