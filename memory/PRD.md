@@ -1,3 +1,29 @@
+## Iteración 20 (2026-02-14) — FASE 8: TPV (Punto de venta tienda física) + Distribución (albaranes y rutas)
+
+- ✅ **4 colecciones nuevas** en `routers_distribution.py`:
+  - `pos_cash_sessions` — apertura/cierre de caja diaria (numeración `SES-YYYY-NNNNN`), controla una sola sesión abierta a la vez.
+  - `pos_tickets` — tickets de venta en tienda (numeración `TCK-YYYY-NNNNN`) con IVA, método pago (efectivo/tarjeta/mixto/bizum), cambio y ligazón a sesión + cuenta.
+  - `delivery_notes` — albaranes (`ALB-YYYY-NNNNN`) con estados pendiente / en_ruta / entregado / facturado / incidencia.
+  - `delivery_routes` — rutas de reparto (`RUT-YYYY-NNNNN`) que agrupan albaranes.
+- ✅ **ENGRANAJES**:
+  - **Ticket TPV** → descuenta stock por **FIFO** en todos los items con `product_id` y crea un **movimiento de tesorería (income)** con `reference_type="pos_ticket"` en la cuenta de caja de la sesión activa. Los totales de la sesión se actualizan (`total_ventas`, `num_tickets`).
+  - **Cierre de sesión** calcula `saldo_esperado = apertura + total_ventas` y guarda `diferencia = contado - esperado`.
+  - **Albarán acción `deliver`** → descuenta stock FIFO por cada línea con `product_id`.
+  - **Albarán acción `invoice`** → genera una **factura emitida** (`EMIT-YYYY-NNNNN`) con IVA configurable (10% por defecto) y la enlaza al albarán (`invoice_id`).
+  - **Crear ruta** con `delivery_note_ids` → marca esos albaranes como `en_ruta` y guarda su `route_id`.
+- ✅ **Frontend `/admin/tpv`** (3 pestañas, sidebar con icono `ShoppingBag`):
+  - **Caja (TPV)** — `PosRegister.jsx`: si no hay sesión abierta, muestra empty-state con drawer de apertura (selector de cuenta caja + saldo apertura + empleado). Con sesión abierta: buscador + catálogo de productos (con variantes desglosadas), carrito editable (cantidades, precios y artículos libres), selector IVA (0/4/10/21), payment con 3 métodos, campos efectivo/tarjeta con cálculo de cambio automático, botón "Cobrar" bloqueado si falta importe. Drawer cierre con `saldo_contado` y cálculo de diferencia.
+  - **Tickets** — `PosTickets.jsx`: listado buscable con modal detalle que renderiza el ticket completo (items, subtotal, IVA, total y desglose de pago).
+  - **Sesiones de caja** — `PosSessions.jsx`: historial completo con badges abierta/cerrada, num_tickets, total_ventas, apertura, cierre y diferencia coloreada.
+- ✅ **Frontend `/admin/distribucion`** (2 pestañas, sidebar con icono `Truck`):
+  - **Albaranes** — `DeliveryNotes.jsx`: filtro por estado, drawer creación con selector de cliente empresa (autofill desde `business_customers`) o nombre manual, líneas con selector de productos o descripción libre. Modal detalle con acciones dinámicas según estado: `deliver` (verde, descuenta stock), `invoice` (genera factura con IVA seleccionable), `incident` (rojo con motivo), `reset`.
+  - **Rutas de reparto** — `DeliveryRoutes.jsx`: cards por ruta con líneas de albaranes agrupados. Drawer con checkboxes de albaranes pendientes.
+- ✅ **Testing agent iter 16**: backend 20/20 pytest PASS (`test_iteration16_phase8_pos_dist.py`) + frontend E2E completo con los dos engranajes verificados (ticket → treasury_movement + FIFO; albarán invoice → issued_invoice).
+- 🚀 Pusheado a GitHub `main` — commit `fbb1f8f`.
+
+---
+
+
 ## Iteración 19 (2026-02-13) — FASE 7: Tesorería + Facturación emitida (circuito del dinero cerrado)
 
 - ✅ **3 colecciones nuevas** en `routers_treasury.py`:
