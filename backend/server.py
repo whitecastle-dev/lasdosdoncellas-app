@@ -30,6 +30,7 @@ from routers_inventory import router as inventory_router
 from routers_treasury import router as treasury_router, inv_router as issued_invoices_router
 from routers_distribution import router as distribution_router
 from routers_accounting import router as accounting_router
+from routers_executive import router as executive_router
 from routers_excel import router as excel_router
 from routers_excel_all import router as excel_all_router
 
@@ -79,6 +80,7 @@ app.include_router(treasury_router)
 app.include_router(issued_invoices_router)
 app.include_router(distribution_router)
 app.include_router(accounting_router)
+app.include_router(executive_router)
 app.include_router(excel_router)
 app.include_router(excel_all_router)
 from routers_chat import router as chat_router

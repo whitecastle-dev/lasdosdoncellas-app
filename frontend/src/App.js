@@ -31,6 +31,7 @@ import ResetPassword from "@/pages/ResetPassword";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminLayout from "@/pages/admin/AdminLayout";
 import Dashboard from "@/pages/admin/Dashboard";
+import ExecutiveDashboard from "@/pages/admin/ExecutiveDashboard";
 import ProductsAdmin from "@/pages/admin/Products";
 import CategoriesAdmin from "@/pages/admin/Categories";
 import OrdersAdmin from "@/pages/admin/Orders";
@@ -116,7 +117,8 @@ function App() {
 
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/admin" element={<AdminLayout />}>
-                <Route index element={<Dashboard />} />
+                <Route index element={<ExecutiveDashboard />} />
+                <Route path="ecommerce" element={<Dashboard />} />
                 <Route path="products" element={<ProductsAdmin />} />
                 <Route path="categories" element={<CategoriesAdmin />} />
                 <Route path="orders" element={<OrdersAdmin />} />

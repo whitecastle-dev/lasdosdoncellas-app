@@ -5,7 +5,8 @@ import { useAuth } from "@/context/AuthContext";
 import FreshnessBadge from "@/components/admin/FreshnessBadge";
 
 const LINKS = [
-  { to: "/admin", end: true, icon: LayoutDashboard, label: "Dashboard", perm: "dashboard.read" },
+  { to: "/admin", end: true, icon: LayoutDashboard, label: "Dashboard 360º", perm: "dashboard.read" },
+  { to: "/admin/ecommerce", icon: Store, label: "Dashboard e-commerce", perm: "dashboard.read" },
   { to: "/admin/products", icon: Package, label: "Productos", perm: "products.read" },
   { to: "/admin/categories", icon: Tag, label: "Categorías", perm: "products.read" },
   { to: "/admin/orders", icon: ShoppingCart, label: "Pedidos", perm: "orders.read" },
