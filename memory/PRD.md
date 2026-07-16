@@ -1,3 +1,32 @@
+## Iteración 26 (2026-02-16) — Integración Redsys / CaixaBank TPV Virtual
+
+**Contexto**: el usuario recibió el contrato de TPV Virtual de CaixaBank y adjuntó las credenciales de pruebas (FUC 367456167, terminal 1, EUR 978, SHA-256 `sq7HjrUOBfKmC576ILgskD5srU870gJ7`).
+
+**Aplicado** (HostedPay por redirección, HMAC_SHA256_V1):
+- **`backend/redsys.py`**: helpers `build_merchant_parameters`, `create_signature`, `verify_signature`. Clave por-pedido derivada de la clave secreta base64 mediante **3DES-CBC** con IV=0 y `Ds_Merchant_Order` como mensaje PKCS-padded, luego HMAC-SHA256 del `Ds_MerchantParameters`.
+- **`backend/routers_payments_redsys.py`**:
+  - `POST /api/checkout/redsys` → crea pedido y devuelve `{endpoint, Ds_SignatureVersion, Ds_MerchantParameters, Ds_Signature, order_number, merchant_order}`.
+  - `POST /api/payments/redsys/notify` → verifica firma S2S y marca `paid`/`failed` según `Ds_Response` (0000-0099 = OK). Idempotente.
+  - `GET /api/checkout/redsys/status/{merchant_order}` → polling desde CheckoutSuccess.
+- **`routers_orders.py`**: nuevo `GET /api/orders/by-merchant/{merchant_order}`.
+- **`routers_settings.py`**: expone metainfo de pago (proveedor, comercio, terminal, entorno) — credenciales sólo en `.env`.
+- Añadidas a `backend/.env`: `PAYMENT_PROVIDER=redsys`, `REDSYS_MERCHANT_CODE`, `REDSYS_TERMINAL`, `REDSYS_CURRENCY`, `REDSYS_SECRET_KEY`, `REDSYS_ENDPOINT`.
+- Nueva dependencia `pycryptodome==3.23.0`.
+
+**Frontend**:
+- `Checkout.jsx` → auto-post de `<form>` oculto con los 3 hidden inputs a `sis-t.redsys.es/sis/realizarPago`.
+- `CheckoutSuccess.jsx` → soporte para `?order=<merchant_order>`.
+- `Configuracion.jsx` → nueva card **Pasarela de pago** (read-only) con proveedor, entorno, FUC, terminal, moneda, endpoint notificación y aviso de "Modo pruebas activo".
+
+**Testing agent iter 22**: 10/10 backend pytest PASS (contrato, base64/HMAC math, 3DES key derivation, notify happy path/bad-signature/denied, by-merchant, settings) + frontend E2E confirmado.
+
+**Migración a producción**: cambiar `REDSYS_ENDPOINT` a `https://sis.redsys.es/sis/realizarPago` y actualizar `REDSYS_SECRET_KEY` + `REDSYS_MERCHANT_CODE` con los datos reales.
+
+🚀 Pusheado a GitHub `main` — commit `f55862a`.
+
+---
+
+
 ## Iteración 25 (2026-02-14) — Fix definitivo del logo (imagen correcta)
 
 **Bug reportado**: el logo anterior no era el que el usuario había enviado. Se descubrió que el asset descargado en iteraciones previas (`sgf1bfy7_image.png`, 305 KB) NO era el logo oficial de la marca.

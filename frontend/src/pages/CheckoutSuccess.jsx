@@ -94,7 +94,7 @@ export default function CheckoutSuccess() {
           <div>
             <div className="label-eyebrow gold mb-3">Verificando pago…</div>
             <h1 className="font-serif text-4xl tracking-tighter" style={{ color: "#FAF8F5" }}>Un momento, por favor</h1>
-            <p className="mt-4" style={{ color: "rgba(250,248,245,0.6)" }}>Estamos confirmando con CaixaBank.</p>
+            <p className="mt-4" style={{ color: "rgba(250,248,245,0.6)" }}>Estamos confirmando el pago con la pasarela.</p>
           </div>
         )}
 

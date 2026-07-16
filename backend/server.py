@@ -47,16 +47,30 @@ _default_origins = [
     "https://www.lasdosdoncellasibericos.es",
     "http://localhost:3000",
 ]
-_env_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+_env_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip() and o.strip() != "*"]
 _all_origins = list(dict.fromkeys(_default_origins + _env_origins))
-logger.info("CORS allow_origins: %s", _all_origins)
+# Regex tolerante para cualquier subdominio de onrender.com (preview / branch deploys),
+# el dominio de trabajo emergentagent.com, y localhost en cualquier puerto.
+_allow_regex = (
+    r"^https?://("
+    r"localhost(:\d+)?"
+    r"|127\.0\.0\.1(:\d+)?"
+    r"|[a-zA-Z0-9-]+\.onrender\.com"
+    r"|[a-zA-Z0-9-]+\.emergentagent\.com"
+    r"|([a-zA-Z0-9-]+\.)?lasdosdoncellasibericos\.es"
+    r")$"
+)
+logger.info("CORS allow_origins: %s (+regex %s)", _all_origins, _allow_regex)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_all_origins,
+    allow_origin_regex=_allow_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=600,
 )
 
 @app.get("/api")
