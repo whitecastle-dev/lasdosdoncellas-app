@@ -1,3 +1,31 @@
+## Iteración 27 (2026-02-16) — Fix producción: botón "Pagar" genérico + CORS robusta + limpieza requirements
+
+**Bugs reportados por el usuario en producción (Render)**:
+1. Al pulsar el botón de pago aparecía **"Pagar con Stripe"** aunque queríamos usar Redsys.
+2. **Error CORS** al POST `/api/checkout/redsys` desde `https://lasdosdoncellas-web.onrender.com`.
+3. **Deploy roto** por `emergentintegrations` que se había añadido a `requirements.txt` con un `pip freeze`.
+
+**Fix aplicado**:
+- **`server.py`**: CORS reforzada.
+  - `allow_origin_regex` cubre `*.onrender.com`, `*.emergentagent.com`, `*.lasdosdoncellasibericos.es`, `localhost:*`.
+  - Se **filtra explícitamente** `CORS_ORIGINS="*"` del env porque combinado con `allow_credentials=true` haría eco de cualquier origen (regresión de seguridad detectada por el testing agent).
+  - Añadido `expose_headers=["*"]` y `max_age=600`.
+- **`requirements.txt`**: revertido a lo que hay en repo (sin `emergentintegrations`, `google-api-core` sin pinar). `pycryptodome==3.23.0` sigue presente para Redsys.
+- **Frontend**: TODAS las menciones a "Stripe" y "CaixaBank" eliminadas de textos visibles al cliente:
+  - `Checkout.jsx`: botón "Pagar de forma segura"; step 2 "Pago"; "Redirigiendo a la pasarela…".
+  - `CheckoutSuccess.jsx`: "confirmando el pago con la pasarela".
+  - `CustomerAccount.jsx`: "paga con tarjeta en cada compra".
+- El nombre "CaixaBank · Redsys" **sólo** aparece en el CMS interno (`/admin/configuracion`) para el super admin, no en la parte pública.
+
+**Testing agent iter 23 + iter 24**: 9/9 backend PASS. Malicious origin rechazado, dominios legítimos OK, Redsys sin regresiones.
+
+**Para desplegar**: el usuario debe hacer redeploy de backend y frontend en Render. `REDSYS_*` env vars deben estar configuradas en el panel de Render (no en git).
+
+🚀 Pusheado a GitHub `main` — commit `c566a13`.
+
+---
+
+
 ## Iteración 26 (2026-02-16) — Integración Redsys / CaixaBank TPV Virtual
 
 **Contexto**: el usuario recibió el contrato de TPV Virtual de CaixaBank y adjuntó las credenciales de pruebas (FUC 367456167, terminal 1, EUR 978, SHA-256 `sq7HjrUOBfKmC576ILgskD5srU870gJ7`).

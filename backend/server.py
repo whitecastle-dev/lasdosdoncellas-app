@@ -78,6 +78,42 @@ async def root():
     return {"status": "ok", "name": "Las Dos Doncellas API"}
 
 
+# --- Global exception handler que garantiza cabeceras CORS incluso en 5xx ---
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.responses import JSONResponse
+
+
+def _cors_headers_for(origin: str) -> dict:
+    """Cabeceras CORS a añadir manualmente cuando FastAPI devuelve 5xx antes
+    del middleware. Sólo emite el origin si pasa la política habitual."""
+    import re as _re
+    if not origin:
+        return {}
+    if origin in _all_origins or _re.match(_allow_regex, origin):
+        return {
+            "access-control-allow-origin": origin,
+            "access-control-allow-credentials": "true",
+            "vary": "Origin",
+        }
+    return {}
+
+
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(request, exc):
+    logger.exception("unhandled: %s %s → %s", request.method, request.url, exc)
+    body = {"detail": "Internal server error"}
+    return JSONResponse(body, status_code=500, headers=_cors_headers_for(request.headers.get("origin", "")))
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _http_exception_handler(request, exc):
+    return JSONResponse(
+        {"detail": exc.detail},
+        status_code=exc.status_code,
+        headers=_cors_headers_for(request.headers.get("origin", "")),
+    )
+
+
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(products_router)

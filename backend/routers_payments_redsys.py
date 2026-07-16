@@ -35,12 +35,42 @@ router = APIRouter(tags=["redsys-payments"])
 
 
 def _cfg():
+    required = ["REDSYS_MERCHANT_CODE", "REDSYS_SECRET_KEY"]
+    missing = [k for k in required if not os.environ.get(k)]
+    if missing:
+        # 503: no romper con un KeyError; permite que el middleware CORS añada
+        # las cabeceras y que el frontend muestre un mensaje entendible.
+        logger.error("redsys _cfg falta env vars: %s", missing)
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "La pasarela de pago no está configurada en el servidor. "
+                f"Faltan variables de entorno: {', '.join(missing)}. "
+                "Contacta con el administrador."
+            ),
+        )
     return {
         "merchant_code": os.environ["REDSYS_MERCHANT_CODE"],
         "terminal": os.environ.get("REDSYS_TERMINAL", "1"),
         "currency": os.environ.get("REDSYS_CURRENCY", "978"),
         "secret_key": os.environ["REDSYS_SECRET_KEY"],
         "endpoint": os.environ.get("REDSYS_ENDPOINT", "https://sis-t.redsys.es:25443/sis/realizarPago"),
+    }
+
+
+@router.get("/payments/redsys/health")
+async def redsys_health():
+    """Diagnóstico rápido para confirmar si la pasarela está configurada.
+    Devuelve 200 aunque falte configuración — el body indica qué falta."""
+    required = ["REDSYS_MERCHANT_CODE", "REDSYS_SECRET_KEY"]
+    missing = [k for k in required if not os.environ.get(k)]
+    endpoint = os.environ.get("REDSYS_ENDPOINT", "https://sis-t.redsys.es:25443/sis/realizarPago")
+    return {
+        "configured": len(missing) == 0,
+        "missing": missing,
+        "environment": "test" if "sis-t.redsys" in endpoint else "production",
+        "merchant_code": os.environ.get("REDSYS_MERCHANT_CODE", "")[:4] + "..." if os.environ.get("REDSYS_MERCHANT_CODE") else "",
+        "terminal": os.environ.get("REDSYS_TERMINAL", "1"),
     }
 
 
