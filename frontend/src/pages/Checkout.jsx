@@ -79,7 +79,18 @@ export default function Checkout() {
       document.body.appendChild(f);
       f.submit();
     } catch (err) {
-      toast.error(formatApiError(err));
+      const status = err?.response?.status;
+      const detail = err?.response?.data?.detail;
+      if (status === 503 && detail) {
+        toast.error(detail, { duration: 10000 });
+      } else if (status === 500) {
+        toast.error(
+          "No hemos podido iniciar el pago. El servidor está temporalmente indisponible; vuelve a intentarlo en unos minutos.",
+          { duration: 8000 }
+        );
+      } else {
+        toast.error(formatApiError(err));
+      }
       setSubmitting(false);
     }
   };
