@@ -56,12 +56,28 @@ export default function Checkout() {
     if (items.length === 0) { toast.error("Tu cesta está vacía"); return; }
     setSubmitting(true);
     try {
-      const { data } = await api.post("/checkout/session", {
+      const { data } = await api.post("/checkout/redsys", {
         items: items.map((i) => ({ product_id: i.product_id, qty: i.qty })),
         customer: form,
         origin_url: window.location.origin,
       });
-      if (data.url) window.location.href = data.url;
+      // Auto-post del <form> a Redsys para redirigir al TPV Virtual
+      const f = document.createElement("form");
+      f.method = "POST";
+      f.action = data.endpoint;
+      f.style.display = "none";
+      const fields = {
+        Ds_SignatureVersion: data.Ds_SignatureVersion,
+        Ds_MerchantParameters: data.Ds_MerchantParameters,
+        Ds_Signature: data.Ds_Signature,
+      };
+      Object.entries(fields).forEach(([k, v]) => {
+        const input = document.createElement("input");
+        input.type = "hidden"; input.name = k; input.value = v;
+        f.appendChild(input);
+      });
+      document.body.appendChild(f);
+      f.submit();
     } catch (err) {
       toast.error(formatApiError(err));
       setSubmitting(false);
@@ -84,7 +100,7 @@ export default function Checkout() {
         <div className="flex items-center gap-3 mt-6 text-xs uppercase tracking-[0.2em]" style={{ color: "rgba(250,248,245,0.6)" }}>
           <span className="text-[#C5A059]">1. Datos</span>
           <span>→</span>
-          <span>2. Pago Stripe</span>
+          <span>2. Pago CaixaBank</span>
           <span>→</span>
           <span>3. Confirmación</span>
         </div>

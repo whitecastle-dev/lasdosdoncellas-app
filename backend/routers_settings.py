@@ -92,7 +92,18 @@ async def get_public_settings():
 
 @router.get("")
 async def get_settings(_=Depends(require_permission("dashboard.read"))):
-    return await _load()
+    s = await _load()
+    # Añadimos meta de pagos (sólo lectura, credenciales quedan en .env)
+    import os as _os
+    s["payment"] = {
+        "provider": _os.environ.get("PAYMENT_PROVIDER", "stripe"),
+        "redsys_merchant_code": _os.environ.get("REDSYS_MERCHANT_CODE", ""),
+        "redsys_terminal": _os.environ.get("REDSYS_TERMINAL", ""),
+        "redsys_environment": (
+            "test" if "sis-t.redsys" in _os.environ.get("REDSYS_ENDPOINT", "") else "production"
+        ),
+    }
+    return s
 
 
 @router.put("")
