@@ -75,8 +75,8 @@ export default function CustomerAccount() {
               <div className="border border-[rgba(197,160,89,0.25)] p-8">
                 <div className="label-eyebrow gold mb-3">Próximamente</div>
                 <p style={{ color: "rgba(250,248,245,0.7)" }}>
-                  Pronto podrás guardar tu tarjeta de forma segura (vía Stripe) para activar el botón
-                  <span className="gold"> &ldquo;Comprar ya&rdquo;</span>. Por ahora, paga con Stripe en cada compra y guarda tu dirección
+                  Pronto podrás guardar tu tarjeta de forma segura para activar el botón
+                  <span className="gold"> &ldquo;Comprar ya&rdquo;</span>. Por ahora, paga con tarjeta en cada compra y guarda tu dirección
                   para acelerar el proceso.
                 </p>
               </div>

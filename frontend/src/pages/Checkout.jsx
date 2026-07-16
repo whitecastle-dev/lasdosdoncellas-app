@@ -100,7 +100,7 @@ export default function Checkout() {
         <div className="flex items-center gap-3 mt-6 text-xs uppercase tracking-[0.2em]" style={{ color: "rgba(250,248,245,0.6)" }}>
           <span className="text-[#C5A059]">1. Datos</span>
           <span>→</span>
-          <span>2. Pago CaixaBank</span>
+          <span>2. Pago</span>
           <span>→</span>
           <span>3. Confirmación</span>
         </div>
@@ -148,7 +148,7 @@ export default function Checkout() {
             )}
             {(!canQuickBuy || editing) && (
               <button type="submit" disabled={submitting} className="ldd-btn-gold disabled:opacity-50" data-testid="checkout-submit">
-                {submitting ? "Redirigiendo a Stripe…" : "Pagar con Stripe"}
+                {submitting ? "Redirigiendo a la pasarela…" : "Pagar de forma segura"}
               </button>
             )}
             {!customer && (
