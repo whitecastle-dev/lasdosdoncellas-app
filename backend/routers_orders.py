@@ -318,3 +318,12 @@ async def order_by_session(session_id: str):
     if not o:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
     return o
+
+
+# Public success — Redsys: fetch order by merchant_order
+@router.get("/orders/by-merchant/{merchant_order}")
+async def order_by_merchant(merchant_order: str):
+    o = await db.orders.find_one({"merchant_order": merchant_order}, {"_id": 0, "tracking": 0})
+    if not o:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+    return o

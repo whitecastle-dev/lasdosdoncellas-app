@@ -9,26 +9,32 @@ import { useCart } from "@/context/CartContext";
 export default function CheckoutSuccess() {
   const [params] = useSearchParams();
   const sessionId = params.get("session_id");
+  const merchantOrder = params.get("order"); // Redsys
   const [status, setStatus] = useState({ status: "checking", payment_status: null, order_number: null });
   const [order, setOrder] = useState(null);
   const polledRef = useRef(0);
   const { clear } = useCart();
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId && !merchantOrder) return;
     let cancelled = false;
     const poll = async () => {
       polledRef.current += 1;
       try {
-        const { data } = await api.get(`/checkout/status/${sessionId}`);
+        const url = merchantOrder
+          ? `/checkout/redsys/status/${merchantOrder}`
+          : `/checkout/status/${sessionId}`;
+        const { data } = await api.get(url);
         if (cancelled) return;
         setStatus(data);
         if (data.payment_status === "paid") {
           clear();
           try {
-            const r = await api.get(`/orders/by-session/${sessionId}`);
+            const r = merchantOrder
+              ? await api.get(`/orders/by-merchant/${merchantOrder}`)
+              : await api.get(`/orders/by-session/${sessionId}`);
             setOrder(r.data);
-          } catch {}
+          } catch { /* ignore */ }
           return;
         }
         if (data.status === "expired" || polledRef.current >= 12) return;
@@ -39,7 +45,7 @@ export default function CheckoutSuccess() {
     };
     poll();
     return () => { cancelled = true; };
-  }, [sessionId, clear]);
+  }, [sessionId, merchantOrder, clear]);
 
   const paid = status.payment_status === "paid";
   const expired = status.status === "expired";
@@ -88,7 +94,7 @@ export default function CheckoutSuccess() {
           <div>
             <div className="label-eyebrow gold mb-3">Verificando pago…</div>
             <h1 className="font-serif text-4xl tracking-tighter" style={{ color: "#FAF8F5" }}>Un momento, por favor</h1>
-            <p className="mt-4" style={{ color: "rgba(250,248,245,0.6)" }}>Estamos confirmando con Stripe.</p>
+            <p className="mt-4" style={{ color: "rgba(250,248,245,0.6)" }}>Estamos confirmando con CaixaBank.</p>
           </div>
         )}
 

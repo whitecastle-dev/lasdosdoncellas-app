@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { MessageCircle, Save, ExternalLink, Star } from "lucide-react";
+import { MessageCircle, Save, ExternalLink, Star, CreditCard } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -22,6 +22,7 @@ const normalizePhone = (v) => (v || "").replace(/[^0-9]/g, "");
 
 export default function Configuracion() {
   const [settings, setSettings] = useState(EMPTY);
+  const [payment, setPayment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -33,6 +34,7 @@ export default function Configuracion() {
           whatsapp: { ...EMPTY.whatsapp, ...(data.whatsapp || {}) },
           google: { ...EMPTY.google, ...(data.google || {}) },
         });
+        setPayment(data.payment || null);
       } catch (err) {
         toast.error(formatApiError(err));
       } finally {
@@ -266,6 +268,54 @@ export default function Configuracion() {
           </div>
         </section>
       )}
+
+      {payment && (
+        <section className="bg-white border border-gray-200 mt-6" data-testid="config-payment">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
+            <CreditCard size={18} className="text-blue-600" />
+            <div>
+              <div className="font-serif text-lg">Pasarela de pago</div>
+              <div className="text-xs text-gray-500">
+                Configurada vía variables de entorno del backend por seguridad. Para cambiar
+                credenciales, actualiza <code>backend/.env</code> y reinicia el servidor.
+              </div>
+            </div>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <InfoRow label="Proveedor" value={payment.provider === "redsys" ? "CaixaBank · Redsys" : payment.provider} />
+            <InfoRow label="Entorno"
+                     value={payment.redsys_environment}
+                     badge={payment.redsys_environment === "production" ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"} />
+            <InfoRow label="Número de comercio" value={payment.redsys_merchant_code || "—"} mono />
+            <InfoRow label="Terminal" value={payment.redsys_terminal || "—"} mono />
+            <InfoRow label="Moneda" value="EUR (978)" />
+            <InfoRow label="Endpoint notificación"
+                     value="/api/payments/redsys/notify"
+                     mono
+                     hint="Redsys debe apuntar aquí en Ds_Merchant_MerchantURL" />
+          </div>
+          {payment.redsys_environment === "test" && (
+            <div className="mx-6 mb-6 border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+              <strong>Modo pruebas activo.</strong> Los cobros no se cargan al cliente. Cuando el TPV
+              esté validado por CaixaBank, cambia <code>REDSYS_ENDPOINT</code> a
+              <code> https://sis.redsys.es/sis/realizarPago</code> y actualiza clave/comercio con los
+              datos definitivos.
+            </div>
+          )}
+        </section>
+      )}
+    </div>
+  );
+}
+
+function InfoRow({ label, value, mono, badge, hint }) {
+  return (
+    <div className="border border-gray-200 p-3">
+      <div className="label-eyebrow text-gray-500 text-[10px]">{label}</div>
+      <div className={`mt-1 ${mono ? "font-mono text-sm" : "text-sm"}`}>
+        {badge ? <span className={`inline-block px-2 py-0.5 text-xs ${badge}`}>{value}</span> : value}
+      </div>
+      {hint && <div className="text-[10px] text-gray-400 mt-1">{hint}</div>}
     </div>
   );
 }

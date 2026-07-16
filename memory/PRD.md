@@ -1,3 +1,25 @@
+## Iteración 25 (2026-02-14) — Fix definitivo del logo (imagen correcta)
+
+**Bug reportado**: el logo anterior no era el que el usuario había enviado. Se descubrió que el asset descargado en iteraciones previas (`sgf1bfy7_image.png`, 305 KB) NO era el logo oficial de la marca.
+
+**Fix**:
+- Descargado nuevo asset oficial `nj0ws20l_logo.jpg` (899×1280, portrait vertical, aspect 0.7) y convertido a PNG.
+- Verificado por análisis IA: contiene marco blanco + L|D + rama de olivo + texto "Las Dos Doncellas / Productos Ibéricos" sobre fondo negro. Confirmado como el logo correcto.
+- Componente `Logo.jsx` ajustado al aspect real 0.7 (portrait): variante `mark` recorta correctamente el icono cuadrado, variante `full` muestra la imagen entera.
+- Tamaños optimizados:
+  - Header storefront: `mark` 52px + texto "Las Dos Doncellas / Productos Ibéricos" al lado.
+  - Footer storefront: `full` 180px.
+  - AdminLogin: `<img>` directo a 320px (h-80).
+  - Sidebar CMS: `mark` 44x44.
+  - Header móvil CMS: `mark` 30px.
+
+**Testing agent iter 21**: verificación visual completa (4 ubicaciones + favicon) → todas muestran el logo correcto. Bug cerrado.
+
+🚀 Pusheado a GitHub `main` — commit `8669732`.
+
+---
+
+
 ## Iteración 24 (2026-02-14) — Fix logo: tamaño suficiente para que se vea el brand-mark completo
 
 **Bug reportado por el usuario**: el logo mostrado no coincidía con el que había enviado.
