@@ -11,7 +11,6 @@ import json
 from typing import Dict
 
 from Crypto.Cipher import DES3
-from Crypto.Util.Padding import pad
 
 
 def build_merchant_parameters(payload: Dict) -> str:
@@ -30,10 +29,17 @@ def decode_merchant_parameters(merchant_parameters_b64: str) -> Dict:
 
 
 def _derive_per_order_key(secret_key_b64: str, order: str) -> bytes:
+    """Deriva la clave HMAC por-pedido cifrando el Ds_Merchant_Order con 3DES-CBC
+    (IV=0, ZERO padding hasta múltiplo de 8, siempre añadiendo al menos 0 bytes).
+    Redsys usa ZERO padding; PKCS#7 producía SIS0042 = firma no válida.
+    Nota: si len(order) ya es múltiplo de 8, se añaden 8 bytes de padding igual
+    (según implementación canónica python-redsys)."""
     secret = base64.b64decode(secret_key_b64)
     cipher = DES3.new(secret, DES3.MODE_CBC, iv=b"\x00" * 8)
-    order_bytes = pad(order.encode("utf-8"), 8)
-    return cipher.encrypt(order_bytes)
+    order_bytes = order.encode("utf-8")
+    pad_len = 8 - (len(order_bytes) % 8)
+    padded = order_bytes + b"\x00" * pad_len
+    return cipher.encrypt(padded)
 
 
 def create_signature(secret_key_b64: str, merchant_parameters_b64: str, order: str) -> str:
