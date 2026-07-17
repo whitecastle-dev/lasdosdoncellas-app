@@ -34,6 +34,7 @@ from datetime import datetime, timezone
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 
 from db import db
 from auth import require_permission
@@ -527,3 +528,185 @@ async def summary(_=Depends(require_permission(PERM))):
             "treasury_payments": n_payments,
         },
     }
+
+
+# ---------------- Item detail views (drill-down drawers) ----------------
+
+
+async def _find_invoice(invoice_id: int) -> Optional[dict]:
+    """Search the invoice in every relevant collection."""
+    for coll in ("contasimple_invoices_issued",
+                 "contasimple_invoices_received",
+                 "contasimple_expenses"):
+        doc = await db[coll].find_one({"id": invoice_id})
+        if doc:
+            doc["_collection"] = coll
+            return doc
+    return None
+
+
+@router.get("/invoices/{invoice_id}")
+async def get_invoice_detail(invoice_id: int, _=Depends(require_permission(PERM))):
+    """Full detail of a single invoice + related payments (from local db)."""
+    doc = await _find_invoice(invoice_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Factura no encontrada. Ejecuta 'Sincronizar ahora' primero.")
+    inv = _clean(doc)
+    coll = inv.pop("_collection")
+
+    # Related payments from local treasury collection
+    doc_type = "IssuedInvoice" if coll == "contasimple_invoices_issued" else "ReceivedInvoice"
+    pays_cur = db.contasimple_treasury_payments.find({
+        "related_document_id": invoice_id,
+        "related_document_type": doc_type,
+    }).sort("date", 1)
+    payments = [_clean(p) async for p in pays_cur]
+
+    return {"invoice": inv, "payments": payments, "collection": coll}
+
+
+@router.get("/invoices/{invoice_id}/pdf")
+async def download_invoice_pdf(invoice_id: int, _=Depends(require_permission(PERM))):
+    """Proxy the official ContaSimple PDF of an invoice.
+
+    Endpoint used: ``GET /accounting/invoices/{invoiceId}/pdf`` — returns
+    ``application/pdf`` bytes exactly as ContaSimple / AEAT format them.
+    """
+    url, _key = _config()
+    token = await _get_token()
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        r = await client.get(
+            f"{url}/accounting/invoices/{invoice_id}/pdf",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    if r.status_code == 401:
+        token = await _get_token(force=True)
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            r = await client.get(
+                f"{url}/accounting/invoices/{invoice_id}/pdf",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+    if r.status_code != 200:
+        raise HTTPException(status_code=502,
+            detail=f"ContaSimple no ha devuelto PDF ({r.status_code}): {r.text[:200]}")
+
+    # Try to derive a filename from the invoice number
+    inv = await _find_invoice(invoice_id) or {}
+    number = (inv.get("number") or f"factura-{invoice_id}").replace("/", "-")
+    filename = f"{number}.pdf"
+
+    return Response(
+        content=r.content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "private, max-age=60",
+        },
+    )
+
+
+async def _entity_invoice_stats(entity: dict, coll_name: str,
+                                party_field: str) -> dict:
+    """Aggregate KPIs + top products for an entity across its invoices.
+
+    Invoices store an embedded snapshot of issuer/target (its own snapshot id
+    ≠ the CS entity id). We therefore match by **NIF**, which is stable,
+    with organization name as a fallback.
+    """
+    nif = (entity.get("nif") or "").strip()
+    org = (entity.get("organization") or "").strip()
+    if nif:
+        match_expr: dict = {f"{party_field}.nif": nif}
+    elif org:
+        match_expr = {f"{party_field}.organization": org}
+    else:
+        match_expr = {"_never_matches_": True}
+    match_stage = {"$match": match_expr}
+
+    totals = await db[coll_name].aggregate([
+        match_stage,
+        {"$group": {
+            "_id": None,
+            "n_invoices": {"$sum": 1},
+            "total_amount": {"$sum": "$total_amount"},
+            "total_taxable_amount": {"$sum": "$total_taxable_amount"},
+            "total_vat_amount": {"$sum": "$total_vat_amount"},
+            "total_payed_amount": {"$sum": "$total_payed_amount"},
+            "min_date": {"$min": "$invoice_date"},
+            "max_date": {"$max": "$invoice_date"},
+        }},
+    ]).to_list(1)
+    kpis = totals[0] if totals else None
+
+    invoices_cur = db[coll_name].find(match_expr).sort("invoice_date", -1).limit(500)
+    invoices = [_clean(d) async for d in invoices_cur]
+
+    # Top products (concept aggregation over lines)
+    top_products = await db[coll_name].aggregate([
+        match_stage,
+        {"$unwind": "$lines"},
+        {"$group": {
+            "_id": "$lines.concept",
+            "quantity": {"$sum": "$lines.quantity"},
+            "amount": {"$sum": "$lines.total_taxable_amount"},
+            "occurrences": {"$sum": 1},
+        }},
+        {"$sort": {"amount": -1}},
+        {"$limit": 10},
+    ]).to_list(10)
+
+    # Monthly evolution
+    monthly = await db[coll_name].aggregate([
+        match_stage,
+        {"$group": {
+            "_id": {"$substr": ["$invoice_date", 0, 7]},  # YYYY-MM
+            "amount": {"$sum": "$total_amount"},
+            "count": {"$sum": 1},
+        }},
+        {"$sort": {"_id": 1}},
+    ]).to_list(120)
+
+    result = {
+        "kpis": {
+            "n_invoices": int(kpis["n_invoices"]) if kpis else 0,
+            "total_amount": round(float(kpis["total_amount"]), 2) if kpis else 0.0,
+            "total_taxable_amount": round(float(kpis["total_taxable_amount"]), 2) if kpis else 0.0,
+            "total_vat_amount": round(float(kpis["total_vat_amount"]), 2) if kpis else 0.0,
+            "total_payed_amount": round(float(kpis["total_payed_amount"]), 2) if kpis else 0.0,
+            "pending_amount": round(float(kpis["total_amount"] - kpis["total_payed_amount"]), 2) if kpis else 0.0,
+            "average_ticket": round(float(kpis["total_amount"] / kpis["n_invoices"]), 2) if kpis and kpis["n_invoices"] else 0.0,
+            "first_invoice_date": kpis["min_date"] if kpis else None,
+            "last_invoice_date": kpis["max_date"] if kpis else None,
+        },
+        "invoices": invoices,
+        "top_products": [
+            {"concept": r["_id"] or "(sin concepto)", "quantity": round(float(r["quantity"]), 2),
+             "amount": round(float(r["amount"]), 2), "occurrences": int(r["occurrences"])}
+            for r in top_products
+        ],
+        "monthly": [
+            {"month": r["_id"], "amount": round(float(r["amount"]), 2), "count": int(r["count"])}
+            for r in monthly if r["_id"]
+        ],
+    }
+    return result
+
+
+@router.get("/customers/{customer_id}/detail")
+async def get_customer_detail(customer_id: int, _=Depends(require_permission(PERM))):
+    """Customer 360º view: profile + KPIs + invoices + top products + monthly."""
+    doc = await db.contasimple_customers.find_one({"id": customer_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    stats = await _entity_invoice_stats(doc, "contasimple_invoices_issued", "target")
+    return {"customer": _clean(doc), **stats}
+
+
+@router.get("/providers/{provider_id}/detail")
+async def get_provider_detail(provider_id: int, _=Depends(require_permission(PERM))):
+    """Provider 360º view: profile + KPIs + received invoices + top products."""
+    doc = await db.contasimple_providers.find_one({"id": provider_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    stats = await _entity_invoice_stats(doc, "contasimple_invoices_received", "issuer")
+    return {"provider": _clean(doc), **stats}
