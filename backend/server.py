@@ -26,6 +26,7 @@ from routers_business_customers import router as business_customers_router
 from routers_stock_alerts import router as stock_alerts_router
 from routers_erp_production import router as erp_production_router
 from routers_supabase_sync import router as supabase_sync_router
+from routers_contasimple_sync import router as contasimple_sync_router
 from routers_inventory import router as inventory_router
 from routers_treasury import router as treasury_router, inv_router as issued_invoices_router
 from routers_distribution import router as distribution_router
@@ -126,6 +127,7 @@ app.include_router(business_customers_router)
 app.include_router(stock_alerts_router)
 app.include_router(erp_production_router)
 app.include_router(supabase_sync_router)
+app.include_router(contasimple_sync_router)
 app.include_router(inventory_router)
 app.include_router(treasury_router)
 app.include_router(issued_invoices_router)

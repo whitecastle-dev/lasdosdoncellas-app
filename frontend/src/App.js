@@ -48,6 +48,7 @@ import ErpClients from "@/pages/admin/erp/ErpClients";
 import ErpProdProducts from "@/pages/admin/erp/ErpProdProducts";
 import ErpEvents from "@/pages/admin/erp/ErpEvents";
 import ErpLabels from "@/pages/admin/erp/ErpLabels";
+import ContaSimpleSync from "@/pages/admin/ContaSimpleSync";
 import InventoryLayout from "@/pages/admin/inventory/InventoryLayout";
 import InventoryValuation from "@/pages/admin/inventory/InventoryValuation";
 import InventoryLots from "@/pages/admin/inventory/InventoryLots";
@@ -175,6 +176,7 @@ function App() {
                   <Route path="analitica" element={<Analytical />} />
                 </Route>
                 <Route path="chat" element={<Configuracion />} />
+                <Route path="contasimple" element={<ContaSimpleSync />} />
                 <Route path="configuracion" element={<Configuracion />} />
               </Route>
 
