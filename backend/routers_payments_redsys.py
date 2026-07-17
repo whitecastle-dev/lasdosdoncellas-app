@@ -94,6 +94,9 @@ async def create_redsys_checkout(payload: CheckoutIn, request: Request):
     """Crea un pedido y devuelve los parámetros para enviar al TPV Redsys."""
     items, subtotal, vat_breakdown, vat_total, total = await _build_order_from_items(payload.items)
 
+    if not items or float(total) <= 0:
+        raise HTTPException(400, "No hay items válidos en la cesta o el importe total es 0.")
+
     order_number = await _next_number("order", "P")
     invoice_number = await _next_number("invoice", "F")
     now = datetime.now(timezone.utc).isoformat()

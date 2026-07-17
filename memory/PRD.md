@@ -1,3 +1,35 @@
+## Iteración 28 (2026-02-16) — Fix producción: 500 sin CORS → 503 con mensaje + handler global
+
+**Bug reportado**: en producción, `POST /api/checkout/redsys` devolvía **500 sin cabeceras CORS**, provocando un CORS block en el navegador. El botón "Pagar" mostraba "Network Error".
+
+**Causa raíz**: `os.environ["REDSYS_MERCHANT_CODE"]` lanzaba `KeyError` cuando las env vars aún no estaban configuradas en Render. El 500 no llegaba al CORSMiddleware.
+
+**Fix**:
+- `routers_payments_redsys.py`:
+  - `_cfg()` ahora hace `os.environ.get(...)` y lanza `HTTPException(503, ...)` con **detalle claro listando qué env vars faltan**. No hay más KeyError.
+  - Nuevo `GET /api/payments/redsys/health` (público): responde `{configured, missing, environment, merchant_code enmascarado, terminal}`. Permite diagnosticar el deploy en un segundo con `curl`.
+- `server.py`:
+  - **Handlers globales** `@app.exception_handler(Exception)` y `@app.exception_handler(StarletteHTTPException)` que añaden manualmente las cabeceras CORS si el `Origin` coincide con la política.
+  - Esto garantiza que **cualquier 4xx/5xx sigue siendo leíble por el navegador**.
+- `Checkout.jsx`: distinguir 503 (mostrar detail completo del backend 10s) vs 500 (mensaje amable de reintento).
+
+**Testing agent iter 25**: 5/5 backend PASS incluyendo un subproceso aislado que confirma 503 con CORS cuando las env vars están ausentes.
+
+**Acción por parte del usuario en producción (Render)**: configurar en el panel de variables de entorno:
+```
+REDSYS_MERCHANT_CODE=367456167
+REDSYS_TERMINAL=1
+REDSYS_CURRENCY=978
+REDSYS_SECRET_KEY=sq7HjrUOBfKmC576ILgskD5srU870gJ7
+REDSYS_ENDPOINT=https://sis-t.redsys.es:25443/sis/realizarPago
+```
+Verificar con: `curl https://lasdosdoncellas-api.onrender.com/api/payments/redsys/health`
+
+🚀 Pusheado a GitHub `main` — commit `f4028b8`.
+
+---
+
+
 ## Iteración 27 (2026-02-16) — Fix producción: botón "Pagar" genérico + CORS robusta + limpieza requirements
 
 **Bugs reportados por el usuario en producción (Render)**:
