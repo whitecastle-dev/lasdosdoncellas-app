@@ -5,6 +5,7 @@ import {
   RefreshCw, Loader2, Cable, CheckCircle2, AlertCircle, Building2,
   ArrowUpRight, ArrowDownRight, Wallet, FileText, Users, Truck, Coins,
 } from "lucide-react";
+import { InvoiceDetailDrawer, EntityDetailDrawer } from "./ContaSimpleDrawers";
 
 const TABS = [
   { id: "overview", label: "Resumen" },
@@ -73,7 +74,7 @@ function StatusRow({ item, dbCount }) {
   );
 }
 
-function InvoicesTable({ endpoint, testId }) {
+function InvoicesTable({ endpoint, testId, onOpenInvoice, onOpenCustomer }) {
   const [rows, setRows] = useState(null);
   useEffect(() => {
     (async () => {
@@ -101,13 +102,31 @@ function InvoicesTable({ endpoint, testId }) {
         </thead>
         <tbody>
           {rows.map((r) => {
-            const contraparte = r.type === "Issued" ? r.target?.organization : r.issuer?.organization;
+            const isIssued = r.type === "Issued";
+            const contraparte = isIssued ? r.target?.organization : r.issuer?.organization;
+            const contraNif = isIssued ? r.target?.nif : r.issuer?.nif;
             const paid = r.status === "Payed";
             return (
-              <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50/50">
-                <td className="px-4 py-2 font-mono text-xs">{r.number}</td>
+              <tr
+                key={r.id}
+                onClick={() => onOpenInvoice && onOpenInvoice(r.id)}
+                className="border-t border-gray-100 hover:bg-gray-50/70 cursor-pointer"
+                data-testid={`cs-invoice-row-${r.id}`}
+              >
+                <td className="px-4 py-2 font-mono text-xs text-[#C5A059] underline decoration-dotted">{r.number}</td>
                 <td>{fmtDate(r.invoice_date)}</td>
-                <td className="truncate max-w-[280px]">{contraparte || "—"}</td>
+                <td className="truncate max-w-[280px]">
+                  {isIssued && contraNif ? (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onOpenCustomer && onOpenCustomer(contraNif); }}
+                      className="hover:underline text-left"
+                      data-testid={`cs-invoice-row-${r.id}-open-customer`}
+                    >
+                      {contraparte || "—"}
+                    </button>
+                  ) : (contraparte || "—")}
+                </td>
                 <td className="text-right font-mono">{formatMoney(r.total_taxable_amount)}</td>
                 <td className="text-right font-mono text-gray-500">{formatMoney(r.total_vat_amount)}</td>
                 <td className="text-right font-mono font-medium">{formatMoney(r.total_amount)}</td>
@@ -126,7 +145,7 @@ function InvoicesTable({ endpoint, testId }) {
   );
 }
 
-function EntityTable({ endpoint, testId }) {
+function EntityTable({ endpoint, testId, onOpenEntity }) {
   const [rows, setRows] = useState(null);
   const [q, setQ] = useState("");
   useEffect(() => {
@@ -171,8 +190,13 @@ function EntityTable({ endpoint, testId }) {
           </thead>
           <tbody>
             {filtered.map((r) => (
-              <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50/50">
-                <td className="px-4 py-2 font-medium">{r.organization || "—"}</td>
+              <tr
+                key={r.id}
+                onClick={() => onOpenEntity && onOpenEntity(r.id)}
+                className="border-t border-gray-100 hover:bg-gray-50/70 cursor-pointer"
+                data-testid={`cs-entity-row-${r.id}`}
+              >
+                <td className="px-4 py-2 font-medium text-[#C5A059] underline decoration-dotted">{r.organization || "—"}</td>
                 <td className="font-mono text-xs">{r.nif}</td>
                 <td>{r.city}</td>
                 <td className="text-gray-500">{r.province}</td>
@@ -188,7 +212,7 @@ function EntityTable({ endpoint, testId }) {
   );
 }
 
-function PaymentsTable() {
+function PaymentsTable({ onOpenInvoice }) {
   const [rows, setRows] = useState(null);
   useEffect(() => {
     (async () => {
@@ -212,18 +236,26 @@ function PaymentsTable() {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
-            <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50/50">
-              <td className="px-4 py-2">{fmtDate(r.date)}</td>
-              <td className="font-mono text-xs">{r.related_document_number || "—"}</td>
-              <td className="text-xs text-gray-500">{r.related_document_type}</td>
-              <td>{r.payment_method_name}</td>
-              <td className="text-right font-mono font-medium">{formatMoney(r.amount)}</td>
-              <td>
-                <span className="text-xs text-gray-500">{r.reconciliation_status}</span>
-              </td>
-            </tr>
-          ))}
+          {rows.map((r) => {
+            const isInvoice = r.related_document_type === "IssuedInvoice" || r.related_document_type === "ReceivedInvoice";
+            return (
+              <tr
+                key={r.id}
+                onClick={() => isInvoice && r.related_document_id && onOpenInvoice && onOpenInvoice(r.related_document_id)}
+                className={`border-t border-gray-100 hover:bg-gray-50/70 ${isInvoice ? "cursor-pointer" : ""}`}
+                data-testid={`cs-payment-row-${r.id}`}
+              >
+                <td className="px-4 py-2">{fmtDate(r.date)}</td>
+                <td className={`font-mono text-xs ${isInvoice ? "text-[#C5A059] underline decoration-dotted" : ""}`}>{r.related_document_number || "—"}</td>
+                <td className="text-xs text-gray-500">{r.related_document_type}</td>
+                <td>{r.payment_method_name}</td>
+                <td className="text-right font-mono font-medium">{formatMoney(r.amount)}</td>
+                <td>
+                  <span className="text-xs text-gray-500">{r.reconciliation_status}</span>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -237,6 +269,23 @@ export default function ContaSimpleSync() {
   const [running, setRunning] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [tab, setTab] = useState("overview");
+
+  // Drawers
+  const [openInvoiceId, setOpenInvoiceId] = useState(null);
+  const [openEntity, setOpenEntity] = useState(null); // { kind, id }
+
+  const openInvoice = (id) => setOpenInvoiceId(id);
+  const openEntityById = (kind, id) => setOpenEntity({ kind, id });
+
+  const openCustomerByNif = async (nif) => {
+    if (!nif) return;
+    try {
+      const { data } = await api.get(`/contasimple/customers?q=${encodeURIComponent(nif)}&limit=1`);
+      const c = (data.items || []).find((r) => (r.nif || "").toLowerCase() === nif.toLowerCase()) || (data.items || [])[0];
+      if (c) setOpenEntity({ kind: "customer", id: c.id });
+      else toast.error(`No hay cliente con NIF ${nif}`);
+    } catch (e) { toast.error(formatApiError(e)); }
+  };
 
   const load = async () => {
     setLoadingPreview(true);
@@ -405,11 +454,26 @@ export default function ContaSimpleSync() {
         </div>
       )}
 
-      {tab === "invoices_issued" && <InvoicesTable endpoint="/contasimple/invoices/issued" testId="cs-invoices-issued" />}
-      {tab === "invoices_received" && <InvoicesTable endpoint="/contasimple/invoices/received" testId="cs-invoices-received" />}
-      {tab === "customers" && <EntityTable endpoint="/contasimple/customers?limit=500" testId="cs-customers" />}
-      {tab === "providers" && <EntityTable endpoint="/contasimple/providers" testId="cs-providers" />}
-      {tab === "payments" && <PaymentsTable />}
+      {tab === "invoices_issued" && <InvoicesTable endpoint="/contasimple/invoices/issued" testId="cs-invoices-issued" onOpenInvoice={openInvoice} onOpenCustomer={openCustomerByNif} />}
+      {tab === "invoices_received" && <InvoicesTable endpoint="/contasimple/invoices/received" testId="cs-invoices-received" onOpenInvoice={openInvoice} onOpenCustomer={openCustomerByNif} />}
+      {tab === "customers" && <EntityTable endpoint="/contasimple/customers?limit=500" testId="cs-customers" onOpenEntity={(id) => openEntityById("customer", id)} />}
+      {tab === "providers" && <EntityTable endpoint="/contasimple/providers" testId="cs-providers" onOpenEntity={(id) => openEntityById("provider", id)} />}
+      {tab === "payments" && <PaymentsTable onOpenInvoice={openInvoice} />}
+
+      {/* Drawers */}
+      <InvoiceDetailDrawer
+        invoiceId={openInvoiceId}
+        open={!!openInvoiceId}
+        onClose={() => setOpenInvoiceId(null)}
+        onOpenCustomer={openCustomerByNif}
+      />
+      <EntityDetailDrawer
+        kind={openEntity?.kind}
+        entityId={openEntity?.id}
+        open={!!openEntity}
+        onClose={() => setOpenEntity(null)}
+        onOpenInvoice={openInvoice}
+      />
     </div>
   );
 }
