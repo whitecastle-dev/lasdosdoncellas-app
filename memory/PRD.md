@@ -1,3 +1,23 @@
+## Iteración 29 (2026-02-16) — Fix Redsys SIS0042: usar ZERO padding en la derivación 3DES
+
+**Bug reportado**: el TPV de Comercia Global Payments (CaixaBank) devolvía **"Error técnico SIS0042 · Error en datos enviados"** al recibir nuestra petición.
+
+**Causa raíz**: `_derive_per_order_key` usaba `Crypto.Util.Padding.pad(order, 8)` (PKCS#7) para preparar el `Ds_Merchant_Order` antes del cifrado 3DES-CBC. **Redsys exige ZERO padding**, no PKCS#7 → HMAC no coincidía → SIS0042.
+
+**Fix**:
+- `redsys.py`: `_derive_per_order_key` ahora aplica `order_bytes + b"\x00" * (8 - len(order_bytes) % 8)`. Cuando `len % 8 == 0` se añade un bloque entero de 8 ceros (implementación canónica python-redsys).
+- Verificado byte-por-byte contra el algoritmo canónico reproducido inline.
+- Añadida validación en `POST /api/checkout/redsys`: si `items` está vacío o `total <= 0`, devuelve HTTP 400 explicando el problema (evita enviar 0€ al TPV).
+
+**Testing agent iter 26**: 13/13 backend PASS incluyendo comparación byte-por-byte del algoritmo con la implementación canónica python-redsys.
+
+🚀 Pusheado a GitHub `main` — commit `5ec148b`.
+
+**Para el usuario en Render**: redeploy del backend y volver a intentar la compra. Debería ahora aceptarla en el TPV de pruebas con la tarjeta `4548810000000003 / 12/27 / CVV 123`.
+
+---
+
+
 ## Iteración 28 (2026-02-16) — Fix producción: 500 sin CORS → 503 con mensaje + handler global
 
 **Bug reportado**: en producción, `POST /api/checkout/redsys` devolvía **500 sin cabeceras CORS**, provocando un CORS block en el navegador. El botón "Pagar" mostraba "Network Error".
