@@ -242,7 +242,27 @@ const ORDER_STATUS_LABEL = {
   refunded: "Devuelto / reembolsado",
 };
 
+const STATUS_STYLES = {
+  pending_payment: { bg: "bg-amber-500/15", border: "border-amber-500/40", text: "text-amber-400" },
+  confirmed:       { bg: "bg-blue-500/15",  border: "border-blue-500/40",  text: "text-blue-400" },
+  processing:      { bg: "bg-indigo-500/15",border: "border-indigo-500/40",text: "text-indigo-400" },
+  shipped:         { bg: "bg-purple-500/15",border: "border-purple-500/40",text: "text-purple-400" },
+  delivered:       { bg: "bg-green-500/15", border: "border-green-500/40", text: "text-green-400" },
+  cancelled:       { bg: "bg-red-500/15",   border: "border-red-500/40",   text: "text-red-400" },
+};
+
+function StatusPill({ status, testid }) {
+  const st = STATUS_STYLES[status] || STATUS_STYLES.pending_payment;
+  return (
+    <div data-testid={testid}
+         className={`inline-block px-2 py-0.5 border ${st.bg} ${st.border} ${st.text} uppercase tracking-widest text-xs`}>
+      {ORDER_STATUS_LABEL[status] || status}
+    </div>
+  );
+}
+
 function OrdersList({ orders }) {
+  const [openId, setOpenId] = useState(null);
   if (!orders || orders.length === 0) {
     return (
       <div className="text-center py-16 border border-dashed border-[rgba(197,160,89,0.3)]" data-testid="orders-empty-state">
@@ -252,25 +272,170 @@ function OrdersList({ orders }) {
       </div>
     );
   }
+  const open = orders.find((o) => o.id === openId);
   return (
     <div className="space-y-3">
       {orders.map((o) => (
-        <div key={o.id} className="border border-[rgba(197,160,89,0.18)] p-5 flex items-center justify-between" data-testid={`my-order-${o.id}`}>
+        <button
+          key={o.id}
+          onClick={() => setOpenId(o.id)}
+          className="w-full text-left border border-[rgba(197,160,89,0.18)] hover:border-[#C5A059] hover:bg-white/[0.02] transition-colors p-5 flex items-center justify-between"
+          data-testid={`my-order-${o.id}`}
+        >
           <div>
             <div className="font-mono-data text-sm gold">{o.order_number}</div>
             <div className="text-xs mt-1" style={{ color: "rgba(250,248,245,0.55)" }}>
               {new Date(o.created_at).toLocaleString("es-ES")}
             </div>
-            <div className="text-xs mt-1 inline-block px-2 py-0.5 border border-[rgba(197,160,89,0.4)] text-[#C5A059] uppercase tracking-widest">
-              {ORDER_STATUS_LABEL[o.status] || o.status}
-            </div>
+            <div className="mt-1"><StatusPill status={o.status} /></div>
           </div>
           <div className="text-right">
             <div className="font-serif text-xl" style={{ color: "#FAF8F5" }}>{formatMoney(o.total)}</div>
             <div className="flex items-center gap-1 text-xs text-[#C5A059] justify-end mt-1"><Package size={11} /> {o.items?.length || 0} productos</div>
+            <div className="text-xs mt-1" style={{ color: "rgba(250,248,245,0.4)" }}>Ver detalle →</div>
           </div>
-        </div>
+        </button>
       ))}
+      {open && <OrderDetailDrawer order={open} onClose={() => setOpenId(null)} />}
+    </div>
+  );
+}
+
+const STATUS_ORDER = ["pending_payment", "confirmed", "processing", "shipped", "delivered"];
+
+function OrderDetailDrawer({ order, onClose }) {
+  const currentIdx = STATUS_ORDER.indexOf(order.status);
+  const dt = new Date(order.created_at);
+  const shippingAddr = order.customer || {};
+
+  return (
+    <div className="fixed inset-0 z-[80] bg-black/70 flex justify-end" onClick={onClose} data-testid="order-detail-drawer">
+      <div
+        className="w-full max-w-2xl h-full overflow-y-auto"
+        style={{ background: "#0A0A0A", borderLeft: "1px solid rgba(197,160,89,0.25)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 flex items-center justify-between px-6 py-4 border-b border-[rgba(197,160,89,0.2)]" style={{ background: "#0A0A0A" }}>
+          <div>
+            <div className="font-mono-data gold text-sm">{order.order_number}</div>
+            <div className="font-serif text-2xl" style={{ color: "#FAF8F5" }}>Detalle del pedido</div>
+          </div>
+          <button onClick={onClose} data-testid="order-detail-close"
+                  className="w-9 h-9 flex items-center justify-center border border-[rgba(197,160,89,0.3)] hover:border-[#C5A059]" aria-label="Cerrar">
+            <span style={{ color: "#FAF8F5" }}>✕</span>
+          </button>
+        </div>
+
+        <div className="px-6 py-6 space-y-6">
+          {/* Meta */}
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <MetaRow label="Nº pedido" value={order.order_number} mono />
+            <MetaRow label="Estado" value={<StatusPill status={order.status} />} />
+            <MetaRow label="Fecha" value={dt.toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" })} />
+            <MetaRow label="Hora" value={dt.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })} />
+            <MetaRow label="Pago" value={order.payment_status === "paid" ? "Confirmado" : "Pendiente"}
+                     color={order.payment_status === "paid" ? "text-green-400" : "text-amber-400"} />
+            <MetaRow label="Total" value={formatMoney(order.total)} bold />
+          </div>
+
+          {/* Timeline */}
+          <div className="border border-[rgba(197,160,89,0.2)] p-5">
+            <div className="label-eyebrow gold mb-4">Progreso del envío</div>
+            <ol className="flex items-center justify-between text-[10px] uppercase tracking-widest">
+              {STATUS_ORDER.map((s, i) => {
+                const done = currentIdx >= i;
+                return (
+                  <li key={s} className="flex-1 flex flex-col items-center">
+                    <div className={`w-3 h-3 rounded-full ${done ? "bg-[#C5A059]" : "bg-white/10"}`} />
+                    {i < STATUS_ORDER.length - 1 && (
+                      <div className={`absolute h-px ${done ? "bg-[#C5A059]" : "bg-white/10"}`}
+                           style={{ width: `${100 / (STATUS_ORDER.length - 1)}%`, transform: "translate(50%, -6px)" }} />
+                    )}
+                    <div className={`mt-2 text-center ${done ? "text-[#C5A059]" : "text-white/30"}`}>
+                      {ORDER_STATUS_LABEL[s]?.replace(/_/g, " ") || s}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+            {order.status === "cancelled" && (
+              <div className="mt-4 text-xs text-red-400">Este pedido fue cancelado.</div>
+            )}
+          </div>
+
+          {/* Items */}
+          <div>
+            <div className="label-eyebrow gold mb-3">Productos ({order.items?.length || 0})</div>
+            <div className="space-y-3">
+              {(order.items || []).map((it, i) => {
+                const img = it.image_url || it.image || "/brand/logo.png";
+                return (
+                  <div key={i} className="flex gap-4 border border-[rgba(197,160,89,0.15)] p-3" data-testid={`order-item-${i}`}>
+                    <div className="w-20 h-20 flex-shrink-0 overflow-hidden bg-white/5">
+                      <img src={img} alt={it.name} className="w-full h-full object-cover" draggable={false} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate" style={{ color: "#FAF8F5" }}>{it.name}</div>
+                      {it.variant && <div className="text-xs text-white/50 mt-0.5">{it.variant}</div>}
+                      <div className="text-xs text-white/60 mt-1">{it.qty} × {formatMoney(it.unit_price ?? it.price)}</div>
+                    </div>
+                    <div className="text-right font-serif" style={{ color: "#FAF8F5" }}>
+                      {formatMoney((it.line_total ?? (it.qty * (it.unit_price ?? it.price ?? 0))))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Totales */}
+          <div className="border border-[rgba(197,160,89,0.2)] p-5 space-y-1 text-sm">
+            <div className="flex justify-between"><span className="text-white/60">Subtotal</span><span>{formatMoney(order.subtotal || 0)}</span></div>
+            {(order.vat_total ?? 0) > 0 && (
+              <div className="flex justify-between"><span className="text-white/60">IVA</span><span>{formatMoney(order.vat_total)}</span></div>
+            )}
+            {(order.shipping ?? 0) > 0 && (
+              <div className="flex justify-between"><span className="text-white/60">Envío</span><span>{formatMoney(order.shipping)}</span></div>
+            )}
+            <div className="flex justify-between font-serif text-lg pt-2 border-t border-[rgba(197,160,89,0.15)]">
+              <span>Total</span><span className="gold">{formatMoney(order.total)}</span>
+            </div>
+          </div>
+
+          {/* Dirección */}
+          {shippingAddr.address && (
+            <div>
+              <div className="label-eyebrow gold mb-2">Dirección de entrega</div>
+              <div className="text-sm leading-relaxed" style={{ color: "rgba(250,248,245,0.85)" }}>
+                {shippingAddr.name}<br />
+                {shippingAddr.address}<br />
+                {shippingAddr.postal_code} {shippingAddr.city}<br />
+                {shippingAddr.country}<br />
+                {shippingAddr.phone && <span className="text-white/50">Tel. {shippingAddr.phone}</span>}
+              </div>
+            </div>
+          )}
+
+          {order.status === "pending_payment" && (
+            <div className="border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
+              Este pedido está pendiente de pago. Si has cerrado la pasarela sin completar la transacción,
+              puedes volver a la <a href="/checkout" className="underline gold">página de pago</a> o
+              contactarnos por WhatsApp.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetaRow({ label, value, mono, bold, color }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-widest text-white/45">{label}</div>
+      <div className={`mt-1 ${mono ? "font-mono-data" : "font-serif"} ${bold ? "text-xl" : "text-sm"} ${color || ""}`} style={{ color: color ? undefined : "#FAF8F5" }}>
+        {value}
+      </div>
     </div>
   );
 }
