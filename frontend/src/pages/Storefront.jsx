@@ -11,11 +11,11 @@ import { api } from "@/lib/api";
 import useReveal from "@/hooks/useReveal";
 
 const HERO_IMAGES = [
-  "/brand/hero/dehesa-1.webp",
-  "/brand/hero/dehesa-2.webp",
-  "/brand/hero/dehesa-3.webp",
-  "/brand/hero/dehesa-4.webp",
-  "/brand/hero/dehesa-5.webp",
+  { name: "dehesa-1", origin: "20% 40%" }, // pan a la izquierda-arriba
+  { name: "dehesa-2", origin: "50% 60%" }, // centro-abajo
+  { name: "dehesa-3", origin: "80% 45%" }, // derecha-media
+  { name: "dehesa-4", origin: "35% 70%" }, // izquierda-abajo
+  { name: "dehesa-5", origin: "70% 30%" }, // derecha-arriba
 ];
 
 // Imagen de fallback por slug, en caso de que el admin todavía no haya subido
@@ -51,22 +51,35 @@ function HeroSlider() {
   }, []);
   return (
     <section className="relative h-[78vh] min-h-[520px] overflow-hidden">
-      {HERO_IMAGES.map((src, i) => (
+      {HERO_IMAGES.map((slide, i) => (
         <div
-          key={src}
+          key={slide.name}
           className="absolute inset-0 transition-opacity ease-in-out"
           style={{ opacity: i === idx ? 1 : 0, transitionDuration: "3500ms" }}
         >
-          {/* Zoom lento CONTINUO (no reinicia) — como el <img> nunca se
-              desmonta y no cambia su key, la animación sigue su ciclo
-              aunque la imagen esté oculta, con lo que al reaparecer no
-              hace un "salto" visible. */}
-          <img
-            src={src}
-            alt=""
-            className="w-full h-full object-cover hero-zoom-slow"
-            loading={i === 0 ? "eager" : "lazy"}
-          />
+          {/* <picture> con AVIF + WebP y srcset por breakpoint. transform-origin
+              distinto por slide da la sensación de "cada plano se acerca a
+              un punto distinto" sin reiniciar la animación (continua). */}
+          <picture>
+            <source
+              type="image/avif"
+              srcSet={`/brand/hero/${slide.name}-mobile.avif 900w, /brand/hero/${slide.name}-desktop.avif 1920w`}
+              sizes="100vw"
+            />
+            <source
+              type="image/webp"
+              srcSet={`/brand/hero/${slide.name}-mobile.webp 900w, /brand/hero/${slide.name}-desktop.webp 1920w`}
+              sizes="100vw"
+            />
+            <img
+              src={`/brand/hero/${slide.name}-desktop.webp`}
+              alt=""
+              className="w-full h-full object-cover hero-zoom-slow"
+              style={{ transformOrigin: slide.origin }}
+              loading={i === 0 ? "eager" : "lazy"}
+              fetchpriority={i === 0 ? "high" : "auto"}
+            />
+          </picture>
         </div>
       ))}
       <div className="absolute inset-0 hero-gradient" />
