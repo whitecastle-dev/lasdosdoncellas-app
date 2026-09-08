@@ -11,9 +11,11 @@ import { api } from "@/lib/api";
 import useReveal from "@/hooks/useReveal";
 
 const HERO_IMAGES = [
-  "https://images.unsplash.com/photo-1732565432358-a8c95bc24ea3?crop=entropy&cs=srgb&fm=jpg&q=85&w=2400",
-  "https://images.unsplash.com/photo-1534655882117-f9eff36a1574?crop=entropy&cs=srgb&fm=jpg&q=85&w=2400",
-  "https://images.unsplash.com/photo-1695606392727-d8b959879721?crop=entropy&cs=srgb&fm=jpg&q=85&w=2400",
+  "/brand/hero/dehesa-1.webp",
+  "/brand/hero/dehesa-2.webp",
+  "/brand/hero/dehesa-3.webp",
+  "/brand/hero/dehesa-4.webp",
+  "/brand/hero/dehesa-5.webp",
 ];
 
 // Imagen de fallback por slug, en caso de que el admin todavía no haya subido
@@ -41,25 +43,46 @@ const PROCESS_STEPS = [
 function HeroSlider() {
   const [idx, setIdx] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setIdx((i) => (i + 1) % HERO_IMAGES.length), 6000);
+    // Ciclo de 7 s por diapositiva — suficiente para dar tiempo al Ken Burns
+    // completo y percibir el movimiento de los cerdos por la dehesa.
+    const t = setInterval(() => setIdx((i) => (i + 1) % HERO_IMAGES.length), 7000);
     return () => clearInterval(t);
   }, []);
   return (
     <section className="relative h-[78vh] min-h-[520px] overflow-hidden">
       {HERO_IMAGES.map((src, i) => (
-        <div key={src} className="absolute inset-0 transition-opacity duration-[1800ms]" style={{ opacity: i === idx ? 1 : 0 }}>
-          <img src={src} alt="" className={`w-full h-full object-cover ${i === idx ? "hero-zoom" : ""}`} />
+        <div
+          key={src}
+          className="absolute inset-0 transition-opacity duration-[1600ms] ease-in-out"
+          style={{ opacity: i === idx ? 1 : 0 }}
+        >
+          {/* Cada slide monta su propia animación Ken Burns cuando queda
+              activa, así el efecto siempre arranca desde su punto inicial
+              y no se queda "congelado" al salir. */}
+          <img
+            src={src}
+            alt=""
+            className={`w-full h-full object-cover ${i === idx ? `hero-kb-${(i % 5) + 1}` : ""}`}
+            key={`${src}-${idx === i ? "on" : "off"}`}
+            loading={i === 0 ? "eager" : "lazy"}
+          />
         </div>
       ))}
       <div className="absolute inset-0 hero-gradient" />
       <div className="relative z-10 h-full max-w-[1500px] mx-auto px-6 lg:px-12 flex flex-col justify-end pb-16 md:pb-20">
         <div className="fade-up">
-          <div className="label-eyebrow gold mb-6" data-testid="hero-eyebrow">Productos Ibéricos · Sierra Norte de Sevilla</div>
-          <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl leading-[0.95] max-w-4xl tracking-tighter" style={{ color: "#FAF8F5" }}>
-            El sabor de <span className="font-script gold italic font-normal">Castilblanco</span>,
-            servido a domicilio.
+          <div className="mb-6" data-testid="hero-eyebrow">
+            <span className="label-eyebrow gold">Sierra Norte de Sevilla</span>
+          </div>
+          <h1 className="leading-[0.95] max-w-4xl" style={{ color: "#FAF8F5" }}>
+            <span className="font-oranienbaum block text-6xl md:text-8xl lg:text-9xl tracking-tight">
+              Las Dos Doncellas
+            </span>
+            <span className="font-allura gold block text-5xl md:text-7xl lg:text-8xl mt-2 md:mt-4">
+              Productos Ibéricos
+            </span>
           </h1>
-          <p className="mt-6 max-w-xl text-base leading-relaxed" style={{ color: "rgba(250,248,245,0.78)" }}>
+          <p className="mt-8 max-w-xl text-base leading-relaxed" style={{ color: "rgba(250,248,245,0.82)" }}>
             Curados a mano en Castilblanco de los Arroyos. Sin atajos. Sin prisas.
           </p>
           <div className="mt-8 flex flex-wrap gap-4">

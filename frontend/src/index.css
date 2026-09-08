@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@200;300;400;500;600;700&family=Dancing+Script:wght@500;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@200;300;400;500;600;700&family=Dancing+Script:wght@500;700&family=JetBrains+Mono:wght@400;500;600&family=Oranienbaum&family=Allura&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -79,6 +79,16 @@
     }
     .font-script {
         font-family: 'Dancing Script', cursive;
+    }
+
+    .font-oranienbaum {
+        font-family: 'Oranienbaum', serif;
+        letter-spacing: 0.02em;
+    }
+
+    .font-allura {
+        font-family: 'Allura', cursive;
+        font-weight: 400;
     }
     .font-mono-data {
         font-family: 'JetBrains Mono', monospace;
@@ -281,11 +291,38 @@
     50% { transform: translateY(-4px); }
 }
 
-/* Imagen del hero: zoom infinito muy lento */
-.hero-zoom { animation: heroZoom 24s ease-in-out infinite alternate; }
+/* Imagen del hero: efecto Ken Burns con varias trayectorias (zoom + pan
+   sutil) para dar sensación de movimiento a los animales de la dehesa
+   sin perder la objetividad de las fotos. */
+.hero-zoom { animation: heroZoom 24s ease-in-out infinite alternate; will-change: transform; }
 @keyframes heroZoom {
     0% { transform: scale(1); }
     100% { transform: scale(1.08); }
+}
+.hero-kb-1 { animation: heroKB1 14s cubic-bezier(.4,.0,.2,1) forwards; will-change: transform; }
+.hero-kb-2 { animation: heroKB2 14s cubic-bezier(.4,.0,.2,1) forwards; will-change: transform; }
+.hero-kb-3 { animation: heroKB3 14s cubic-bezier(.4,.0,.2,1) forwards; will-change: transform; }
+.hero-kb-4 { animation: heroKB4 14s cubic-bezier(.4,.0,.2,1) forwards; will-change: transform; }
+.hero-kb-5 { animation: heroKB5 14s cubic-bezier(.4,.0,.2,1) forwards; will-change: transform; }
+@keyframes heroKB1 { /* pan izquierda→derecha con zoom in */
+    0%   { transform: scale(1.05) translate3d(-1.5%, 0.5%, 0); }
+    100% { transform: scale(1.14) translate3d(1.5%, -0.8%, 0); }
+}
+@keyframes heroKB2 { /* zoom in cerdo central */
+    0%   { transform: scale(1.02) translate3d(1%, 1%, 0); }
+    100% { transform: scale(1.16) translate3d(-1.2%, -0.6%, 0); }
+}
+@keyframes heroKB3 { /* pan derecha→izquierda + zoom leve */
+    0%   { transform: scale(1.06) translate3d(1.5%, -0.6%, 0); }
+    100% { transform: scale(1.12) translate3d(-1.8%, 0.6%, 0); }
+}
+@keyframes heroKB4 { /* zoom out muy sutil con pan diagonal */
+    0%   { transform: scale(1.14) translate3d(-1%, -1%, 0); }
+    100% { transform: scale(1.05) translate3d(0.8%, 0.8%, 0); }
+}
+@keyframes heroKB5 { /* pan lento izquierda→derecha */
+    0%   { transform: scale(1.08) translate3d(-2%, 0.2%, 0); }
+    100% { transform: scale(1.15) translate3d(2%, -0.4%, 0); }
 }
 
 /* Para que las animaciones respeten la accesibilidad */
