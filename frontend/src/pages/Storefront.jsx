@@ -43,9 +43,10 @@ const PROCESS_STEPS = [
 function HeroSlider() {
   const [idx, setIdx] = useState(0);
   useEffect(() => {
-    // Ciclo de 7 s por diapositiva — suficiente para dar tiempo al Ken Burns
-    // completo y percibir el movimiento de los cerdos por la dehesa.
-    const t = setInterval(() => setIdx((i) => (i + 1) % HERO_IMAGES.length), 7000);
+    // 9 s por diapositiva, con 3.5 s de crossfade — así siempre hay solape
+    // amplio entre dos imágenes (una entrando, otra saliendo) y el zoom
+    // Ken Burns continuo elimina la sensación de "salto".
+    const t = setInterval(() => setIdx((i) => (i + 1) % HERO_IMAGES.length), 9000);
     return () => clearInterval(t);
   }, []);
   return (
@@ -53,39 +54,40 @@ function HeroSlider() {
       {HERO_IMAGES.map((src, i) => (
         <div
           key={src}
-          className="absolute inset-0 transition-opacity duration-[1600ms] ease-in-out"
-          style={{ opacity: i === idx ? 1 : 0 }}
+          className="absolute inset-0 transition-opacity ease-in-out"
+          style={{ opacity: i === idx ? 1 : 0, transitionDuration: "3500ms" }}
         >
-          {/* Cada slide monta su propia animación Ken Burns cuando queda
-              activa, así el efecto siempre arranca desde su punto inicial
-              y no se queda "congelado" al salir. */}
+          {/* Zoom lento CONTINUO (no reinicia) — como el <img> nunca se
+              desmonta y no cambia su key, la animación sigue su ciclo
+              aunque la imagen esté oculta, con lo que al reaparecer no
+              hace un "salto" visible. */}
           <img
             src={src}
             alt=""
-            className={`w-full h-full object-cover ${i === idx ? `hero-kb-${(i % 5) + 1}` : ""}`}
-            key={`${src}-${idx === i ? "on" : "off"}`}
+            className="w-full h-full object-cover hero-zoom-slow"
             loading={i === 0 ? "eager" : "lazy"}
           />
         </div>
       ))}
       <div className="absolute inset-0 hero-gradient" />
       <div className="relative z-10 h-full max-w-[1500px] mx-auto px-6 lg:px-12 flex flex-col justify-end pb-16 md:pb-20">
-        <div className="fade-up">
+        <div className="fade-up max-w-4xl">
           <div className="mb-6" data-testid="hero-eyebrow">
             <span className="label-eyebrow gold">Sierra Norte de Sevilla</span>
           </div>
-          <h1 className="leading-[0.95] max-w-4xl" style={{ color: "#FAF8F5" }}>
-            <span className="font-oranienbaum block text-6xl md:text-8xl lg:text-9xl tracking-tight">
-              Las Dos Doncellas
-            </span>
-            <span className="font-allura gold block text-5xl md:text-7xl lg:text-8xl mt-2 md:mt-4">
-              Productos Ibéricos
+          {/* Lema principal — reemplaza al antiguo H1. */}
+          <h1
+            className="font-oranienbaum leading-[1.05] text-4xl md:text-5xl lg:text-6xl"
+            style={{ color: "#FAF8F5" }}
+          >
+            Todo lo que llega a una buena mesa
+            <br className="hidden md:block" />
+            {" "}tiene una historia.
+            <span className="font-allura gold block mt-4 md:mt-6 text-5xl md:text-6xl lg:text-7xl italic leading-none">
+              Nosotros empezamos por elegir las mejores.
             </span>
           </h1>
-          <p className="mt-8 max-w-xl text-base leading-relaxed" style={{ color: "rgba(250,248,245,0.82)" }}>
-            Curados a mano en Castilblanco de los Arroyos. Sin atajos. Sin prisas.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-4">
+          <div className="mt-10 flex flex-wrap gap-4">
             <Link to="/catalogo" className="ldd-btn-gold" data-testid="hero-cta-shop">
               <span className="inline-flex items-center gap-2">Comprar ahora <ArrowRight size={16} /></span>
             </Link>

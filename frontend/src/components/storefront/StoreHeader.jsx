@@ -38,12 +38,8 @@ export default function StoreHeader({ onOpenCart }) {
       style={{ background: "rgba(10,10,10,0.78)", borderBottom: "1px solid rgba(197,160,89,0.18)" }}
     >
       <div className="max-w-[1500px] mx-auto px-6 lg:px-12 flex items-center justify-between py-4">
-        <Link to="/" data-testid="header-logo-link" className="flex items-center gap-3 py-1">
-          <Logo size={52} variant="mark" />
-          <div className="hidden sm:flex flex-col leading-tight">
-            <span className="font-oranienbaum text-lg" style={{ color: "#FAF8F5" }}>Las Dos Doncellas</span>
-            <span className="font-allura gold text-base -mt-1 leading-none">Productos Ibéricos</span>
-          </div>
+        <Link to="/" data-testid="header-logo-link" className="flex items-center py-1">
+          <Logo size={64} variant="full" />
         </Link>
         <nav className="hidden md:flex items-center gap-10" style={{ color: "#FAF8F5" }}>
           <Link to="/" className="nav-link" data-testid="nav-home" translate="yes">Inicio</Link>
