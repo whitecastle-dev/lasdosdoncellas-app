@@ -41,8 +41,8 @@ export default function StoreHeader({ onOpenCart }) {
         <Link to="/" data-testid="header-logo-link" className="flex items-center gap-3 py-1">
           <Logo size={52} variant="mark" />
           <div className="hidden sm:flex flex-col leading-tight">
-            <span className="font-serif text-lg" style={{ color: "#FAF8F5" }}>Las Dos Doncellas</span>
-            <span className="font-script gold text-xs -mt-0.5">Productos Ibéricos</span>
+            <span className="font-oranienbaum text-lg" style={{ color: "#FAF8F5" }}>Las Dos Doncellas</span>
+            <span className="font-allura gold text-base -mt-1 leading-none">Productos Ibéricos</span>
           </div>
         </Link>
         <nav className="hidden md:flex items-center gap-10" style={{ color: "#FAF8F5" }}>
