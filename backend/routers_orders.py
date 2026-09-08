@@ -94,150 +94,19 @@ async def _build_order_from_items(items: List[CartItemIn]):
 
 
 # ---------------- Checkout ----------------
-@router.post("/checkout/session")
-async def create_checkout(payload: CheckoutIn, request: Request):
-    items, subtotal, vat_breakdown, vat_total, total = await _build_order_from_items(payload.items)
-
-    order_number = await _next_number("order", "P")
-    invoice_number = await _next_number("invoice", "F")
-    now = datetime.now(timezone.utc).isoformat()
-
-    order_doc = {
-        "id": str(uuid.uuid4()),
-        "order_number": order_number,
-        "invoice_number": invoice_number,
-        "invoice_date": datetime.now(timezone.utc).strftime("%d/%m/%Y"),
-        "items": items,
-        "customer": payload.customer.model_dump(),
-        "subtotal": subtotal,
-        "vat_breakdown": vat_breakdown,
-        "vat_total": vat_total,
-        "shipping": 0.0,
-        "total": total,
-        "currency": "eur",
-        "status": "pending_payment",
-        "payment_status": "pending",
-        "session_id": None,
-        "tracking": [{"status": "pending_payment", "at": now, "note": "Pedido creado"}],
-        "created_at": now,
-        "updated_at": now,
-    }
-
-    # Stripe
-    api_key = os.environ["STRIPE_API_KEY"]
-    host_url = str(request.base_url)
-    webhook_url = f"{host_url.rstrip('/')}/api/webhook/stripe"
-    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url=webhook_url)
-
-    origin = payload.origin_url.rstrip("/")
-    success_url = f"{origin}/checkout/success?session_id={{CHECKOUT_SESSION_ID}}"
-    cancel_url = f"{origin}/cart"
-
-    checkout_req = CheckoutSessionRequest(
-        amount=float(total),
-        currency="eur",
-        success_url=success_url,
-        cancel_url=cancel_url,
-        metadata={
-            "order_number": order_number,
-            "invoice_number": invoice_number,
-            "customer_email": payload.customer.email,
-        },
-    )
-    session = await stripe_checkout.create_checkout_session(checkout_req)
-
-    order_doc["session_id"] = session.session_id
-
-    # Record payment transaction
-    await db.payment_transactions.insert_one({
-        "id": str(uuid.uuid4()),
-        "session_id": session.session_id,
-        "order_number": order_number,
-        "amount": float(total),
-        "currency": "eur",
-        "payment_status": "initiated",
-        "metadata": {"customer_email": payload.customer.email},
-        "created_at": now,
-        "updated_at": now,
-    })
-
-    await db.orders.insert_one(order_doc)
-    return {"url": session.url, "session_id": session.session_id, "order_number": order_number}
+# NOTE: The Stripe checkout flow was removed when we migrated to CaixaBank / Redsys
+# in Feb 2026. See routers_payments_redsys.py for the current payment path.
+# The dead endpoints (/checkout/session, /checkout/status/{session_id}, /webhook/stripe)
+# were removed to unbreak lint after `stripe` was dropped from requirements.txt.
 
 
 @router.get("/checkout/status/{session_id}")
-async def checkout_status(session_id: str, request: Request):
-    api_key = os.environ["STRIPE_API_KEY"]
-    host_url = str(request.base_url)
-    webhook_url = f"{host_url.rstrip('/')}/api/webhook/stripe"
-    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url=webhook_url)
+async def checkout_status_legacy(session_id: str):
+    """Legacy Stripe status polling — returns 410 Gone.
 
-    status = await stripe_checkout.get_checkout_status(session_id)
-
-    tx = await db.payment_transactions.find_one({"session_id": session_id})
-    if not tx:
-        raise HTTPException(status_code=404, detail="Sesión no encontrada")
-
-    # Only process if not already finalized
-    if tx.get("payment_status") in ("paid", "expired", "failed"):
-        return {"status": status.status, "payment_status": status.payment_status, "order_number": tx.get("order_number")}
-
-    now = datetime.now(timezone.utc).isoformat()
-    await db.payment_transactions.update_one(
-        {"session_id": session_id},
-        {"$set": {"payment_status": status.payment_status, "updated_at": now}},
-    )
-
-    if status.payment_status == "paid":
-        order = await db.orders.find_one({"session_id": session_id})
-        if order and order.get("status") == "pending_payment":
-            # decrement stock and mark paid
-            for it in order["items"]:
-                await db.products.update_one(
-                    {"id": it["product_id"]},
-                    {"$inc": {"stock": -int(it["qty"])}},
-                )
-            await db.orders.update_one(
-                {"session_id": session_id},
-                {
-                    "$set": {"status": "paid", "payment_status": "paid", "updated_at": now},
-                    "$push": {"tracking": {"status": "paid", "at": now, "note": "Pago confirmado"}},
-                },
-            )
-            # Email confirmations
-            try:
-                refreshed = await db.orders.find_one({"session_id": session_id}, {"_id": 0})
-                if refreshed:
-                    await send_order_confirmation(refreshed)
-            except Exception:
-                pass
-    elif status.status == "expired":
-        await db.orders.update_one(
-            {"session_id": session_id},
-            {"$set": {"status": "cancelled", "payment_status": "expired", "updated_at": now}},
-        )
-
-    return {"status": status.status, "payment_status": status.payment_status, "order_number": tx.get("order_number")}
-
-
-@router.post("/webhook/stripe")
-async def stripe_webhook(request: Request):
-    api_key = os.environ["STRIPE_API_KEY"]
-    host_url = str(request.base_url)
-    webhook_url = f"{host_url.rstrip('/')}/api/webhook/stripe"
-    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url=webhook_url)
-
-    body = await request.body()
-    sig = request.headers.get("Stripe-Signature")
-    try:
-        event = await stripe_checkout.handle_webhook(body, sig)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Webhook inválido")
-    # Re-use the polling path
-    if event.session_id:
-        # No-op response — frontend polls
-        pass
-    return {"ok": True}
+    Kept only so old success-URL bookmarks don't 404. Redsys does not need this.
+    """
+    raise HTTPException(status_code=410, detail="Stripe checkout ha sido reemplazado por Redsys (CaixaBank). Vuelve a iniciar el pedido.")
 
 
 # ---------------- Orders admin ----------------

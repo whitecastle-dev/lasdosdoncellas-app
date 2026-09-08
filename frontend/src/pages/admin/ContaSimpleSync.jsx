@@ -6,11 +6,13 @@ import {
   ArrowUpRight, ArrowDownRight, Wallet, FileText, Users, Truck, Coins,
 } from "lucide-react";
 import { InvoiceDetailDrawer, EntityDetailDrawer } from "./ContaSimpleDrawers";
+import { ProductsAnalyticsTable, ProductDetailDrawer } from "./ContaSimpleProducts";
 
 const TABS = [
   { id: "overview", label: "Resumen" },
   { id: "invoices_issued", label: "Facturas emitidas" },
   { id: "invoices_received", label: "Facturas recibidas" },
+  { id: "products", label: "Productos vendidos" },
   { id: "customers", label: "Clientes" },
   { id: "providers", label: "Proveedores" },
   { id: "payments", label: "Cobros / Pagos" },
@@ -273,9 +275,11 @@ export default function ContaSimpleSync() {
   // Drawers
   const [openInvoiceId, setOpenInvoiceId] = useState(null);
   const [openEntity, setOpenEntity] = useState(null); // { kind, id }
+  const [openProductKey, setOpenProductKey] = useState(null);
 
   const openInvoice = (id) => setOpenInvoiceId(id);
   const openEntityById = (kind, id) => setOpenEntity({ kind, id });
+  const openProduct = (key) => setOpenProductKey(key);
 
   const openCustomerByNif = async (nif) => {
     if (!nif) return;
@@ -456,6 +460,7 @@ export default function ContaSimpleSync() {
 
       {tab === "invoices_issued" && <InvoicesTable endpoint="/contasimple/invoices/issued" testId="cs-invoices-issued" onOpenInvoice={openInvoice} onOpenCustomer={openCustomerByNif} />}
       {tab === "invoices_received" && <InvoicesTable endpoint="/contasimple/invoices/received" testId="cs-invoices-received" onOpenInvoice={openInvoice} onOpenCustomer={openCustomerByNif} />}
+      {tab === "products" && <ProductsAnalyticsTable onOpenProduct={openProduct} />}
       {tab === "customers" && <EntityTable endpoint="/contasimple/customers?limit=500" testId="cs-customers" onOpenEntity={(id) => openEntityById("customer", id)} />}
       {tab === "providers" && <EntityTable endpoint="/contasimple/providers" testId="cs-providers" onOpenEntity={(id) => openEntityById("provider", id)} />}
       {tab === "payments" && <PaymentsTable onOpenInvoice={openInvoice} />}
@@ -473,6 +478,13 @@ export default function ContaSimpleSync() {
         open={!!openEntity}
         onClose={() => setOpenEntity(null)}
         onOpenInvoice={openInvoice}
+      />
+      <ProductDetailDrawer
+        conceptKey={openProductKey}
+        open={!!openProductKey}
+        onClose={() => setOpenProductKey(null)}
+        onOpenInvoice={openInvoice}
+        onOpenCustomer={openCustomerByNif}
       />
     </div>
   );

@@ -1,50 +1,31 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, Outlet, Navigate, useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck, Settings as SettingsIcon, Menu, X, Tag, Building2, AlertTriangle, Factory, Boxes, Wallet, ShoppingBag, Calculator, Cable } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck, Settings as SettingsIcon, Menu, X, Tag, Building2, AlertTriangle, Factory, Boxes, Wallet, ShoppingBag, Calculator, Cable, Bot, Calendar, Scissors, Banknote } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import FreshnessBadge from "@/components/admin/FreshnessBadge";
 import { Logo } from "@/components/storefront/Logo";
 
 const SECTIONS = [
   {
-    label: "Vista general",
+    label: "Tienda online (editable)",
     links: [
-      { to: "/admin", end: true, icon: LayoutDashboard, label: "Dashboard 360º", desc: "KPIs consolidados", perm: "dashboard.read" },
       { to: "/admin/ecommerce", icon: Store, label: "E-commerce", desc: "Pedidos web y reseñas", perm: "dashboard.read" },
-    ],
-  },
-  {
-    label: "Catálogo",
-    links: [
       { to: "/admin/products", icon: Package, label: "Productos", desc: "Alta, precios, imágenes", perm: "products.read" },
       { to: "/admin/categories", icon: Tag, label: "Categorías", desc: "Familias del catálogo", perm: "products.read" },
-      { to: "/admin/providers", icon: Truck, label: "Proveedores", desc: "Ficha y contactos", perm: "products.read" },
-    ],
-  },
-  {
-    label: "Ventas",
-    links: [
       { to: "/admin/orders", icon: ShoppingCart, label: "Pedidos online", desc: "Preparación y envíos", perm: "orders.read" },
-      { to: "/admin/tpv", icon: ShoppingBag, label: "TPV tienda física", desc: "Caja y tickets", perm: "products.read" },
-      { to: "/admin/distribucion", icon: Truck, label: "Distribución B2B", desc: "Albaranes y rutas", perm: "products.read" },
-      { to: "/admin/empresas", icon: Building2, label: "Clientes empresa", desc: "Cuentas B2B", perm: "customers.read" },
       { to: "/admin/users", icon: Users, label: "Usuarios web", desc: "Clientes registrados", perm: "users.read" },
     ],
   },
   {
-    label: "Operaciones",
+    label: "ERP (espejo del portal · solo lectura)",
     links: [
-      { to: "/admin/erp", icon: Factory, label: "Sala de loncheado", desc: "Producción y salarios", perm: "products.read" },
-      { to: "/admin/inventario", icon: Boxes, label: "Inventario · Compras", desc: "Lotes, FIFO y coste medio", perm: "products.read" },
-      { to: "/admin/stock-alerts", icon: AlertTriangle, label: "Alertas de stock", desc: "Reposición asistida", perm: "stock.read" },
-    ],
-  },
-  {
-    label: "Finanzas",
-    links: [
-      { to: "/admin/tesoreria", icon: Wallet, label: "Tesorería", desc: "Cuentas, cobros, pagos", perm: "products.read" },
-      { to: "/admin/contabilidad", icon: Calculator, label: "Contabilidad", desc: "Asientos, IVA, PnL", perm: "products.read" },
-      { to: "/admin/contasimple", icon: Cable, label: "ContaSimple", desc: "Sincronización con ContaSimple", perm: "products.write" },
+      { to: "/admin/portal", end: true, icon: LayoutDashboard, label: "Dashboard General", desc: "20 KPIs de toda la empresa", perm: "products.read" },
+      { to: "/admin/portal/sala-corte", icon: Scissors, label: "CRM Sala Corte", desc: "Producción, salarios, rentabilidad", perm: "products.read" },
+      { to: "/admin/portal/tienda", icon: ShoppingBag, label: "Tienda General", desc: "Inventario, compras, ventas, TPV", perm: "products.read" },
+      { to: "/admin/portal/distribucion", icon: Truck, label: "Distribución", desc: "Pedidos, facturas, cobros, pagos", perm: "products.read" },
+      { to: "/admin/portal/finanzas", icon: Banknote, label: "Finanzas Corporativas", desc: "Facturación, contabilidad, tesorería", perm: "products.read" },
+      { to: "/admin/portal/calendario", icon: Calendar, label: "Calendario Eventos", desc: "Servicios de corte y eventos", perm: "products.read" },
+      { to: "/admin/portal/ia", icon: Bot, label: "IA Empresarial", desc: "Conversaciones y análisis IA", perm: "products.read" },
     ],
   },
   {

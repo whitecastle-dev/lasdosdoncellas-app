@@ -252,6 +252,15 @@ async def redsys_notify(request: Request):
         except Exception as e:  # noqa: BLE001
             logger.warning("post-payment email failed: %s", e)
 
+        # Espejo en el portal (tienda.ventas) — silencioso, no bloqueante
+        try:
+            from routers_portal_push import push_order_silent  # noqa: WPS433
+            order = order or await db.orders.find_one({"merchant_order": merchant_order}, {"_id": 0})
+            if order:
+                await push_order_silent(order)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("portal push failed: %s", e)
+
     # Redsys sólo requiere HTTP 200; el cuerpo se ignora
     return {"ok": True}
 

@@ -710,3 +710,259 @@ async def get_provider_detail(provider_id: int, _=Depends(require_permission(PER
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
     stats = await _entity_invoice_stats(doc, "contasimple_invoices_received", "issuer")
     return {"provider": _clean(doc), **stats}
+
+
+# ---------------- Product analytics (FASE B) ----------------
+
+import base64
+import re
+from difflib import SequenceMatcher
+
+_STOPWORDS = {"de", "del", "la", "el", "los", "las", "y", "e", "con", "sin", "por", "para", "un", "una", "gr", "gramos", "kg", "cl", "ml"}
+
+
+def _normalize(text: str) -> str:
+    text = (text or "").lower()
+    # Replace common variants
+    replacements = {"jamon": "jamón", "iberico": "ibérico", "loncheado": "loncheado",
+                    "%": " ", "-": " ", "—": " ", "/": " ", "(": " ", ")": " "}
+    for k, v in replacements.items():
+        text = text.replace(k, v)
+    # Strip weight/percent numbers to focus on words
+    tokens = re.findall(r"[a-záéíóúñü]+", text, flags=re.IGNORECASE)
+    return " ".join(t for t in tokens if t not in _STOPWORDS and len(t) > 2)
+
+
+def _fuzzy_match_catalog(concept: str, catalog: list[dict]) -> Optional[dict]:
+    """Return the best matching catalog product for ``concept`` (score ≥ 0.55)."""
+    if not concept or not catalog:
+        return None
+    target = _normalize(concept)
+    if not target:
+        return None
+    target_tokens = set(target.split())
+
+    best = None
+    best_score = 0.0
+    for prod in catalog:
+        name_norm = _normalize(prod.get("name") or "")
+        if not name_norm:
+            continue
+        # Token overlap ratio (Jaccard)
+        p_tokens = set(name_norm.split())
+        inter = len(target_tokens & p_tokens)
+        union = len(target_tokens | p_tokens)
+        jaccard = inter / union if union else 0.0
+        # Sequence similarity
+        seq = SequenceMatcher(None, target, name_norm).ratio()
+        score = 0.6 * jaccard + 0.4 * seq
+        if score > best_score:
+            best_score = score
+            best = prod
+    if best_score < 0.55:
+        return None
+    return {
+        "id": best.get("id"),
+        "name": best.get("name"),
+        "sku": best.get("sku"),
+        "price": float(best.get("price") or 0),
+        "weight_grams": best.get("weight_grams"),
+        "match_score": round(best_score, 3),
+    }
+
+
+async def _load_catalog() -> list[dict]:
+    return await db.products.find(
+        {"is_active": {"$ne": False}},
+        {"_id": 0, "id": 1, "name": 1, "sku": 1, "price": 1, "weight_grams": 1}
+    ).to_list(1000)
+
+
+@router.get("/products/analytics")
+async def products_analytics(_=Depends(require_permission(PERM))):
+    """Aggregate every invoice line into per-concept analytics + catalog match.
+
+    Returns rows sorted by revenue desc:
+        concept, quantity_total, revenue, avg_unit_price, n_invoices,
+        n_clients, first_sale, last_sale, catalog_match {id,name,sku,price,score}
+    """
+    pipe = [
+        {"$unwind": "$lines"},
+        {"$group": {
+            "_id": "$lines.concept",
+            "quantity": {"$sum": "$lines.quantity"},
+            "revenue": {"$sum": "$lines.total_taxable_amount"},
+            "vat": {"$sum": "$lines.vat_amount"},
+            "n_lines": {"$sum": 1},
+            "invoice_ids": {"$addToSet": "$id"},
+            "client_nifs": {"$addToSet": "$target.nif"},
+            "min_date": {"$min": "$invoice_date"},
+            "max_date": {"$max": "$invoice_date"},
+        }},
+        {"$project": {
+            "concept": "$_id",
+            "quantity": 1, "revenue": 1, "vat": 1, "n_lines": 1,
+            "n_invoices": {"$size": "$invoice_ids"},
+            "n_clients": {"$size": "$client_nifs"},
+            "min_date": 1, "max_date": 1,
+            "_id": 0,
+        }},
+        {"$sort": {"revenue": -1}},
+    ]
+    rows = await db.contasimple_invoices_issued.aggregate(pipe).to_list(1000)
+    catalog = await _load_catalog()
+
+    out = []
+    total_revenue = 0.0
+    for r in rows:
+        raw_concept = r.get("concept") or ""
+        concept_display = raw_concept.strip()
+        if not concept_display:
+            continue
+        quantity = round(float(r["quantity"]), 2)
+        revenue = round(float(r["revenue"]), 2)
+        total_revenue += revenue
+        match = _fuzzy_match_catalog(concept_display, catalog)
+        out.append({
+            "concept": concept_display,
+            # Encode the RAW concept (whitespace incl.) so /detail can match exact
+            "concept_key": base64.urlsafe_b64encode(raw_concept.encode()).decode().rstrip("="),
+            "quantity": quantity,
+            "revenue": revenue,
+            "vat": round(float(r["vat"]), 2),
+            "avg_unit_price": round(revenue / quantity, 4) if quantity else 0.0,
+            "n_invoices": int(r["n_invoices"]),
+            "n_clients": int(r["n_clients"]),
+            "first_sale": r.get("min_date"),
+            "last_sale": r.get("max_date"),
+            "catalog_match": match,
+        })
+    return {"total_revenue": round(total_revenue, 2), "n_products": len(out), "products": out}
+
+
+def _decode_concept(concept_key: str) -> str:
+    padded = concept_key + "=" * (-len(concept_key) % 4)
+    try:
+        return base64.urlsafe_b64decode(padded).decode()
+    except Exception:
+        raise HTTPException(status_code=400, detail="concept_key inválido")
+
+
+@router.get("/products/{concept_key}/detail")
+async def product_detail(concept_key: str, _=Depends(require_permission(PERM))):
+    """Deep-dive of one concept: KPIs, top buyers, monthly evolution, invoices, catalog match."""
+    concept = _decode_concept(concept_key)
+    line_match = {"lines.concept": concept}
+
+    # KPIs
+    agg = await db.contasimple_invoices_issued.aggregate([
+        {"$unwind": "$lines"},
+        {"$match": {"lines.concept": concept}},
+        {"$group": {
+            "_id": None,
+            "quantity": {"$sum": "$lines.quantity"},
+            "revenue": {"$sum": "$lines.total_taxable_amount"},
+            "vat": {"$sum": "$lines.vat_amount"},
+            "n_lines": {"$sum": 1},
+            "invoice_ids": {"$addToSet": "$id"},
+            "client_nifs": {"$addToSet": "$target.nif"},
+            "min_date": {"$min": "$invoice_date"},
+            "max_date": {"$max": "$invoice_date"},
+            "unit_prices": {"$push": "$lines.unit_taxable_amount"},
+        }},
+    ]).to_list(1)
+    if not agg:
+        raise HTTPException(status_code=404, detail="Concepto no encontrado")
+    a = agg[0]
+    quantity = round(float(a["quantity"]), 2)
+    revenue = round(float(a["revenue"]), 2)
+    unit_prices = [float(x) for x in a.get("unit_prices") or [] if x]
+    min_price = round(min(unit_prices), 4) if unit_prices else 0.0
+    max_price = round(max(unit_prices), 4) if unit_prices else 0.0
+
+    kpis = {
+        "quantity": quantity,
+        "revenue": revenue,
+        "vat": round(float(a["vat"]), 2),
+        "avg_unit_price": round(revenue / quantity, 4) if quantity else 0.0,
+        "min_unit_price": min_price,
+        "max_unit_price": max_price,
+        "n_lines": int(a["n_lines"]),
+        "n_invoices": len(a["invoice_ids"] or []),
+        "n_clients": len(a["client_nifs"] or []),
+        "first_sale": a.get("min_date"),
+        "last_sale": a.get("max_date"),
+    }
+
+    # Top buyers
+    top_buyers = await db.contasimple_invoices_issued.aggregate([
+        {"$unwind": "$lines"},
+        {"$match": line_match},
+        {"$group": {
+            "_id": {"nif": "$target.nif", "org": "$target.organization"},
+            "quantity": {"$sum": "$lines.quantity"},
+            "revenue": {"$sum": "$lines.total_taxable_amount"},
+            "n_lines": {"$sum": 1},
+            "invoice_ids": {"$addToSet": "$id"},
+        }},
+        {"$sort": {"revenue": -1}},
+        {"$limit": 10},
+    ]).to_list(10)
+    top_buyers_out = [
+        {
+            "nif": (b["_id"] or {}).get("nif"),
+            "organization": (b["_id"] or {}).get("org"),
+            "quantity": round(float(b["quantity"]), 2),
+            "revenue": round(float(b["revenue"]), 2),
+            "n_invoices": len(b["invoice_ids"] or []),
+        } for b in top_buyers
+    ]
+
+    # Monthly evolution
+    monthly = await db.contasimple_invoices_issued.aggregate([
+        {"$unwind": "$lines"},
+        {"$match": line_match},
+        {"$group": {
+            "_id": {"$substr": ["$invoice_date", 0, 7]},
+            "quantity": {"$sum": "$lines.quantity"},
+            "revenue": {"$sum": "$lines.total_taxable_amount"},
+        }},
+        {"$sort": {"_id": 1}},
+    ]).to_list(120)
+    monthly_out = [
+        {"month": m["_id"], "quantity": round(float(m["quantity"]), 2),
+         "revenue": round(float(m["revenue"]), 2)}
+        for m in monthly if m["_id"]
+    ]
+
+    # Invoices where this concept appears
+    inv_docs = await db.contasimple_invoices_issued.find(line_match).sort("invoice_date", -1).limit(200).to_list(200)
+    invoices_out = []
+    for inv in inv_docs:
+        lines_hit = [ln for ln in (inv.get("lines") or []) if ln.get("concept") == concept]
+        line_qty = sum(float(ln.get("quantity") or 0) for ln in lines_hit)
+        line_rev = sum(float(ln.get("total_taxable_amount") or 0) for ln in lines_hit)
+        invoices_out.append({
+            "id": inv["id"],
+            "number": inv.get("number") or "",
+            "invoice_date": inv.get("invoice_date"),
+            "target_organization": (inv.get("target") or {}).get("organization"),
+            "target_nif": (inv.get("target") or {}).get("nif"),
+            "status": inv.get("status"),
+            "line_quantity": round(line_qty, 2),
+            "line_revenue": round(line_rev, 2),
+            "invoice_total": float(inv.get("total_amount") or 0),
+        })
+
+    catalog = await _load_catalog()
+    catalog_match = _fuzzy_match_catalog(concept, catalog)
+
+    return {
+        "concept": concept,
+        "concept_key": concept_key,
+        "kpis": kpis,
+        "top_buyers": top_buyers_out,
+        "monthly": monthly_out,
+        "invoices": invoices_out,
+        "catalog_match": catalog_match,
+    }
