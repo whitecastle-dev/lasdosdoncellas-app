@@ -49,6 +49,12 @@ import ErpProdProducts from "@/pages/admin/erp/ErpProdProducts";
 import ErpEvents from "@/pages/admin/erp/ErpEvents";
 import ErpLabels from "@/pages/admin/erp/ErpLabels";
 import ContaSimpleSync from "@/pages/admin/ContaSimpleSync";
+import DashboardGeneral from "@/pages/admin/portal/DashboardGeneral";
+import SalaCorteRouter from "@/pages/admin/portal/SalaCorte";
+import TiendaRouter from "@/pages/admin/portal/Tienda";
+import DistribucionRouter from "@/pages/admin/portal/Distribucion";
+import FinanzasRouter from "@/pages/admin/portal/Finanzas";
+import { CalendarioEventos, IaEmpresarial } from "@/pages/admin/portal/CalendarioIA";
 import InventoryLayout from "@/pages/admin/inventory/InventoryLayout";
 import InventoryValuation from "@/pages/admin/inventory/InventoryValuation";
 import InventoryLots from "@/pages/admin/inventory/InventoryLots";
@@ -177,6 +183,13 @@ function App() {
                 </Route>
                 <Route path="chat" element={<Configuracion />} />
                 <Route path="contasimple" element={<ContaSimpleSync />} />
+                <Route path="portal" element={<DashboardGeneral />} />
+                <Route path="portal/sala-corte/*" element={<SalaCorteRouter />} />
+                <Route path="portal/tienda/*" element={<TiendaRouter />} />
+                <Route path="portal/distribucion/*" element={<DistribucionRouter />} />
+                <Route path="portal/finanzas/*" element={<FinanzasRouter />} />
+                <Route path="portal/calendario" element={<CalendarioEventos />} />
+                <Route path="portal/ia" element={<IaEmpresarial />} />
                 <Route path="configuracion" element={<Configuracion />} />
               </Route>
 

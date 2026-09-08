@@ -164,12 +164,6 @@ async def logout(response: Response):
     return {"ok": True}
 
 
-@router.get("/me")
-async def get_me(user: dict = Depends(get_current_user)):
-    """Devuelve los datos del usuario autenticado (cliente o admin)."""
-    return user
-
-
 @router.get("/orders")
 async def my_orders(user: dict = Depends(get_current_user)):
     """Pedidos del usuario autenticado (búsqueda por email — case insensitive)."""
