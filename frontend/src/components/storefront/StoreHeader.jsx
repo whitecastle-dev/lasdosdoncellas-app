@@ -94,11 +94,15 @@ export default function StoreHeader({ onOpenCart }) {
       </div>
       {open && (
         <div className="md:hidden border-t border-[rgba(197,160,89,0.18)] px-6 py-4 flex flex-col gap-3" style={{ background: "rgba(10,10,10,0.95)", color: "#FAF8F5" }}>
-          <Link to="/" className="nav-link" onClick={() => setOpen(false)} translate="yes">Inicio</Link>
-          <Link to="/catalogo" className="nav-link" onClick={() => setOpen(false)} translate="yes">Catálogo</Link>
-          <Link to="/lotes/configurador" className="nav-link" onClick={() => setOpen(false)} translate="yes">Configurar lote</Link>
-          <Link to="/nosotros" className="nav-link" onClick={() => setOpen(false)} translate="yes">Nosotros</Link>
-          <Link to={customer ? "/cuenta" : "/cuenta/login"} className="nav-link" onClick={() => setOpen(false)} translate="yes">
+          <div className="pb-3 mb-2 border-b border-[rgba(197,160,89,0.15)]">
+            <div className="font-oranienbaum text-2xl leading-none">Las Dos Doncellas</div>
+            <div className="font-allura gold text-2xl leading-none mt-1">Productos Ibéricos</div>
+          </div>
+          <Link to="/" className="nav-link font-oranienbaum text-xl" onClick={() => setOpen(false)} translate="yes">Inicio</Link>
+          <Link to="/catalogo" className="nav-link font-oranienbaum text-xl" onClick={() => setOpen(false)} translate="yes">Catálogo</Link>
+          <Link to="/lotes/configurador" className="nav-link font-oranienbaum text-xl" onClick={() => setOpen(false)} translate="yes">Configurar lote</Link>
+          <Link to="/nosotros" className="nav-link font-oranienbaum text-xl" onClick={() => setOpen(false)} translate="yes">Nosotros</Link>
+          <Link to={customer ? "/cuenta" : "/cuenta/login"} className="nav-link font-oranienbaum text-xl" onClick={() => setOpen(false)} translate="yes">
             {customer ? "Mi cuenta" : "Acceder"}
           </Link>
         </div>

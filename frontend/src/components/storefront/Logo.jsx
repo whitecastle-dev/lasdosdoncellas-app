@@ -1,26 +1,27 @@
 import React from "react";
 
 /**
- * Logo oficial de Las Dos Doncellas (portrait, fondo negro, aspecto ~0.7).
- * El PNG en `/brand/logo.png` es un rectángulo vertical con:
- *   · Icono superior (~68% de altura): marco blanco con L | D + rama de olivo.
+ * Logo oficial de Las Dos Doncellas.
+ *
+ * Archivos servidos desde /brand/:
+ *   · logo.png       — arte BLANCO sobre fondo transparente (uso sobre negro/oscuro).
+ *   · logo-dark.png  — arte NEGRO sobre fondo transparente (uso sobre creamy/blanco:
+ *                       emails, facturas PDF, invoices, printables).
+ *
+ * El PNG blanco es un rectángulo vertical 899×1280 (aspect 0.7) con:
+ *   · Icono superior (~68% de altura): marco con L | D + rama de olivo.
  *   · Texto inferior (~32% de altura): "Las Dos Doncellas / Productos Ibéricos".
  *
- * Variantes:
- *   variant="full"  — imagen entera. `size` es la ALTURA en px.
- *   variant="mark"  — sólo el icono cuadrado (recorta el 32% inferior de texto).
- *                     Ideal para headers/sidebars compactos donde el nombre de
- *                     la marca ya aparece como texto adyacente.
+ * Props
+ *   size:    ALTURA en px (o ancho si variant='mark').
+ *   variant: 'full' — imagen entera con texto integrado.
+ *            'mark' — sólo el icono cuadrado (recorta el 32% inferior).
+ *   tone:    'light' (default, fondo oscuro) | 'dark' (para fondo claro).
  */
-export function Logo({ size = 96, variant = "full", className = "" }) {
-  const src = "/brand/logo.png";
+export function Logo({ size = 96, variant = "full", tone = "light", className = "" }) {
+  const src = tone === "dark" ? "/brand/logo-dark.png" : "/brand/logo.png";
   if (variant === "mark") {
-    // La imagen es 899×1280 (aspect 0.7). El icono ocupa aprox. la parte superior
-    // (~68% de la altura). Para que quede cuadrado (tamaño × tamaño) escalamos la
-    // imagen a que su ancho ≈ size y recortamos abajo para dejar sólo el icono.
-    // Como el icono es más alto que ancho dentro de la caja (marco vertical),
-    // usamos width=size y height proporcional; luego cortamos altura al tamaño.
-    const scaledHeight = size / 0.7; // altura completa a la que quedaría la imagen
+    const scaledHeight = size / 0.7;
     return (
       <span
         className={`inline-block overflow-hidden ${className}`}
