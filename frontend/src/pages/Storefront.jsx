@@ -10,13 +10,21 @@ import StarRating from "@/components/StarRating";
 import { api } from "@/lib/api";
 import useReveal from "@/hooks/useReveal";
 
+// dehesa-3 = varios cerdos subiendo la loma. Se le da más peso (peso 3x)
+// para que permanezca visible más tiempo. Origen dinámico por slide para
+// que cada foto pivote sobre un punto distinto durante el zoom continuo.
 const HERO_IMAGES = [
-  { name: "dehesa-1", origin: "20% 40%" }, // pan a la izquierda-arriba
-  { name: "dehesa-2", origin: "50% 60%" }, // centro-abajo
-  { name: "dehesa-3", origin: "80% 45%" }, // derecha-media
-  { name: "dehesa-4", origin: "35% 70%" }, // izquierda-abajo
-  { name: "dehesa-5", origin: "70% 30%" }, // derecha-arriba
+  { name: "dehesa-1", origin: "20% 40%", weight: 1 },
+  { name: "dehesa-2", origin: "50% 60%", weight: 1 },
+  { name: "dehesa-3", origin: "60% 55%", weight: 3 }, // cerdos subiendo la loma
+  { name: "dehesa-4", origin: "35% 70%", weight: 1 },
+  { name: "dehesa-5", origin: "70% 30%", weight: 1 },
 ];
+
+// Secuencia expandida donde dehesa-3 aparece 3 veces intercalada.
+const HERO_SEQUENCE = HERO_IMAGES.flatMap((s) =>
+  Array.from({ length: s.weight }, () => s)
+);
 
 // Imagen de fallback por slug, en caso de que el admin todavía no haya subido
 // una imagen para la categoría. Si tampoco coincide el slug, usamos una
@@ -43,23 +51,21 @@ const PROCESS_STEPS = [
 function HeroSlider() {
   const [idx, setIdx] = useState(0);
   useEffect(() => {
-    // 9 s por diapositiva, con 3.5 s de crossfade — así siempre hay solape
-    // amplio entre dos imágenes (una entrando, otra saliendo) y el zoom
-    // Ken Burns continuo elimina la sensación de "salto".
-    const t = setInterval(() => setIdx((i) => (i + 1) % HERO_IMAGES.length), 9000);
-    return () => clearInterval(t);
-  }, []);
+    // Duración adaptada al peso: slides normales 9 s, la de los cerdos
+    // subiendo la loma se muestra ~14 s para que se pueda apreciar bien
+    // el paseo de los animales.
+    const stayMs = HERO_SEQUENCE[idx].weight >= 3 ? 14000 : 9000;
+    const t = setTimeout(() => setIdx((i) => (i + 1) % HERO_SEQUENCE.length), stayMs);
+    return () => clearTimeout(t);
+  }, [idx]);
   return (
     <section className="relative h-[78vh] min-h-[520px] overflow-hidden">
-      {HERO_IMAGES.map((slide, i) => (
+      {HERO_SEQUENCE.map((slide, i) => (
         <div
-          key={slide.name}
+          key={`${slide.name}-${i}`}
           className="absolute inset-0 transition-opacity ease-in-out"
           style={{ opacity: i === idx ? 1 : 0, transitionDuration: "3500ms" }}
         >
-          {/* <picture> con AVIF + WebP y srcset por breakpoint. transform-origin
-              distinto por slide da la sensación de "cada plano se acerca a
-              un punto distinto" sin reiniciar la animación (continua). */}
           <picture>
             <source
               type="image/avif"
@@ -74,7 +80,7 @@ function HeroSlider() {
             <img
               src={`/brand/hero/${slide.name}-desktop.webp`}
               alt=""
-              className="w-full h-full object-cover hero-zoom-slow"
+              className="w-full h-full object-cover hero-zoom-strong"
               style={{ transformOrigin: slide.origin }}
               loading={i === 0 ? "eager" : "lazy"}
               fetchpriority={i === 0 ? "high" : "auto"}

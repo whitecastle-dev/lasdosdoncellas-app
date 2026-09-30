@@ -8,9 +8,7 @@ const BASE = "/admin/portal/sala-corte";
 
 const TABS = [
   { to: "", end: true, label: "Panel", icon: LayoutDashboard },
-  { to: "plan-trabajo", label: "Plan de Trabajo", icon: ClipboardList },
-  { to: "piezas", label: "Registro Piezas", icon: Package },
-  { to: "loncheados", label: "Control Loncheados", icon: Factory },
+  { to: "loncheados", label: "Loncheados", icon: Factory },
   { to: "trazabilidad", label: "Trazabilidad", icon: MapPin },
   { to: "salarios", label: "Salarios", icon: Coins },
   { to: "rentabilidad", label: "Rentabilidad", icon: TrendingUp },
@@ -180,25 +178,49 @@ const ServiciosCorte = () => (
   />
 );
 
-// The portal has "Plan de trabajo" and "Registro de Piezas" as separate views
-// but they hydrate from the same loncheados table filtered differently.
-// Until we know their exact filters, reuse Loncheados + Trazabilidad clones.
+const Trazabilidad = () => (
+  <PortalTable
+    testId="portal-trazabilidad"
+    table="loncheados"
+    select="id,fecha_produccion,cliente_id,lote_interno,lote_externo,tipo,peso_loncheado,rendimiento,estado_rendimiento,trazabilidad_validada,created_at"
+    filters={{ trazabilidad_validada: "eq.true" }}
+    order="created_at.desc"
+    limit={500}
+    searchKeys={["lote_interno", "lote_externo"]}
+    emptyMessage="Aún no hay loncheados con trazabilidad validada."
+    columns={[
+      { key: "created_at", label: "Fecha", type: "datetime" },
+      { key: "lote_interno", label: "Lote interno" },
+      { key: "lote_externo", label: "Lote externo" },
+      { key: "tipo", label: "Tipo", badge: true },
+      { key: "peso_loncheado", label: "Peso (kg)", type: "number" },
+      { key: "rendimiento", label: "Rend.", type: "number" },
+      { key: "estado_rendimiento", label: "Estado", badge: true },
+    ]}
+  />
+);
+
+// Los antiguos "Plan de trabajo", "Registro de Piezas", "Control loncheados"
+// mostraban la misma tabla loncheados. Se consolidan en un único tab
+// "Loncheados" que muestra todos los registros. "Trazabilidad" ahora
+// filtra solo los que tienen trazabilidad_validada=true.
 
 export default function SalaCorteRouter() {
   return (
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Panel />} />
-        <Route path="plan-trabajo" element={<Loncheados />} />
-        <Route path="piezas" element={<Loncheados />} />
         <Route path="loncheados" element={<Loncheados />} />
-        <Route path="trazabilidad" element={<Loncheados />} />
+        <Route path="trazabilidad" element={<Trazabilidad />} />
         <Route path="salarios" element={<Salarios />} />
         <Route path="rentabilidad" element={<Rentabilidad />} />
         <Route path="clientes" element={<Clientes />} />
         <Route path="productos" element={<Productos />} />
         <Route path="empleados" element={<Empleados />} />
         <Route path="servicios" element={<ServiciosCorte />} />
+        {/* Retro-compat: redirigir enlaces antiguos al tab unificado. */}
+        <Route path="plan-trabajo" element={<Navigate to="../loncheados" replace />} />
+        <Route path="piezas" element={<Navigate to="../loncheados" replace />} />
         <Route path="*" element={<Navigate to="" replace />} />
       </Route>
     </Routes>

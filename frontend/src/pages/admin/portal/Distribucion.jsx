@@ -128,8 +128,8 @@ export default function DistribucionRouter() {
         <Route path="pedidos" element={<FinFacturasEmitidas />} />
         <Route path="facturas-entrantes" element={<FinFacturasRecibidas />} />
         <Route path="facturas-salientes" element={<FinFacturasEmitidas />} />
-        <Route path="cobros" element={<Movimientos tipo="ENTRADA" />} />
-        <Route path="pagos" element={<Movimientos tipo="SALIDA" />} />
+        <Route path="cobros" element={<Movimientos tipo="INGRESO" />} />
+        <Route path="pagos" element={<Movimientos tipo="GASTO" />} />
         <Route path="contabilidad" element={<FinFacturasEmitidas />} />
         <Route path="finanzas" element={<FinFacturasEmitidas />} />
         <Route path="*" element={<Navigate to="" replace />} />

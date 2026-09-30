@@ -195,7 +195,7 @@ async def list_products(
     is_active: Optional[bool] = None,
     featured: Optional[bool] = None,
     sort: str = "created_desc",
-    limit: int = Query(200, le=500),
+    limit: int = Query(200, le=5000),
 ):
     query = {}
     if q:

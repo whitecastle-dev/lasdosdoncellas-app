@@ -39,11 +39,13 @@ export default function ProductsAdmin() {
   const [selected, setSelected] = useState(new Set());
   const [dragOver, setDragOver] = useState(false);
   const [relation, setRelation] = useState(null); // {type, id}
+  const [pageSize, setPageSize] = useState(50);
+  const [page, setPage] = useState(1);
 
   const load = async () => {
     setLoading(true);
     const [p, c, pr] = await Promise.all([
-      api.get("/products"),
+      api.get("/products", { params: { limit: 5000 } }),
       api.get("/categories"),
       api.get("/providers").catch(() => ({ data: [] })),
     ]);
@@ -57,6 +59,9 @@ export default function ProductsAdmin() {
 
   const filtered = useMemo(() => filterRows(products, q), [products, q]);
   const { sorted, sortBy, sort } = useSort(filtered);
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const paged = useMemo(() => sorted.slice((page - 1) * pageSize, page * pageSize), [sorted, page, pageSize]);
+  useEffect(() => { if (page > totalPages) setPage(1); }, [totalPages, page]);
 
   const toggle = (id) => setSelected((s) => {
     const n = new Set(s);
@@ -204,7 +209,7 @@ export default function ProductsAdmin() {
           <thead>
             <tr className="text-left bg-gray-50">
               <th className="py-3 px-4 w-8">
-                <input type="checkbox" checked={selected.size > 0 && selected.size === sorted.length}
+                <input type="checkbox" checked={selected.size > 0 && selected.size === paged.length}
                        onChange={toggleAll} data-testid="products-select-all" />
               </th>
               <th>Img</th>
@@ -222,7 +227,7 @@ export default function ProductsAdmin() {
           <tbody>
             {loading && <tr><td colSpan={11} className="py-10 text-center text-gray-400">Cargando…</td></tr>}
             {!loading && sorted.length === 0 && <tr><td colSpan={11} className="py-12 text-center text-gray-400">{products.length === 0 ? <>No hay productos. <button onClick={() => setEditing("new")} className="underline">Crear el primero</button>.</> : "Ningún producto coincide con el filtro."}</td></tr>}
-            {sorted.map((p) => (
+            {paged.map((p) => (
               <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50" data-testid={`product-row-${p.id}`}>
                 <td className="px-4 py-2">
                   <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} data-testid={`product-select-${p.id}`} />
@@ -262,6 +267,23 @@ export default function ProductsAdmin() {
             ))}
           </tbody>
         </table>
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-xs text-gray-600 bg-white" data-testid="products-pagination">
+          <div className="flex items-center gap-2">
+            Mostrar
+            <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                    className="border border-gray-200 px-2 py-1 text-xs bg-white" data-testid="products-page-size">
+              {[50, 100, 500, 1000].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            por página · {sorted.length} en total
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}
+                    className="px-2 py-1 border border-gray-200 disabled:opacity-40" data-testid="products-page-prev">← Anterior</button>
+            <span className="font-mono">{page} / {totalPages}</span>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
+                    className="px-2 py-1 border border-gray-200 disabled:opacity-40" data-testid="products-page-next">Siguiente →</button>
+          </div>
+        </div>
       </div>
 
       {editing && (

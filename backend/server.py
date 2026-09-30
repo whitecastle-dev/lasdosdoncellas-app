@@ -73,6 +73,14 @@ _VERSION_INFO = _build_version()
 async def api_version():
     return _VERSION_INFO
 
+
+@app.get("/api/health")
+async def api_health():
+    """Ping ligero que el frontend dispara en el landing para calentar el
+    pod y evitar la latencia de cold-start (~30-60 s) en la primera
+    navegación real del usuario."""
+    return {"ok": True}
+
 # --- CORS: incluye SIEMPRE los dominios conocidos del front + custom domain ---
 _default_origins = [
     "https://lasdosdoncellas-web.onrender.com",
