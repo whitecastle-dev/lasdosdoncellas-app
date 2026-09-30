@@ -102,7 +102,7 @@ const Movimientos = ({ tipo }) => (
     testId={`portal-d-mov-${tipo}`}
     table="fin_movimientos_tesoreria"
     select="id,fecha,concepto,tipo,entrada,salida,saldo_resultante,departamento,es_prevision,conciliado"
-    filters={{ departamento: "eq.DISTRIBUCION", tipo: `eq.${tipo}` }}
+    filters={{ tipo: `eq.${tipo}` }}
     order="fecha.desc"
     limit={500}
     searchKeys={["concepto"]}
