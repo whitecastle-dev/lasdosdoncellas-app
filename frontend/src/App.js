@@ -90,6 +90,15 @@ import PoliticaPrivacidad from "@/pages/legal/PoliticaPrivacidad";
 import PoliticaCookies from "@/pages/legal/PoliticaCookies";
 
 function App() {
+  // Warm-up ping: al montar la SPA disparamos un /api/health para que el
+  // pod del backend se despierte antes de que el usuario haga la primera
+  // consulta real (categorías, productos, login CMS). Evita los ~30-60 s
+  // de cold-start que hacían tardar en pintarse "Explora por categorías".
+  React.useEffect(() => {
+    const url = process.env.REACT_APP_BACKEND_URL;
+    if (!url) return;
+    fetch(`${url}/api/health`, { method: "GET", keepalive: true }).catch(() => {});
+  }, []);
   return (
     <BrowserRouter>
       <AuthProvider>

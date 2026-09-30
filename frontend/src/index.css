@@ -291,18 +291,26 @@
     50% { transform: translateY(-4px); }
 }
 
-/* Imagen del hero: zoom Ken Burns muy lento y CONTINUO. El nodo <img>
-   nunca se re-monta, por lo que la animación sigue su ciclo aunque la
-   diapositiva esté oculta; al reaparecer no hay "salto". El crossfade
-   generoso (3.5 s, ver Storefront.jsx) hace el cambio imperceptible. */
+/* Zoom Ken Burns más marcado (movimiento notable) pero continuo — sigue
+   sin reiniciarse al cambiar de slide gracias a que el <img> persiste.
+   Escala de 1.02 a 1.22 (antes 1.14) para que el efecto se note. */
 .hero-zoom-slow {
     animation: heroZoomSlow 46s ease-in-out infinite alternate;
+    will-change: transform;
+    transform-origin: center center;
+}
+.hero-zoom-strong {
+    animation: heroZoomStrong 38s ease-in-out infinite alternate;
     will-change: transform;
     transform-origin: center center;
 }
 @keyframes heroZoomSlow {
     0%   { transform: scale(1.02); }
     100% { transform: scale(1.14); }
+}
+@keyframes heroZoomStrong {
+    0%   { transform: scale(1.03); }
+    100% { transform: scale(1.22); }
 }
 /* Compat: dejamos las antiguas por si algún componente las usa. */
 .hero-zoom { animation: heroZoomSlow 46s ease-in-out infinite alternate; }
