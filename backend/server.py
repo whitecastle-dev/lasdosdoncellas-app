@@ -43,6 +43,36 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Las Dos Doncellas API")
 
+
+def _build_version() -> dict:
+    """Devuelve la versión del backend en runtime (git sha + fecha de arranque).
+
+    El front la muestra en el sidebar del CMS para que el usuario pueda
+    verificar de un vistazo qué build está sirviendo su navegador.
+    """
+    import subprocess
+    from datetime import datetime, timezone
+    sha = "unknown"
+    try:
+        sha = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd="/app", stderr=subprocess.DEVNULL, timeout=1,
+        ).decode().strip()
+    except Exception:  # noqa: BLE001
+        sha = os.environ.get("RENDER_GIT_COMMIT", os.environ.get("GIT_SHA", "unknown"))[:7] or "unknown"
+    return {
+        "commit": sha,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+_VERSION_INFO = _build_version()
+
+
+@app.get("/api/version")
+async def api_version():
+    return _VERSION_INFO
+
 # --- CORS: incluye SIEMPRE los dominios conocidos del front + custom domain ---
 _default_origins = [
     "https://lasdosdoncellas-web.onrender.com",

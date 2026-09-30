@@ -3,6 +3,7 @@ import { NavLink, Outlet, Navigate, useNavigate, useLocation } from "react-route
 import { LayoutDashboard, Package, ShoppingCart, Users, LogOut, Store, Truck, Settings as SettingsIcon, Menu, X, Tag, Building2, AlertTriangle, Factory, Boxes, Wallet, ShoppingBag, Calculator, Cable, Bot, Calendar, Scissors, Banknote } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import FreshnessBadge from "@/components/admin/FreshnessBadge";
+import VersionBadge from "@/components/admin/VersionBadge";
 import { Logo } from "@/components/storefront/Logo";
 
 const SECTIONS = [
@@ -119,6 +120,7 @@ export default function AdminLayout() {
             <Store size={16} /> <span>Ver tienda</span>
           </a>
           <FreshnessBadge />
+          <VersionBadge />
           <div className="px-3 pt-2 pb-1 text-xs" style={{ color: "rgba(250,248,245,0.45)" }}>
             {user.name} <br />
             <span className="gold">{user.role}</span>
