@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Zap, Pencil } from "lucide-react";
+import { Zap, Pencil, CreditCard } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CardChip } from "@/components/storefront/PaymentMethodsPanel";
 import StoreHeader from "@/components/storefront/StoreHeader";
 import StoreFooter from "@/components/storefront/StoreFooter";
 import CartDrawer from "@/components/storefront/CartDrawer";
@@ -14,9 +16,11 @@ const EMPTY = {
   postal_code: "", country: "España", tax_id: "", notes: "",
 };
 
+const fullName = (c) => (c?.name || `${c?.first_name || ""} ${c?.last_name || ""}`).trim();
+
 function billingFromAddress(addr, customer) {
   return {
-    name: addr.full_name || customer?.name || "",
+    name: addr.full_name || fullName(customer) || "",
     email: customer?.email || "",
     phone: addr.phone || customer?.phone || "",
     address: addr.address || "",
@@ -45,12 +49,20 @@ export default function Checkout() {
       if (def) {
         setForm(billingFromAddress(def, customer));
       } else {
-        setForm((f) => ({ ...f, name: customer.name || "", email: customer.email || "", phone: customer.phone || "" }));
+        setForm((f) => ({ ...f, name: fullName(customer) || "", email: customer.email || "", phone: customer.phone || "" }));
       }
     }
   }, [customer]);
 
   const onChange = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+  const defaultAddr = customer?.addresses?.find((a) => a.is_default_billing);
+  const defaultCard = customer?.payment_methods?.find((p) => p.is_default);
+  // "Comprar ya" exige dirección de facturación Y forma de pago predeterminadas.
+  const canQuickBuy = Boolean(customer && defaultAddr && defaultCard);
+  const missingForQuickBuy = customer && !canQuickBuy
+    ? [!defaultAddr && "una dirección de facturación predeterminada", !defaultCard && "una tarjeta predeterminada"].filter(Boolean)
+    : [];
 
   const startCheckout = async () => {
     if (items.length === 0) { toast.error("Tu cesta está vacía"); return; }
@@ -60,6 +72,7 @@ export default function Checkout() {
         items: items.map((i) => ({ product_id: i.product_id, qty: i.qty })),
         customer: form,
         origin_url: window.location.origin,
+        payment_method_id: defaultCard?.id || null,
       });
       // Auto-post del <form> a Redsys para redirigir al TPV Virtual
       const f = document.createElement("form");
@@ -97,9 +110,6 @@ export default function Checkout() {
 
   const submit = (e) => { e.preventDefault(); startCheckout(); };
 
-  const canQuickBuy = customer && (customer.addresses || []).some((a) => a.is_default_billing);
-  const defaultAddr = customer?.addresses?.find((a) => a.is_default_billing);
-
   return (
     <div className="ldd-storefront min-h-screen">
       <StoreHeader onOpenCart={() => setCartOpen(true)} />
@@ -124,6 +134,7 @@ export default function Checkout() {
               <div className="text-sm" style={{ color: "rgba(250,248,245,0.85)" }}>
                 <strong>{form.name}</strong> · {form.address}, {form.postal_code} {form.city}
               </div>
+              <div className="mt-2" data-testid="quick-buy-card"><CardChip pm={defaultCard} compact /></div>
             </div>
             <div className="flex gap-2">
               <button onClick={() => setShowQuickConfirm(true)} className="ldd-btn-gold" data-testid="buy-now-button">
@@ -133,6 +144,16 @@ export default function Checkout() {
                 <Pencil size={12} /> Modificar
               </button>
             </div>
+          </div>
+        )}
+
+        {missingForQuickBuy.length > 0 && (
+          <div className="mt-10 border border-[rgba(197,160,89,0.3)] p-4 text-sm flex items-start gap-3" style={{ color: "rgba(250,248,245,0.8)" }} data-testid="quick-buy-hint">
+            <CreditCard size={16} className="text-[#C5A059] flex-shrink-0 mt-0.5" />
+            <span>
+              Activa <span className="gold">&ldquo;Comprar ya&rdquo;</span> guardando {missingForQuickBuy.join(" y ")} en{" "}
+              <Link to="/cuenta?tab=payment" className="gold underline">tu cuenta</Link>.
+            </span>
           </div>
         )}
 
@@ -198,6 +219,7 @@ export default function Checkout() {
             <div className="mt-5 space-y-3 text-sm" style={{ color: "rgba(250,248,245,0.85)" }}>
               <div><span className="label-eyebrow gold block">Envío a</span>{form.name}<br/>{form.address}, {form.postal_code} {form.city}<br/>{form.country}<br/>{form.phone}</div>
               <div><span className="label-eyebrow gold block">NIF/CIF</span>{form.tax_id || "—"}</div>
+              {defaultCard && <div><span className="label-eyebrow gold block">Pago</span><CardChip pm={defaultCard} /></div>}
               <div className="border-t border-[rgba(197,160,89,0.2)] pt-3 flex justify-between"><span className="label-eyebrow">Total</span><span className="font-serif text-2xl gold">{formatMoney(total)}</span></div>
             </div>
             <div className="mt-6 flex gap-3">

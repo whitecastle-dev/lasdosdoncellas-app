@@ -5,7 +5,7 @@ import { LayoutDashboard, TrendingUp, ArrowUpRight, ArrowDownRight, Wallet,
 import { toast } from "sonner";
 import { api, formatApiError, formatMoney } from "@/lib/api";
 import { useLiveRows } from "./useLiveRows";
-import { LiveBadge } from "./PortalHubLayout";
+import { LiveBadge, PortalKeyBanner } from "./PortalHubLayout";
 
 async function backfillWebOrders() {
   if (!window.confirm("Enviar todos los pedidos web pagados al portal (tabla tienda.ventas). Operación idempotente.\n\n¿Continuar?")) return;
@@ -176,6 +176,8 @@ export default function DashboardGeneral() {
           <LiveBadge lastFetch={lastAny} loading={loadingAny} />
         </div>
       </div>
+
+      <PortalKeyBanner />
 
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-3" data-testid="portal-dashboard-kpis">
         <KpiCard icon={Zap} label="Facturación hoy" value={formatMoney(facturacionHoy)} sub="Ventas del día" tone="gold" loading={facturasHoy.loading} />

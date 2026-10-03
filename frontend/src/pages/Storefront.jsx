@@ -10,21 +10,19 @@ import StarRating from "@/components/StarRating";
 import { api } from "@/lib/api";
 import useReveal from "@/hooks/useReveal";
 
-// dehesa-3 = varios cerdos subiendo la loma. Se le da más peso (peso 3x)
-// para que permanezca visible más tiempo. Origen dinámico por slide para
-// que cada foto pivote sobre un punto distinto durante el zoom continuo.
+// Orden fijo: la foto de los cerdos subiendo la loma (dehesa-3) es la que más
+// dura y por eso abre el carrusel. `pos` = object-position (zona de interés
+// que debe quedar siempre dentro del encuadre); `origin` = punto hacia el que
+// avanza el zoom lento, siempre sobre los animales.
 const HERO_IMAGES = [
-  { name: "dehesa-1", origin: "20% 40%", weight: 1 },
-  { name: "dehesa-2", origin: "50% 60%", weight: 1 },
-  { name: "dehesa-3", origin: "60% 55%", weight: 3 }, // cerdos subiendo la loma
-  { name: "dehesa-4", origin: "35% 70%", weight: 1 },
-  { name: "dehesa-5", origin: "70% 30%", weight: 1 },
+  { name: "dehesa-3", pos: "50% 82%", origin: "50% 80%", weight: 3 }, // piara subiendo la loma
+  { name: "dehesa-1", pos: "50% 68%", origin: "48% 66%", weight: 1 }, // cerdo entre encinas
+  { name: "dehesa-5", pos: "50% 72%", origin: "42% 72%", weight: 1 }, // piara al atardecer
+  { name: "dehesa-2", pos: "58% 62%", origin: "64% 64%", weight: 1 }, // cerdo entre flores
+  { name: "dehesa-4", pos: "46% 70%", origin: "46% 68%", weight: 1 }, // cerdo pastando
 ];
 
-// Secuencia expandida donde dehesa-3 aparece 3 veces intercalada.
-const HERO_SEQUENCE = HERO_IMAGES.flatMap((s) =>
-  Array.from({ length: s.weight }, () => s)
-);
+const HERO_SEQUENCE = HERO_IMAGES;
 
 // Imagen de fallback por slug, en caso de que el admin todavía no haya subido
 // una imagen para la categoría. Si tampoco coincide el slug, usamos una
@@ -81,7 +79,7 @@ function HeroSlider() {
               src={`/brand/hero/${slide.name}-desktop.webp`}
               alt=""
               className="w-full h-full object-cover hero-zoom-strong"
-              style={{ transformOrigin: slide.origin }}
+              style={{ transformOrigin: slide.origin, objectPosition: slide.pos }}
               loading={i === 0 ? "eager" : "lazy"}
               fetchpriority={i === 0 ? "high" : "auto"}
             />
@@ -120,8 +118,8 @@ function HeroSlider() {
   );
 }
 
-function CategoryTiles({ categories }) {
-  if (!categories.length) return null;
+function CategoryTiles({ categories, loading }) {
+  if (!categories.length && !loading) return null;
   const tiles = categories;
   // Grid: 2 columnas en móvil, 4 en desktop (más pequeñas y más por fila para
   // que se vean varias categorías sin scroll excesivo).
@@ -138,6 +136,14 @@ function CategoryTiles({ categories }) {
         <Link to="/catalogo" className="ldd-btn-ghost" data-testid="home-tiles-all">Ver todo</Link>
       </div>
       <div className={`grid ${cols} gap-3 sm:gap-6 lg:gap-8`}>
+        {!tiles.length && Array.from({ length: 8 }).map((_, i) => (
+          <div
+            key={`sk-${i}`}
+            data-testid="home-tile-skeleton"
+            className="ldd-tile-skeleton aspect-[4/5] sm:aspect-[3/4] border border-[rgba(197,160,89,0.12)]"
+            style={{ animationDelay: `${i * 120}ms` }}
+          />
+        ))}
         {tiles.map((c, i) => (
           <Link
             key={c.slug}
@@ -406,49 +412,38 @@ const miniHeadingFor = (cat, index) => {
   };
 };
 
+const HOME_CACHE_KEY = "ldd_home_cache_v1";
+
+const readHomeCache = () => {
+  try { return JSON.parse(localStorage.getItem(HOME_CACHE_KEY) || "null"); } catch { return null; }
+};
+
 export default function Storefront() {
-  const [featured, setFeatured] = useState([]);
-  const [reviews, setReviews] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [productsBySlug, setProductsBySlug] = useState({});
+  const cached = readHomeCache();
+  const [featured, setFeatured] = useState(cached?.featured || []);
+  const [reviews, setReviews] = useState(cached?.reviews || []);
+  const [categories, setCategories] = useState(cached?.categories || []);
+  const [productsBySlug, setProductsBySlug] = useState(cached?.by_slug || {});
+  const [homeLoading, setHomeLoading] = useState(!cached);
   const [cartOpen, setCartOpen] = useState(false);
   const revealRef = useReveal();
 
   useEffect(() => {
+    // Una sola llamada agregada (categorías + productos por categoría +
+    // destacados + reseñas). La última respuesta buena se cachea en
+    // localStorage para que, en visitas posteriores, el home pinte al
+    // instante aunque el backend esté arrancando en frío.
     (async () => {
       try {
-        const { data } = await api.get("/products", { params: { is_active: true, featured: true } });
-        let list = (data || []).slice(0, 6);
-        if (list.length < 6) {
-          // Si no hay suficientes destacados, completar con los más recientes
-          const { data: all } = await api.get("/products", { params: { is_active: true } });
-          const ids = new Set(list.map((p) => p.id));
-          for (const p of all || []) {
-            if (list.length >= 6) break;
-            if (!ids.has(p.id)) list.push(p);
-          }
-        }
-        setFeatured(list);
-      } catch { /* ignore */ }
-      try {
-        const { data } = await api.get("/reviews/recent", { params: { limit: 6, min_rating: 4 } });
-        setReviews(data || []);
-      } catch { /* ignore */ }
-      try {
-        const { data } = await api.get("/categories");
-        // Solo categorías activas, ya ordenadas por position en el backend
-        const cats = (data || []).filter((c) => c.is_active !== false);
-        setCategories(cats);
-        // Bulk: una sola llamada para productos de todas las categorías (mejora
-        // drasticamente el TTI en el home, era 1 llamada por categoría antes).
-        if (cats.length) {
-          const slugs = cats.map((c) => c.slug).join(",");
-          const { data: bulk } = await api.get("/products/by-categories", {
-            params: { slugs, per_category: 6 },
-          });
-          setProductsBySlug(bulk?.by_slug || {});
-        }
-      } catch { /* ignore */ }
+        const { data } = await api.get("/storefront/home", { params: { per_category: 6 } });
+        setCategories(data.categories || []);
+        setProductsBySlug(data.by_slug || {});
+        setFeatured(data.featured || []);
+        setReviews(data.reviews || []);
+        try { localStorage.setItem(HOME_CACHE_KEY, JSON.stringify(data)); } catch { /* quota */ }
+      } catch { /* mantener caché si la hay */ } finally {
+        setHomeLoading(false);
+      }
     })();
   }, []);
 
@@ -457,7 +452,7 @@ export default function Storefront() {
       <StoreHeader onOpenCart={() => setCartOpen(true)} />
       <HeroSlider />
       <CategoriesBar />
-      <CategoryTiles categories={categories} />
+      <CategoryTiles categories={categories} loading={homeLoading} />
 
       {/* Mini-secciones por categoría — dinámicas: una por cada categoría activa */}
       {categories.map((cat, i) => {
