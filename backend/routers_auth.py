@@ -135,6 +135,17 @@ async def login(payload: LoginIn, response: Response):
     access = create_access_token(user["id"], user["email"])
     refresh = create_refresh_token(user["id"])
 
+    # Baja reversible: iniciar sesión dentro del plazo de 30 días cancela la baja.
+    reactivated = False
+    if user.get("pending_deletion"):
+        await db.users.update_one({"id": user["id"]}, {
+            "$set": {"pending_deletion": False, "updated_at": datetime.now(timezone.utc).isoformat()},
+            "$unset": {"deletion_requested_at": "", "deletion_due_at": "", "deletion_reason": ""},
+        })
+        user["pending_deletion"] = False
+        user.pop("deletion_due_at", None)
+        reactivated = True
+
     # SameSite=none + Secure es REQUERIDO cuando front y back viven en
     # subdominios distintos (lasdosdoncellas-web vs lasdosdoncellas-api).
     # Con samesite="lax" el navegador descarta la cookie en cross-site fetches.
@@ -154,6 +165,7 @@ async def login(payload: LoginIn, response: Response):
         "message": "Inicio de sesión exitoso",
         "user": user,
         "access_token": access,
+        "reactivated": reactivated,
     }
 
 
@@ -170,7 +182,7 @@ async def my_orders(user: dict = Depends(get_current_user)):
     import re as _re
     email_regex = f"^{_re.escape(user['email'])}$"
     cursor = db.orders.find(
-        {"customer.email": {"$regex": email_regex, "$options": "i"}},
+        {"$or": [{"user_id": user["id"]}, {"customer.email": {"$regex": email_regex, "$options": "i"}}]},
         {"_id": 0},
     ).sort("created_at", -1).limit(100)
     return [o async for o in cursor]

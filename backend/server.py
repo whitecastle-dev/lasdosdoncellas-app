@@ -37,6 +37,7 @@ from routers_executive import router as executive_router
 from routers_payments_redsys import router as redsys_router
 from routers_excel import router as excel_router
 from routers_excel_all import router as excel_all_router
+from routers_storefront import router as storefront_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -179,6 +180,7 @@ app.include_router(executive_router)
 app.include_router(redsys_router, prefix="/api")
 app.include_router(excel_router)
 app.include_router(excel_all_router)
+app.include_router(storefront_router)
 from routers_chat import router as chat_router
 app.include_router(chat_router)
 from routers_reviews import router as reviews_router
@@ -187,8 +189,23 @@ from routers_settings import router as settings_router
 app.include_router(settings_router)
 
 
+async def _purge_loop():
+    import asyncio
+    from routers_customers import purge_due_accounts
+    while True:
+        try:
+            n = await purge_due_accounts()
+            if n:
+                logger.info("Cuentas dadas de baja purgadas: %d", n)
+        except Exception as e:
+            logger.warning("purge_due_accounts falló: %s", e)
+        await asyncio.sleep(6 * 3600)
+
+
 @app.on_event("startup")
 async def on_startup():
+    import asyncio
+    asyncio.create_task(_purge_loop())
     try:
         await db.users.create_index("email", unique=True)
         await db.customers.create_index("email", unique=True)

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Pencil, Trash2, LogOut, MapPin, Package, Check } from "lucide-react";
+import { Plus, Pencil, Trash2, LogOut, MapPin, Package, Check, User, Mail, Phone, FileText } from "lucide-react";
 import StoreHeader from "@/components/storefront/StoreHeader";
 import StoreFooter from "@/components/storefront/StoreFooter";
+import PaymentMethodsPanel from "@/components/storefront/PaymentMethodsPanel";
+import AccountDeletePanel from "@/components/storefront/AccountDeletePanel";
 import { useCustomer, customerApi } from "@/context/CustomerContext";
 import { api, formatApiError, formatMoney } from "@/lib/api";
 import { toast } from "sonner";
@@ -63,6 +65,7 @@ export default function CustomerAccount() {
             <TabBtn id="orders" tab={tab} setTab={setTab} label="Mis pedidos" testid="tab-orders" />
             <TabBtn id="payment" tab={tab} setTab={setTab} label="Pagos guardados" testid="tab-payment" />
             <TabBtn id="whatsapp" tab={tab} setTab={setTab} label="Contacta por WhatsApp" testid="tab-whatsapp" />
+            <TabBtn id="baja" tab={tab} setTab={setTab} label="Darse de baja" testid="tab-baja" />
           </nav>
 
           <div>
@@ -71,17 +74,9 @@ export default function CustomerAccount() {
               <AddressesPanel customer={customer} refresh={refresh} editingAddr={editingAddr} setEditingAddr={setEditingAddr} />
             )}
             {tab === "orders" && <OrdersList orders={orders} />}
-            {tab === "payment" && (
-              <div className="border border-[rgba(197,160,89,0.25)] p-8">
-                <div className="label-eyebrow gold mb-3">Próximamente</div>
-                <p style={{ color: "rgba(250,248,245,0.7)" }}>
-                  Pronto podrás guardar tu tarjeta de forma segura para activar el botón
-                  <span className="gold"> &ldquo;Comprar ya&rdquo;</span>. Por ahora, paga con tarjeta en cada compra y guarda tu dirección
-                  para acelerar el proceso.
-                </p>
-              </div>
-            )}
+            {tab === "payment" && <PaymentMethodsPanel customer={customer} refresh={refresh} />}
             {tab === "whatsapp" && <WhatsAppPanel customer={customer} />}
+            {tab === "baja" && <AccountDeletePanel customer={customer} refresh={refresh} logout={logout} />}
           </div>
         </div>
       </div>
@@ -99,26 +94,77 @@ function TabBtn({ id, tab, setTab, label, testid }) {
   );
 }
 
+// El sistema unificado guarda first_name/last_name; el legacy, name.
+const fullName = (c) => (c.name || `${c.first_name || ""} ${c.last_name || ""}`).trim();
+
 function ProfileForm({ customer, refresh }) {
-  const [form, setForm] = useState({ name: customer.name || "", phone: customer.phone || "", tax_id: customer.tax_id || "" });
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ name: fullName(customer), phone: customer.phone || "", tax_id: customer.tax_id || "" });
   const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    setForm({ name: fullName(customer), phone: customer.phone || "", tax_id: customer.tax_id || "" });
+  }, [customer]);
   const save = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
       await customerApi.patch("/me", form);
       await refresh();
+      setEditing(false);
       toast.success("Datos guardados");
     } catch (err) { toast.error(formatApiError(err)); } finally { setSaving(false); }
   };
+  const since = customer.created_at
+    ? new Date(customer.created_at).toLocaleDateString("es-ES", { month: "long", year: "numeric" })
+    : null;
   return (
-    <form onSubmit={save} className="space-y-5 max-w-lg" data-testid="profile-form">
-      <Field label="Nombre completo" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} testid="profile-name" />
-      <Field label="Email" value={customer.email} disabled testid="profile-email" />
-      <Field label="Teléfono" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} testid="profile-phone" />
-      <Field label="NIF/CIF" value={form.tax_id} onChange={(e) => setForm({ ...form, tax_id: e.target.value })} testid="profile-tax-id" />
-      <button disabled={saving} className="ldd-btn-gold" data-testid="profile-save">{saving ? "Guardando…" : "Guardar"}</button>
-    </form>
+    <div className="max-w-2xl" data-testid="profile-panel">
+      <div className="border border-[rgba(197,160,89,0.25)] p-6 mb-8" data-testid="profile-summary">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="label-eyebrow gold mb-2">Tus datos actuales</div>
+            <div className="font-serif text-2xl" style={{ color: "#FAF8F5" }} data-testid="profile-current-name">{fullName(customer) || "—"}</div>
+            {since && <div className="text-xs mt-1" style={{ color: "rgba(250,248,245,0.5)" }}>Cliente desde {since}</div>}
+          </div>
+          {!editing && (
+            <button onClick={() => setEditing(true)} className="ldd-btn-ghost text-xs" data-testid="profile-edit-button">
+              <Pencil size={12} /> Modificar
+            </button>
+          )}
+        </div>
+        <dl className="grid sm:grid-cols-2 gap-4 mt-6 text-sm">
+          <InfoRow icon={Mail} label="Email" value={customer.email} testid="profile-current-email" />
+          <InfoRow icon={Phone} label="Teléfono" value={customer.phone} testid="profile-current-phone" />
+          <InfoRow icon={FileText} label="NIF/CIF" value={customer.tax_id} testid="profile-current-tax-id" />
+          <InfoRow icon={User} label="Direcciones guardadas" value={String((customer.addresses || []).length)} testid="profile-current-addresses" />
+        </dl>
+      </div>
+      {editing && (
+        <form onSubmit={save} className="space-y-5 max-w-lg border border-[rgba(197,160,89,0.3)] p-6" data-testid="profile-form">
+          <div className="label-eyebrow gold">Modificar mis datos</div>
+          <Field label="Nombre completo" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} testid="profile-name" />
+          <Field label="Email" value={customer.email} disabled testid="profile-email" />
+          <Field label="Teléfono" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} testid="profile-phone" />
+          <Field label="NIF/CIF" value={form.tax_id} onChange={(e) => setForm({ ...form, tax_id: e.target.value })} testid="profile-tax-id" />
+          <div className="flex gap-3">
+            <button disabled={saving} className="ldd-btn-gold" data-testid="profile-save">{saving ? "Guardando…" : "Guardar"}</button>
+            <button type="button" onClick={() => setEditing(false)} className="ldd-btn-ghost" data-testid="profile-cancel">Cancelar</button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function InfoRow({ icon: Icon, label, value, testid }) {
+  return (
+    <div className="flex items-start gap-3">
+      <Icon size={14} className="text-[#C5A059] mt-0.5 flex-shrink-0" />
+      <div>
+        <dt className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(250,248,245,0.45)" }}>{label}</dt>
+        <dd data-testid={testid} style={{ color: value ? "#FAF8F5" : "rgba(250,248,245,0.4)" }}>{value || "Sin indicar"}</dd>
+      </div>
+    </div>
   );
 }
 
@@ -175,7 +221,7 @@ function AddressesPanel({ customer, refresh, editingAddr, setEditingAddr }) {
       </div>
       {(adding || editingAddr) && (
         <AddressForm
-          initial={editingAddr || { label: "Casa", full_name: customer.name, country: "España" }}
+          initial={editingAddr || { label: "Casa", full_name: fullName(customer), country: "España" }}
           isNew={!editingAddr}
           onClose={() => { setAdding(false); setEditingAddr(null); }}
           onSaved={async () => { setAdding(false); setEditingAddr(null); await refresh(); }}

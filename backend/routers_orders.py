@@ -38,6 +38,7 @@ class CheckoutIn(BaseModel):
     items: List[CartItemIn]
     customer: CustomerIn
     origin_url: str
+    payment_method_id: Optional[str] = None
 
 
 # ---------------- Helpers ----------------

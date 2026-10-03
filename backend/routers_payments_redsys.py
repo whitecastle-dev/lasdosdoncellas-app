@@ -14,6 +14,7 @@ import os
 import uuid
 import logging
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -89,6 +90,33 @@ def _merchant_order(order_number: str) -> str:
     return (digits + tail)[:12]
 
 
+async def _resolve_user(request: Request, payment_method_id: Optional[str]):
+    """Si el checkout llega con Bearer de un cliente, enlazamos el pedido a su
+    user_id (para que aparezca en "Mis pedidos" aunque cambie el email) y
+    resolvemos la forma de pago guardada elegida (alias, sin PAN)."""
+    from auth import decode_token
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header[7:] if auth_header.startswith("Bearer ") else request.cookies.get("access_token")
+    if not token:
+        return None, None
+    try:
+        payload = decode_token(token)
+        if payload.get("type") != "access":
+            return None, None
+        user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "id": 1, "payment_methods": 1, "is_superadmin": 1})
+    except Exception:
+        return None, None
+    if not user or user.get("is_superadmin"):
+        return None, None
+    pm = None
+    if payment_method_id:
+        for m in user.get("payment_methods") or []:
+            if m.get("id") == payment_method_id:
+                pm = {"id": m["id"], "brand": m.get("brand"), "last4": m.get("last4"), "redsys_token": m.get("redsys_token")}
+                break
+    return user["id"], pm
+
+
 @router.post("/checkout/redsys")
 async def create_redsys_checkout(payload: CheckoutIn, request: Request):
     """Crea un pedido y devuelve los parámetros para enviar al TPV Redsys."""
@@ -102,13 +130,19 @@ async def create_redsys_checkout(payload: CheckoutIn, request: Request):
     now = datetime.now(timezone.utc).isoformat()
     merchant_order = _merchant_order(order_number)
 
+    customer_doc = payload.customer.model_dump()
+    customer_doc["email"] = (customer_doc.get("email") or "").strip().lower()
+    user_id, saved_pm = await _resolve_user(request, getattr(payload, "payment_method_id", None))
+
     order_doc = {
+        "user_id": user_id,
+        "saved_payment_method": saved_pm,
         "id": str(uuid.uuid4()),
         "order_number": order_number,
         "invoice_number": invoice_number,
         "invoice_date": datetime.now(timezone.utc).strftime("%d/%m/%Y"),
         "items": items,
-        "customer": payload.customer.model_dump(),
+        "customer": customer_doc,
         "subtotal": subtotal,
         "vat_breakdown": vat_breakdown,
         "vat_total": vat_total,

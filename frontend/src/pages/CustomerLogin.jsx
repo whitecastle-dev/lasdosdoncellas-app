@@ -25,7 +25,8 @@ export default function CustomerLogin() {
         // El backend respondió OK pero no había payload de usuario válido.
         throw new Error("No se pudo iniciar sesión.");
       }
-      toast.success("Bienvenido");
+      if (user.__reactivated) toast.success("Tu solicitud de baja se ha cancelado. ¡Bienvenido de nuevo!", { duration: 8000 });
+      else toast.success("Bienvenido");
       nav("/cuenta", { replace: true });
     } catch (err) {
       toast.error(formatApiError(err));

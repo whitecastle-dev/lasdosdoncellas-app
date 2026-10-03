@@ -55,20 +55,40 @@ TABLES: dict[str, str] = {
     "ldd_rentabilidad_control": "public",
     "user_profiles": "public",
     "notifications": "public",
+    "pedidos": "public",
+    "pedido_lineas": "public",
+    "clientes_b2b": "public",
+    "distribucion_facturas_borrador": "public",
+    "fin_ocr_documentos": "public",
+    "fin_auditoria": "public",
+    "plan_trabajo": "public",
+    "plan_trabajo_piezas": "public",
     # tienda schema
     "facturas_compra": "tienda",
+    "lineas_factura_compra": "tienda",
+    "pagos_facturas_compra": "tienda",
     "ventas": "tienda",
+    "lineas_venta": "tienda",
     "inventario_actual": "tienda",
+    "v_inventario_valorado": "tienda",
     "familias_producto": "tienda",
+    "tienda_productos": "tienda",
     "proveedores": "tienda",
-    "compras": "tienda",
     "movimientos_stock": "tienda",
-    "precios": "tienda",
+    "lotes": "tienda",
+    "historico_cambios_pvp": "tienda",
     "caja_diaria": "tienda",
-    "tpv_ventas": "tienda",
-    "tpv_tickets": "tienda",
-    "pedidos_web": "tienda",
+    "epelsa_tickets": "tienda",
+    "cobros_pendientes": "tienda",
+    "alertas": "tienda",
 }
+
+# Alias → real table name (when the same name exists in both schemas).
+TABLE_ALIASES = {"tienda_productos": "productos"}
+
+
+def _real_table(table: str) -> str:
+    return TABLE_ALIASES.get(table, table)
 
 # Whitelist of RPC functions callable via the proxy
 RPCS = {"get_kpis_por_departamento"}
@@ -100,6 +120,30 @@ async def list_tables(_=Depends(require_permission(PERM_READ))):
     return {"schemas": grouped, "rpcs": sorted(RPCS)}
 
 
+@router.get("/health")
+async def portal_health(_=Depends(require_permission(PERM_READ))):
+    """Diagnóstico: qué clave de Supabase está activa (anon vs service_role).
+    Con `anon`, las tablas protegidas por RLS/GRANT devuelven 42501."""
+    import base64
+    import json as _json
+    url = (os.environ.get("SUPABASE_URL") or "").rstrip("/")
+    key = os.environ.get("SUPABASE_SERVICE_KEY") or ""
+    role = None
+    if key.count(".") == 2:
+        try:
+            seg = key.split(".")[1]
+            seg += "=" * (-len(seg) % 4)
+            role = _json.loads(base64.urlsafe_b64decode(seg)).get("role")
+        except Exception:
+            role = "invalid"
+    return {
+        "configured": bool(url and key),
+        "role": role,
+        "ok": role == "service_role",
+        "project": url.split("//")[-1].split(".")[0] if url else None,
+    }
+
+
 @router.get("/rows/{table}")
 async def get_rows(
     table: str,
@@ -128,7 +172,7 @@ async def get_rows(
         headers["Prefer"] = prefer
 
     async with httpx.AsyncClient(timeout=30.0) as client:
-        r = await client.get(f"{url}/{table}", params=params, headers=headers)
+        r = await client.get(f"{url}/{_real_table(table)}", params=params, headers=headers)
     if r.status_code >= 400:
         detail = r.text[:400]
         raise HTTPException(status_code=r.status_code, detail=f"Supabase {table}: {detail}")
@@ -161,7 +205,7 @@ async def count_rows(
     params = {**request.query_params, "select": "id"}
     headers = {**_headers(schema), "Prefer": "count=exact", "Range-Unit": "items", "Range": "0-0"}
     async with httpx.AsyncClient(timeout=15.0) as client:
-        r = await client.get(f"{url}/{table}", params=params, headers=headers)
+        r = await client.get(f"{url}/{_real_table(table)}", params=params, headers=headers)
     if r.status_code >= 400 and r.status_code != 206:
         raise HTTPException(status_code=r.status_code, detail=r.text[:200])
     cr = r.headers.get("content-range", "0-0/0")

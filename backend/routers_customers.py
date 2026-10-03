@@ -91,6 +91,7 @@ async def get_current_customer(request: Request) -> dict:
             fn = user.get("first_name", "") or ""
             ln = user.get("last_name", "") or ""
             user["name"] = f"{fn} {ln}".strip() or user.get("email", "")
+        user["_source"] = "users"
         return user
 
     # --- Flujo legacy ---
@@ -99,9 +100,21 @@ async def get_current_customer(request: Request) -> dict:
         if not customer:
             raise HTTPException(status_code=401, detail="Cliente no encontrado")
         customer.pop("_id", None)
+        customer["_source"] = CUSTOMER_COLLECTION
         return customer
 
     raise HTTPException(status_code=401, detail="Tipo de token inválido")
+
+
+def _coll(customer: dict):
+    """Colección real donde vive el cliente autenticado (users o customers)."""
+    return db[customer.get("_source") or CUSTOMER_COLLECTION]
+
+
+def _public(doc: dict) -> dict:
+    for k in ("_id", "password_hash", "verification_token", "reset_token", "_source"):
+        doc.pop(k, None)
+    return doc
 
 
 def _create_customer_token(customer_id: str, email: str) -> str:
@@ -169,16 +182,21 @@ async def logout(response: Response):
 
 @router.get("/me")
 async def me(customer: dict = Depends(get_current_customer)):
-    return customer
+    return _public(dict(customer))
 
 
 @router.patch("/me")
 async def update_profile(payload: ProfileIn, customer: dict = Depends(get_current_customer)):
-    updates = {k: v for k, v in payload.model_dump().items() if v is not None}
+    updates = {k: v.strip() if isinstance(v, str) else v for k, v in payload.model_dump().items() if v is not None}
+    if "name" in updates and customer.get("_source") == "users":
+        parts = updates["name"].split(" ", 1)
+        updates["first_name"] = parts[0]
+        updates["last_name"] = parts[1] if len(parts) > 1 else ""
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
-    await db[CUSTOMER_COLLECTION].update_one({"id": customer["id"]}, {"$set": updates})
-    updated = await db[CUSTOMER_COLLECTION].find_one({"id": customer["id"]}, {"_id": 0, "password_hash": 0})
-    return updated
+    coll = _coll(customer)
+    await coll.update_one({"id": customer["id"]}, {"$set": updates})
+    updated = await coll.find_one({"id": customer["id"]})
+    return _public(updated)
 
 
 # ---------- Addresses ----------
@@ -206,7 +224,7 @@ async def add_address(payload: AddressIn, customer: dict = Depends(get_current_c
         new_addr["is_default_shipping"] = True
 
     addresses.append(new_addr)
-    await db[CUSTOMER_COLLECTION].update_one(
+    await _coll(customer).update_one(
         {"id": customer["id"]},
         {"$set": {"addresses": addresses, "updated_at": datetime.now(timezone.utc).isoformat()}},
     )
@@ -233,7 +251,7 @@ async def update_address(address_id: str, payload: AddressIn, customer: dict = D
             a["is_default_shipping"] = False
     for k, v in updates.items():
         found[k] = v
-    await db[CUSTOMER_COLLECTION].update_one(
+    await _coll(customer).update_one(
         {"id": customer["id"]},
         {"$set": {"addresses": addresses, "updated_at": datetime.now(timezone.utc).isoformat()}},
     )
@@ -243,7 +261,7 @@ async def update_address(address_id: str, payload: AddressIn, customer: dict = D
 @router.delete("/addresses/{address_id}")
 async def delete_address(address_id: str, customer: dict = Depends(get_current_customer)):
     addresses = [a for a in (customer.get("addresses") or []) if a.get("id") != address_id]
-    await db[CUSTOMER_COLLECTION].update_one(
+    await _coll(customer).update_one(
         {"id": customer["id"]},
         {"$set": {"addresses": addresses, "updated_at": datetime.now(timezone.utc).isoformat()}},
     )
@@ -256,7 +274,142 @@ async def my_orders(customer: dict = Depends(get_current_customer)):
     import re as _re
     email_regex = f"^{_re.escape(customer['email'])}$"
     cursor = db.orders.find(
-        {"customer.email": {"$regex": email_regex, "$options": "i"}},
+        {"$or": [{"user_id": customer["id"]}, {"customer.email": {"$regex": email_regex, "$options": "i"}}]},
         {"_id": 0},
     ).sort("created_at", -1).limit(50)
     return [o async for o in cursor]
+
+
+# ---------- Saved payment methods (alias de tarjeta, sin PAN) ----------
+# Versión ligera: guardamos solo marca + últimos 4 + caducidad + titular.
+# El campo `redsys_token` queda reservado para "Pago por referencia" (COF)
+# cuando CaixaBank lo active en el contrato TPV.
+CARD_BRANDS = {"visa", "mastercard", "amex", "maestro", "otra"}
+
+
+class PaymentMethodIn(BaseModel):
+    brand: str
+    last4: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
+    exp_month: int = Field(..., ge=1, le=12)
+    exp_year: int = Field(..., ge=2024, le=2060)
+    holder: str = Field(..., min_length=2, max_length=80)
+    label: Optional[str] = ""
+    is_default: bool = False
+
+
+class PaymentMethodPatch(BaseModel):
+    label: Optional[str] = None
+    is_default: Optional[bool] = None
+
+
+def _check_not_expired(month: int, year: int):
+    now = datetime.now(timezone.utc)
+    if (year, month) < (now.year, now.month):
+        raise HTTPException(status_code=400, detail="La tarjeta está caducada")
+
+
+@router.get("/payment-methods")
+async def list_payment_methods(customer: dict = Depends(get_current_customer)):
+    return customer.get("payment_methods", []) or []
+
+
+@router.post("/payment-methods")
+async def add_payment_method(payload: PaymentMethodIn, customer: dict = Depends(get_current_customer)):
+    brand = payload.brand.lower().strip()
+    if brand not in CARD_BRANDS:
+        raise HTTPException(status_code=400, detail="Marca de tarjeta no soportada")
+    _check_not_expired(payload.exp_month, payload.exp_year)
+    methods = customer.get("payment_methods", []) or []
+    pm = payload.model_dump()
+    pm.update({"id": str(uuid.uuid4()), "brand": brand, "redsys_token": None,
+               "created_at": datetime.now(timezone.utc).isoformat()})
+    if pm["is_default"] or not methods:
+        for m in methods:
+            m["is_default"] = False
+        pm["is_default"] = True
+    methods.append(pm)
+    await _coll(customer).update_one({"id": customer["id"]}, {"$set": {
+        "payment_methods": methods, "updated_at": datetime.now(timezone.utc).isoformat()}})
+    return pm
+
+
+@router.patch("/payment-methods/{pm_id}")
+async def update_payment_method(pm_id: str, payload: PaymentMethodPatch, customer: dict = Depends(get_current_customer)):
+    methods = customer.get("payment_methods", []) or []
+    found = next((m for m in methods if m.get("id") == pm_id), None)
+    if not found:
+        raise HTTPException(status_code=404, detail="Forma de pago no encontrada")
+    if payload.label is not None:
+        found["label"] = payload.label
+    if payload.is_default:
+        for m in methods:
+            m["is_default"] = False
+        found["is_default"] = True
+    await _coll(customer).update_one({"id": customer["id"]}, {"$set": {
+        "payment_methods": methods, "updated_at": datetime.now(timezone.utc).isoformat()}})
+    return found
+
+
+@router.delete("/payment-methods/{pm_id}")
+async def delete_payment_method(pm_id: str, customer: dict = Depends(get_current_customer)):
+    methods = [m for m in (customer.get("payment_methods") or []) if m.get("id") != pm_id]
+    if methods and not any(m.get("is_default") for m in methods):
+        methods[0]["is_default"] = True
+    await _coll(customer).update_one({"id": customer["id"]}, {"$set": {
+        "payment_methods": methods, "updated_at": datetime.now(timezone.utc).isoformat()}})
+    return {"ok": True}
+
+
+# ---------- Baja de la cuenta (reversible, 30 días) ----------
+DELETION_GRACE_DAYS = 30
+
+
+class DeleteAccountIn(BaseModel):
+    password: str
+    reason: Optional[str] = ""
+
+
+@router.post("/account/delete")
+async def request_account_deletion(payload: DeleteAccountIn, customer: dict = Depends(get_current_customer)):
+    full = await _coll(customer).find_one({"id": customer["id"]})
+    if not full or not verify_password(payload.password, full.get("password_hash", "")):
+        raise HTTPException(status_code=400, detail="Contraseña incorrecta")
+    from datetime import timedelta
+    now = datetime.now(timezone.utc)
+    due = now + timedelta(days=DELETION_GRACE_DAYS)
+    await _coll(customer).update_one({"id": customer["id"]}, {"$set": {
+        "pending_deletion": True,
+        "deletion_requested_at": now.isoformat(),
+        "deletion_due_at": due.isoformat(),
+        "deletion_reason": (payload.reason or "")[:500],
+        "updated_at": now.isoformat(),
+    }})
+    return {"ok": True, "deletion_due_at": due.isoformat(), "grace_days": DELETION_GRACE_DAYS}
+
+
+@router.post("/account/cancel-deletion")
+async def cancel_account_deletion(customer: dict = Depends(get_current_customer)):
+    await _coll(customer).update_one({"id": customer["id"]}, {
+        "$set": {"pending_deletion": False, "updated_at": datetime.now(timezone.utc).isoformat()},
+        "$unset": {"deletion_requested_at": "", "deletion_due_at": "", "deletion_reason": ""},
+    })
+    return {"ok": True}
+
+
+async def purge_due_accounts() -> int:
+    """Borra definitivamente las cuentas cuyo plazo de 30 días ha vencido.
+    Los pedidos se conservan anonimizados (obligación fiscal)."""
+    now_iso = datetime.now(timezone.utc).isoformat()
+    purged = 0
+    for coll in (db.users, db[CUSTOMER_COLLECTION]):
+        async for u in coll.find({"pending_deletion": True, "deletion_due_at": {"$lte": now_iso}}, {"id": 1, "email": 1}):
+            anon = f"baja-{u['id'][:8]}@anonimizado.local"
+            await db.orders.update_many(
+                {"$or": [{"user_id": u["id"]}, {"customer.email": u.get("email", "")}]},
+                {"$set": {"customer.email": anon, "customer.name": "Cliente dado de baja", "customer.phone": "",
+                          "customer_anonymized_at": now_iso}},
+            )
+            await db.reviews.update_many({"customer_id": u["id"]}, {"$set": {"customer_name": "Cliente"}})
+            await coll.delete_one({"id": u["id"]})
+            purged += 1
+    return purged

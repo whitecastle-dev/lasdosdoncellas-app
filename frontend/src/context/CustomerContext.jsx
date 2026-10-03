@@ -60,6 +60,7 @@ export function CustomerProvider({ children }) {
     if (data.user && isCustomerUser(data.user)) {
       setCustomer(data.user);
     }
+    if (data.user) data.user.__reactivated = Boolean(data.reactivated);
     return data.user;
   };
 
