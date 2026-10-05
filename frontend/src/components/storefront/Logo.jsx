@@ -21,21 +21,26 @@ import React from "react";
 export function Logo({ size = 96, variant = "full", tone = "light", className = "" }) {
   const src = tone === "dark" ? "/brand/logo-dark.png" : "/brand/logo.png";
   if (variant === "mark") {
-    const scaledHeight = size / 0.7;
+    // Recorte exacto del icono (marco L|D + rama) medido sobre el PNG 899×1280:
+    // ocupa las columnas 72..827 (755 px) y las filas 54..976 (922 px).
+    const scale = size / 755;
+    const boxH = Math.round(922 * scale);
     return (
       <span
-        className={`inline-block overflow-hidden ${className}`}
-        style={{ width: size, height: size, lineHeight: 0 }}
+        className={`inline-block relative overflow-hidden ${className}`}
+        style={{ width: size, height: boxH, lineHeight: 0 }}
       >
         <img
           src={src}
           alt="Las Dos Doncellas"
           draggable={false}
           style={{
-            width: size,
-            height: scaledHeight,
-            objectFit: "cover",
-            objectPosition: "50% 6%",
+            position: "absolute",
+            width: 899 * scale,
+            height: 1280 * scale,
+            maxWidth: "none",
+            left: -72 * scale,
+            top: -54 * scale,
             display: "block",
           }}
         />

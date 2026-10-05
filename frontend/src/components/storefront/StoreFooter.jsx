@@ -43,7 +43,7 @@ export default function StoreFooter() {
           </ul>
         </div>
       </div>
-      <div className="max-w-[1500px] mx-auto px-6 lg:px-12 mt-16 pt-8 flex items-center justify-between text-xs flex-wrap gap-3" style={{ borderTop: "1px solid rgba(197,160,89,0.12)", color: "rgba(250,248,245,0.45)" }}>
+      <div className="max-w-[1500px] mx-auto px-6 lg:px-12 mt-16 pt-8 pb-20 sm:pb-0 flex items-center justify-between text-xs flex-wrap gap-3" style={{ borderTop: "1px solid rgba(197,160,89,0.12)", color: "rgba(250,248,245,0.45)" }}>
         <div>© {new Date().getFullYear()} Las Dos Doncellas S.L. · CIF 77815813M</div>
         <div className="flex items-center gap-4 flex-wrap">
           <span className="font-script gold text-base">Sierra Norte de Sevilla</span>

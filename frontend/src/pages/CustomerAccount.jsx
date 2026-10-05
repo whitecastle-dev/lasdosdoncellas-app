@@ -48,7 +48,7 @@ export default function CustomerAccount() {
       />
       
       <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-12">
-        <div className="flex items-end justify-between mb-10">
+        <div className="flex items-end justify-between mb-10 gap-4">
           <div>
             <div className="label-eyebrow gold mb-3">Mi cuenta</div>
             <h1 className="font-serif text-4xl md:text-5xl tracking-tighter" style={{ color: "#FAF8F5" }}>Hola, {customer.first_name || customer.name?.split(" ")[0] || "amigo"}</h1>
@@ -59,7 +59,7 @@ export default function CustomerAccount() {
         </div>
 
         <div className="grid lg:grid-cols-[220px_1fr] gap-10">
-          <nav className="space-y-1 text-sm" style={{ color: "rgba(250,248,245,0.85)" }}>
+          <nav className="flex lg:block gap-1 lg:space-y-1 text-sm overflow-x-auto -mx-6 px-6 lg:mx-0 lg:px-0 pb-2 lg:pb-0 border-b lg:border-b-0 border-[rgba(197,160,89,0.15)]" style={{ color: "rgba(250,248,245,0.85)" }} data-testid="account-tabs">
             <TabBtn id="profile" tab={tab} setTab={setTab} label="Mis datos" testid="tab-profile" />
             <TabBtn id="addresses" tab={tab} setTab={setTab} label="Direcciones" testid="tab-addresses" />
             <TabBtn id="orders" tab={tab} setTab={setTab} label="Mis pedidos" testid="tab-orders" />
@@ -88,7 +88,7 @@ export default function CustomerAccount() {
 function TabBtn({ id, tab, setTab, label, testid }) {
   return (
     <button onClick={() => setTab(id)} data-testid={testid}
-      className={`block w-full text-left px-4 py-3 transition border-l-2 ${tab === id ? "border-[#C5A059] text-[#C5A059] bg-[rgba(197,160,89,0.05)]" : "border-transparent hover:border-[rgba(197,160,89,0.4)] hover:text-[#C5A059]"}`}>
+      className={`block whitespace-nowrap flex-shrink-0 lg:w-full text-left px-4 py-3 transition border-b-2 lg:border-b-0 lg:border-l-2 ${tab === id ? "border-[#C5A059] text-[#C5A059] bg-[rgba(197,160,89,0.05)]" : "border-transparent hover:border-[rgba(197,160,89,0.4)] hover:text-[#C5A059]"}`}>
       {label}
     </button>
   );
@@ -162,7 +162,7 @@ function InfoRow({ icon: Icon, label, value, testid }) {
       <Icon size={14} className="text-[#C5A059] mt-0.5 flex-shrink-0" />
       <div>
         <dt className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(250,248,245,0.45)" }}>{label}</dt>
-        <dd data-testid={testid} style={{ color: value ? "#FAF8F5" : "rgba(250,248,245,0.4)" }}>{value || "Sin indicar"}</dd>
+        <dd data-testid={testid} className="break-all" style={{ color: value ? "#FAF8F5" : "rgba(250,248,245,0.4)" }}>{value || "Sin indicar"}</dd>
       </div>
     </div>
   );

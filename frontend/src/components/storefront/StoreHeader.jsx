@@ -38,11 +38,12 @@ export default function StoreHeader({ onOpenCart }) {
       style={{ background: "rgba(10,10,10,0.78)", borderBottom: "1px solid rgba(197,160,89,0.18)" }}
     >
       <div className="max-w-[1500px] mx-auto px-6 lg:px-12 flex items-center justify-between py-4">
-        <Link to="/" data-testid="header-logo-link" className="flex items-center gap-4 py-1">
-          <Logo size={64} variant="mark" />
-          <div className="hidden sm:flex flex-col leading-tight">
-            <span className="font-oranienbaum text-2xl leading-none" style={{ color: "#FAF8F5" }}>Las Dos Doncellas</span>
-            <span className="font-allura gold text-2xl leading-none mt-1">Productos Ibéricos</span>
+        <Link to="/" data-testid="header-logo-link" className="flex items-center gap-3 sm:gap-4 py-1 min-w-0">
+          <span className="sm:hidden"><Logo size={48} variant="mark" /></span>
+          <span className="hidden sm:inline"><Logo size={64} variant="mark" /></span>
+          <div className="flex flex-col leading-tight min-w-0" data-testid="header-brand-text">
+            <span className="font-oranienbaum text-lg sm:text-2xl leading-none whitespace-nowrap" style={{ color: "#FAF8F5" }}>Las Dos Doncellas</span>
+            <span className="font-allura gold text-lg sm:text-2xl leading-none mt-0.5 sm:mt-1 whitespace-nowrap">Productos Ibéricos</span>
           </div>
         </Link>
         <nav className="hidden md:flex items-center gap-10" style={{ color: "#FAF8F5" }}>
@@ -51,10 +52,10 @@ export default function StoreHeader({ onOpenCart }) {
           <Link to="/lotes/configurador" className="nav-link" data-testid="nav-configurador" translate="yes">Configurar lote</Link>
           <Link to="/nosotros" className="nav-link" data-testid="nav-nosotros" translate="yes">Nosotros</Link>
         </nav>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1 sm:gap-4">
           <LanguageSwitcher />
           {customer ? (
-            <div className="relative" ref={dropdownRef}>
+            <div className="relative hidden sm:block" ref={dropdownRef}>
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="text-[#FAF8F5] hover:text-[#C5A059] transition flex items-center gap-2 px-3 py-2"
@@ -80,24 +81,20 @@ export default function StoreHeader({ onOpenCart }) {
               Acceder
             </Link>
           )}
-          <button onClick={onOpenCart} data-testid="header-cart-button" className="relative px-3 py-2 text-[#FAF8F5] hover:text-[#C5A059] transition flex items-center gap-2">
+          <button onClick={onOpenCart} data-testid="header-cart-button" className="relative px-2 sm:px-3 py-2 text-[#FAF8F5] hover:text-[#C5A059] transition flex items-center gap-2">
             <ShoppingBag size={18} />
             <span className="hidden sm:inline label-eyebrow" translate="yes">Cesta</span>
             {count > 0 && (
               <span data-testid="cart-count-badge" className="absolute -top-0 -right-1 text-[10px] rounded-full bg-[#C5A059] text-black w-5 h-5 flex items-center justify-center font-medium">{count}</span>
             )}
           </button>
-          <button className="md:hidden text-[#FAF8F5]" onClick={() => setOpen(!open)} data-testid="header-menu-toggle">
+          <button className="md:hidden text-[#FAF8F5] pl-1" onClick={() => setOpen(!open)} data-testid="header-menu-toggle">
             {open ? <X size={22} /> : <Menu size={22} />}
           </button>
         </div>
       </div>
       {open && (
         <div className="md:hidden border-t border-[rgba(197,160,89,0.18)] px-6 py-4 flex flex-col gap-3" style={{ background: "rgba(10,10,10,0.95)", color: "#FAF8F5" }}>
-          <div className="pb-3 mb-2 border-b border-[rgba(197,160,89,0.15)]">
-            <div className="font-oranienbaum text-2xl leading-none">Las Dos Doncellas</div>
-            <div className="font-allura gold text-2xl leading-none mt-1">Productos Ibéricos</div>
-          </div>
           <Link to="/" className="nav-link font-oranienbaum text-xl" onClick={() => setOpen(false)} translate="yes">Inicio</Link>
           <Link to="/catalogo" className="nav-link font-oranienbaum text-xl" onClick={() => setOpen(false)} translate="yes">Catálogo</Link>
           <Link to="/lotes/configurador" className="nav-link font-oranienbaum text-xl" onClick={() => setOpen(false)} translate="yes">Configurar lote</Link>

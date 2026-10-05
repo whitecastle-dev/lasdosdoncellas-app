@@ -148,8 +148,8 @@ export default function Catalog() {
           </div>
         </div>
 
-        {/* Pestañas de categoría */}
-        <div className="flex items-center gap-3 flex-wrap pb-6 mb-10" style={{ borderBottom: "1px solid rgba(197,160,89,0.18)" }}>
+        {/* Pestañas de categoría — solo escritorio; en móvil basta con la barra horizontal superior */}
+        <div className="hidden md:flex items-center gap-3 flex-wrap pb-6 mb-10" style={{ borderBottom: "1px solid rgba(197,160,89,0.18)" }} data-testid="catalog-category-chips">
           <CategoryChip
             label="Todos"
             count={products.length}
