@@ -118,7 +118,7 @@ export default function Checkout() {
         <h1 className="font-serif text-4xl md:text-6xl tracking-tighter" style={{ color: "#FAF8F5" }}>Finalizar compra</h1>
 
         {/* Steps indicator */}
-        <div className="flex items-center gap-3 mt-6 text-xs uppercase tracking-[0.2em]" style={{ color: "rgba(250,248,245,0.6)" }}>
+        <div className="flex items-center gap-2 sm:gap-3 mt-6 text-[10px] sm:text-xs uppercase tracking-[0.12em] sm:tracking-[0.2em] whitespace-nowrap" style={{ color: "rgba(250,248,245,0.6)" }}>
           <span className="text-[#C5A059]">1. Datos</span>
           <span>→</span>
           <span>2. Pago</span>
@@ -137,7 +137,7 @@ export default function Checkout() {
               <div className="mt-2" data-testid="quick-buy-card"><CardChip pm={defaultCard} compact /></div>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setShowQuickConfirm(true)} className="ldd-btn-gold" data-testid="buy-now-button">
+              <button onClick={() => setShowQuickConfirm(true)} className="ldd-btn-gold whitespace-nowrap" data-testid="buy-now-button">
                 <Zap size={14} /> Comprar ya
               </button>
               <button onClick={() => setEditing(true)} className="ldd-btn-ghost text-xs" data-testid="edit-data-button">
