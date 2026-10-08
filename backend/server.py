@@ -181,6 +181,11 @@ app.include_router(redsys_router, prefix="/api")
 app.include_router(excel_router)
 app.include_router(excel_all_router)
 app.include_router(storefront_router)
+
+from fastapi.staticfiles import StaticFiles
+from storage import LOCAL_DIR
+os.makedirs(LOCAL_DIR, exist_ok=True)
+app.mount("/api/uploads", StaticFiles(directory=LOCAL_DIR), name="uploads")
 from routers_chat import router as chat_router
 app.include_router(chat_router)
 from routers_reviews import router as reviews_router

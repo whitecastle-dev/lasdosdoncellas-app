@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Plus, Pencil, Trash2, Upload, X, Sparkles, ImagePlus } from "lucide-react";
+import { removeBackgroundFile, preloadBgRemoval } from "@/lib/bgRemoval";
 import { api, formatApiError, formatMoney, fileUrl } from "@/lib/api";
 import { toast } from "sonner";
 import ExcelBar from "@/components/admin/ExcelBar";
@@ -36,6 +37,7 @@ export default function ProductsAdmin() {
   const [loading, setLoading] = useState(true);
   const bulkRef = useRef(null);
   const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState("");
   const [selected, setSelected] = useState(new Set());
   const [dragOver, setDragOver] = useState(false);
   const [relation, setRelation] = useState(null); // {type, id}
@@ -85,8 +87,21 @@ export default function ProductsAdmin() {
     if (!files?.length) return;
     setBulkUploading(true);
     try {
+      // 1) Recorte del fondo en el navegador (gratis), archivo a archivo.
+      const cut = [];
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        try {
+          const png = await removeBackgroundFile(f, (msg) => setBulkStatus(`${i + 1}/${files.length} · ${msg}`));
+          cut.push(new File([png], f.name.replace(/\.[^.]+$/, "") + ".png", { type: "image/png" }));
+        } catch (err) {
+          console.warn("Sin recorte en navegador, el servidor lo intentará:", f.name, err);
+          cut.push(f);
+        }
+      }
+      setBulkStatus("Subiendo y aplicando estilo estudio…");
       const fd = new FormData();
-      files.forEach((f) => fd.append("files", f));
+      cut.forEach((f) => fd.append("files", f));
       const { data } = await api.post("/products/images/bulk-import?enhance=true", fd, {
         headers: { "Content-Type": "multipart/form-data" }, timeout: 240000,
       });
@@ -100,7 +115,7 @@ export default function ProductsAdmin() {
       if (data.errors?.length) console.error("Errores:", data.errors);
       load();
     } catch (err) { toast.error(formatApiError(err)); }
-    finally { setBulkUploading(false); if (bulkRef.current) bulkRef.current.value = ""; }
+    finally { setBulkUploading(false); setBulkStatus(""); if (bulkRef.current) bulkRef.current.value = ""; }
   };
 
   const onBulkImages = (e) => uploadBulkFiles(Array.from(e.target.files || []));
@@ -173,7 +188,7 @@ export default function ProductsAdmin() {
             className="px-3 py-2 border border-[#C5A059] text-[#7a5f24] hover:bg-[#C5A059] hover:text-black text-sm flex items-center gap-2 disabled:opacity-50"
             data-testid="products-bulk-images-btn"
           >
-            <ImagePlus size={14} /> {bulkUploading ? "Procesando…" : "Importar imágenes (SKU)"}
+            <ImagePlus size={14} /> {bulkUploading ? (bulkStatus || "Procesando…") : "Importar imágenes (SKU)"}
           </button>
 
           <TableFilter value={q} onChange={setQ} placeholder="Buscar por cualquier campo…" testid="products-filter" />
@@ -325,8 +340,10 @@ function ProductDrawer({ initial, startedNew, categories, providers, onClose, on
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState("");
   const [enhance, setEnhance] = useState(true);
   const [created, setCreated] = useState(!startedNew); // true once we have an id
+  useEffect(() => { if (created) preloadBgRemoval(); }, [created]);
   const [cheeses, setCheeses] = useState([]); // para el maridaje en vinos
   const fileRef = useRef();
 
@@ -398,21 +415,59 @@ function ProductDrawer({ initial, startedNew, categories, providers, onClose, on
     }
     setUploading(true);
     try {
+      let toSend = file;
+      if (enhance) {
+        try {
+          toSend = await removeBackgroundFile(file, (msg) => setUploadStatus(msg));
+        } catch (err) {
+          console.warn("Sin recorte en navegador, el servidor lo intentará:", err);
+        }
+      }
+      setUploadStatus("Aplicando estilo estudio…");
       const fd = new FormData();
-      fd.append("file", file);
-      fd.append("enhance", String(enhance));
-      const { data } = await api.post(`/products/${form.id}/images`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      fd.append("file", toSend);
+      // enhance se envía como query param (el backend lo lee de la URL)
+      const { data } = await api.post(`/products/${form.id}/images?enhance=${enhance}`, fd, { headers: { "Content-Type": "multipart/form-data" }, timeout: 120000 });
       const newImages = [...(form.images || []), data.url];
       const newImageUrls = [...(form.image_urls || []), data.url];
       setForm((f) => ({ ...f, images: newImages, image_urls: newImageUrls }));
       // Propaga al padre para que la tabla muestre la nueva imagen sin recargar
       onSaved?.({ ...form, images: newImages, image_urls: newImageUrls });
-      toast.success(data.ai_enhanced ? "Imagen mejorada con IA ✨" : "Imagen subida");
+      toast.success(data.ai_enhanced ? "Fondo eliminado y estilo estudio aplicado ✨" : "Imagen subida");
     } catch (err) {
       toast.error(formatApiError(err));
     } finally {
       setUploading(false);
+      setUploadStatus("");
       if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  // Rehace una imagen ya subida: la descarga, le quita el fondo en el navegador,
+  // la sube con el estilo estudio y elimina la versión antigua.
+  const [reprocessing, setReprocessing] = useState(null);
+  const reprocessImage = async (oldUrl) => {
+    if (!form.id || reprocessing) return;
+    setReprocessing(oldUrl);
+    try {
+      const res = await fetch(imgSrc(oldUrl), { mode: "cors" });
+      if (!res.ok) throw new Error("No se pudo descargar la imagen original");
+      const blob = await res.blob();
+      const file = new File([blob], "imagen.jpg", { type: blob.type || "image/jpeg" });
+      const cut = await removeBackgroundFile(file, () => {});
+      const fd = new FormData();
+      fd.append("file", cut);
+      const { data } = await api.post(`/products/${form.id}/images?enhance=true`, fd, { headers: { "Content-Type": "multipart/form-data" }, timeout: 120000 });
+      await api.delete(`/products/${form.id}/images`, { params: { storage_path: oldUrl } });
+      const replace = (arr) => (arr || []).map((u) => (u === oldUrl || u.endsWith(oldUrl) ? data.url : u));
+      const next = { ...form, images: replace(form.images), image_urls: replace(form.image_urls) };
+      setForm(next);
+      onSaved?.(next);
+      toast.success("Imagen rehecha con estilo estudio ✨");
+    } catch (err) {
+      toast.error(formatApiError(err));
+    } finally {
+      setReprocessing(null);
     }
   };
 
@@ -500,12 +555,12 @@ function ProductDrawer({ initial, startedNew, categories, providers, onClose, on
               </div>
               <label className="flex items-center gap-2 text-xs cursor-pointer">
                 <input type="checkbox" checked={enhance} onChange={(e) => setEnhance(e.target.checked)} data-testid="prod-enhance-toggle" />
-                <Sparkles size={12} className="text-amber-600" /> Mejorar con IA (Nano Banana)
+                <Sparkles size={12} className="text-amber-600" /> Quitar fondo + estilo estudio
               </label>
             </div>
             {!created && (
               <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 p-3 mb-3" data-testid="prod-image-need-save">
-                Guarda el producto primero para añadir imágenes. Una vez creado, las imágenes pasarán por edición automática IA con fondo de madera/barrica y mejora de nitidez.
+                Guarda el producto primero para añadir imágenes. Una vez creado, a cada imagen se le quitará el fondo automáticamente y se montará sobre el fondo oscuro con foco cálido de la tienda.
               </div>
             )}
             {created && (
@@ -513,18 +568,24 @@ function ProductDrawer({ initial, startedNew, categories, providers, onClose, on
                 <div className="grid grid-cols-4 gap-3 mb-4">
                   {(form.images || []).map((p) => (
                     <div key={p} className="relative aspect-square bg-gray-100 group">
-                      <img src={imgSrc(p)} alt="" className="w-full h-full object-cover" />
+                      <img src={imgSrc(p)} alt="" className={`w-full h-full object-cover ${reprocessing === p ? "opacity-40" : ""}`} />
                       <button type="button" onClick={() => removeImage(p)} className="absolute top-1 right-1 bg-black/70 text-white p-1 opacity-0 group-hover:opacity-100" data-testid={`prod-img-remove-${p}`}>
                         <X size={12} />
+                      </button>
+                      <button type="button" onClick={() => reprocessImage(p)} disabled={!!reprocessing}
+                        title="Quitar fondo y aplicar estilo estudio a esta imagen"
+                        className="absolute bottom-1 left-1 right-1 bg-black/70 text-[#C5A059] text-[10px] uppercase tracking-wider py-1 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 disabled:opacity-60"
+                        data-testid={`prod-img-reprocess-${p}`}>
+                        <Sparkles size={10} /> {reprocessing === p ? "Procesando…" : "Rehacer IA"}
                       </button>
                     </div>
                   ))}
                   <label className="aspect-square border-2 border-dashed border-gray-300 hover:border-black flex flex-col items-center justify-center gap-2 cursor-pointer text-gray-500" data-testid="prod-img-upload-label">
                     <input ref={fileRef} type="file" accept="image/*" onChange={upload} className="hidden" data-testid="prod-img-upload" />
-                    {uploading ? <span className="text-xs">Procesando con IA…</span> : <><Upload size={18} /><span className="text-xs">Subir imagen</span></>}
+                    {uploading ? <span className="text-xs text-center px-2" data-testid="prod-img-upload-status">{uploadStatus || "Procesando…"}</span> : <><Upload size={18} /><span className="text-xs">Subir imagen</span></>}
                   </label>
                 </div>
-                <p className="text-xs text-gray-500">La IA pondrá fondo de madera/barrica y mejorará nitidez automáticamente.</p>
+                <p className="text-xs text-gray-500">Se elimina el fondo en tu navegador (IA gratuita, la primera vez descarga el modelo ~40 MB) y el servidor monta el producto sobre el fondo oscuro con foco cálido, como en las tarjetas de la home.</p>
               </>
             )}
           </div>
