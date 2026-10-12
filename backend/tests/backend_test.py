@@ -5,7 +5,7 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://localhost").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001").rstrip("/")
 API = f"{BASE_URL}/api"
 
 ADMIN_EMAIL = "admin@lasdosdoncellas.com"
@@ -276,7 +276,7 @@ class TestCheckoutAndOrders:
                 "address": "C/ Falsa 123", "city": "Madrid", "postal_code": "28001",
                 "country": "España", "tax_id": "", "notes": ""
             },
-            "origin_url": "https://localhost"
+            "origin_url": "http://localhost:8001"
         }
         r = requests.post(f"{API}/checkout/session", json=payload, timeout=60)
         assert r.status_code == 200, r.text

@@ -41,7 +41,6 @@ Stack: **FastAPI (Python) + React + MongoDB**
 5. En **Database → Connect → Drivers**, copia la URI tipo:
    ```
    mongodb+srv://USER:PASSWORD@cluster0.xxxx.mongodb.net/?retryWrites=true&w=majority
-   mongodb+srv://antokastil_db_user:Lucas2022@whitecastle-db.cofhtoz.mongodb.net/?appName=whitecastle-db
    ```
 6. Guarda esta URI: la usaremos como `MONGO_URL` en Render.
 
@@ -79,11 +78,10 @@ Ya tienes cuenta y dos servicios funcionando, así que añadir el tercero es dir
    MONGO_URL=mongodb+srv://USER:PASSWORD@cluster0.xxxx.mongodb.net/?retryWrites=true&w=majority
    DB_NAME=lasdosdoncellas
    CORS_ORIGINS=https://lasdosdoncellasibericos.es,https://www.lasdosdoncellasibericos.es
-   JWT_SECRET=hNHNImyiF6LD•••orNAvsHFeZal
+   JWT_SECRET=<genera uno largo aleatorio (40+ chars)>
    ADMIN_EMAIL=admin@lasdosdoncellasibericos.es
-   ADMIN_PASSWORD=<contraseña fuerte que cumpla rules> LDD2026*-
+   ADMIN_PASSWORD=<contraseña fuerte que cumpla rules>
    STRIPE_API_KEY=<tu clave LIVE de Stripe, NO la de test>
-   whitecastle_LLM_KEY=<tu clave de whitecastle para IA imágenes (opcional)>
    BREVO_API_KEY=<tu key de brevo.com>
    BREVO_SENDER_EMAIL=pedidos@lasdosdoncellasibericos.es
    BREVO_SENDER_NAME=Las Dos Doncellas
@@ -92,7 +90,7 @@ Ya tienes cuenta y dos servicios funcionando, así que añadir el tercero es dir
    COMPANY_NAME=Las Dos Doncellas
    COMPANY_LEGAL_NAME=Las Dos Doncellas S.L.
    COMPANY_CIF=77815813M
-   COMPANY_ADDRESS=Plaza Amarilla, 3
+   COMPANY_ADDRESS=Calle Huerto del Cura, 2
    COMPANY_POSTAL=41230
    COMPANY_CITY=Castilblanco de los Arroyos
    COMPANY_PROVINCE=Sevilla
@@ -111,7 +109,7 @@ Ya tienes cuenta y dos servicios funcionando, así que añadir el tercero es dir
 ### 2.3 — Custom domain (opcional pero recomendado)
 
 1. En Render → tu servicio → **Settings → Custom Domain** → añadir `api.lasdosdoncellasibericos.es`.
-2. Render te dará un valor CNAME tipo `lasdosdoncellas-api.onrender.com`. hostname=api
+2. Render te dará un valor CNAME tipo `lasdosdoncellas-api.onrender.com`.
 3. En LucusHost panel DNS → crea registro **CNAME**:
    - Host: `api`
    - Apunta a: `lasdosdoncellas-api.onrender.com`
@@ -228,3 +226,7 @@ Si algo falla, revisa los logs en Render → Logs. Los más comunes:
 - `KeyError: 'MONGO_URL'` → variable de entorno no añadida.
 - `Connection refused` → MongoDB Atlas no permite tu IP (añade `0.0.0.0/0` en Network Access).
 - `403 Forbidden` desde frontend → CORS mal configurado.
+
+---
+
+Guía elaborada por **WhiteCastle.dev** · Desarrollo web y software a medida.

@@ -15,7 +15,7 @@ from redsys import (  # noqa: E402
     decode_merchant_parameters,
 )
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://localhost").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001").rstrip("/")
 SECRET = "sq7HjrUOBfKmC576ILgskD5srU870gJ7"
 ADMIN_EMAIL = "admin@lasdosdoncellas.com"
 ADMIN_PASSWORD = "Admin1234"

@@ -3,7 +3,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://localhost").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001").rstrip("/")
 DEMO_PRODUCT_ID = "893b190e-b94b-4a26-be91-8f4969b197f3"
 ADMIN_EMAIL = "admin@lasdosdoncellas.com"
 ADMIN_PASSWORD = "Admin1234"

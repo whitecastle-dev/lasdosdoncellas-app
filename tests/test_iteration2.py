@@ -16,7 +16,7 @@ import pytest
 import requests
 from openpyxl import Workbook, load_workbook
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://localhost").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001").rstrip("/")
 API = f"{BASE_URL}/api"
 ADMIN_EMAIL = "admin@lasdosdoncellas.com"
 ADMIN_PASSWORD = "Admin1234"

@@ -3,7 +3,7 @@ import os
 import requests
 import pytest
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://localhost").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001").rstrip("/")
 # CORS tests must hit the app directly (K8s ingress rewrites CORS headers in preview).
 LOCAL_URL = "http://127.0.0.1:8001"
 
@@ -26,7 +26,7 @@ def _preflight(origin):
     "https://lasdosdoncellasibericos.es",
     "https://www.lasdosdoncellasibericos.es",
     "https://random-preview-abc.onrender.com",
-    "https://localhost",
+    "https://foo.onrender.com",
     "http://localhost:3000",
 ])
 def test_cors_allowed_origin(origin):
@@ -82,9 +82,8 @@ def test_checkout_redsys_regression():
 
 # --- Requirements sanity --------------------------------------------------
 
-def test_requirements_no_whitecastle-internal():
+def test_requirements_has_pycryptodome():
     path = "/app/backend/requirements.txt"
     with open(path) as f:
         content = f.read()
-    assert "whitecastle-internal" not in content.lower(), "requirements.txt must not contain whitecastle-internal"
     assert "pycryptodome" in content.lower(), "requirements.txt must contain pycryptodome"

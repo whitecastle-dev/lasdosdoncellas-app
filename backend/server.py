@@ -42,7 +42,11 @@ from routers_storefront import router as storefront_router
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Las Dos Doncellas API")
+app = FastAPI(
+    title="Las Dos Doncellas API",
+    description="E-commerce + CMS de Las Dos Doncellas · Productos Ibéricos. Desarrollado por WhiteCastle.dev",
+    contact={"name": "WhiteCastle.dev", "url": "https://whitecastle.dev"},
+)
 
 
 def _build_version() -> dict:
@@ -91,15 +95,17 @@ _default_origins = [
 ]
 _env_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip() and o.strip() != "*"]
 _all_origins = list(dict.fromkeys(_default_origins + _env_origins))
-# Regex tolerante para cualquier subdominio de onrender.com (preview / branch deploys),
-# el dominio de trabajo whitecastleagent.com, y localhost en cualquier puerto.
+# Regex tolerante para cualquier subdominio de onrender.com (preview / branch deploys)
+# y localhost en cualquier puerto. CORS_EXTRA_ORIGIN_REGEX permite añadir un
+# patrón adicional (p. ej. un dominio de staging) desde el entorno.
+_extra_regex = os.environ.get("CORS_EXTRA_ORIGIN_REGEX", "").strip()
 _allow_regex = (
     r"^https?://("
     r"localhost(:\d+)?"
     r"|127\.0\.0\.1(:\d+)?"
     r"|[a-zA-Z0-9-]+\.onrender\.com"
-    r"|[a-zA-Z0-9-]+\.whitecastleagent\.com"
-    r"|([a-zA-Z0-9-]+\.)?lasdosdoncellasibericos\.es"
+    + (rf"|{_extra_regex}" if _extra_regex else "")
+    + r"|([a-zA-Z0-9-]+\.)?lasdosdoncellasibericos\.es"
     r")$"
 )
 logger.info("CORS allow_origins: %s (+regex %s)", _all_origins, _allow_regex)
