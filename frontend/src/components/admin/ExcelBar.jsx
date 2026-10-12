@@ -45,7 +45,11 @@ export default function ExcelBar({ entity, ids = [], onImported, hideImport = fa
       const { data } = await api.post(`/excel/${entity}/import`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      toast.success(`${data.imported} importados · ${data.updated} actualizados${data.errors?.length ? ` · ${data.errors.length} errores` : ""}`);
+      const parts = [];
+      if (data.imported) parts.push(`${data.imported} nuevo${data.imported === 1 ? "" : "s"}`);
+      if (data.updated) parts.push(`${data.updated} actualizado${data.updated === 1 ? "" : "s"} (por SKU)`);
+      if (!parts.length) parts.push("Sin cambios");
+      toast.success(parts.join(" · ") + (data.errors?.length ? ` · ${data.errors.length} avisos (ver consola)` : ""), { duration: 6000 });
       if (data.errors?.length) console.warn("Import errors:", data.errors);
       onImported?.(data);
     } catch (err) { toast.error(formatApiError(err)); }

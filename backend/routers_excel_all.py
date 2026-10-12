@@ -154,58 +154,94 @@ async def products_export(payload: IdsIn, _=Depends(require_permission("products
     return _xlsx_response(_build_xlsx("Productos", PRODUCT_COLS, rows), "productos_export.xlsx")
 
 
+def _norm_sku(v) -> str:
+    """SKU normalizado: Excel devuelve 1001.0 para celdas numéricas."""
+    if v is None:
+        return ""
+    if isinstance(v, float) and v.is_integer():
+        v = int(v)
+    return str(v).strip()
+
+
+def _has(v) -> bool:
+    return v is not None and str(v).strip() != ""
+
+
 @router.post("/products/import")
 async def products_import(file: UploadFile = File(...), _=Depends(require_permission("products.write"))):
+    """Upsert por SKU: si el SKU ya existe (sin distinguir mayúsculas/espacios)
+    se actualizan SOLO las columnas con valor en el Excel (las celdas vacías no
+    borran datos); si no existe, se crea el producto nuevo."""
     data = await file.read()
     _, rows = _read_xlsx(data)
     cats = {c["name"].lower(): c["id"] async for c in db.categories.find({}, {"_id": 0, "id": 1, "name": 1})}
     provs = {p["name"].lower(): p["id"] async for p in db.providers.find({}, {"_id": 0, "id": 1, "name": 1})}
+    existing_by_sku = {}
+    async for p in db.products.find({}, {"_id": 0, "id": 1, "sku": 1}):
+        key = _norm_sku(p.get("sku")).lower()
+        if key and key not in existing_by_sku:
+            existing_by_sku[key] = p["id"]
     imported = updated = 0
-    errors = []
+    errors, created_skus, updated_skus = [], [], []
     now = datetime.now(timezone.utc).isoformat()
     for idx, r in enumerate(rows, start=2):
         try:
-            sku = str(r.get("SKU") or "").strip()
-            if not sku: continue
-            cat_id = cats.get(str(r.get("Categoría (nombre)") or "").strip().lower())
-            prov_id = provs.get(str(r.get("Proveedor (nombre)") or "").strip().lower())
-            tags_str = str(r.get("Tags (coma)") or "")
-            tags = [t.strip() for t in tags_str.split(",") if t.strip()]
-            doc = {
-                "name": str(r.get("Nombre") or sku),
-                "description": str(r.get("Descripción corta") or ""),
-                "long_description": str(r.get("Descripción larga") or ""),
-                "price": float(r.get("Precio (IVA incl.)") or 0),
-                "compare_at_price": float(r.get("Precio comparación")) if r.get("Precio comparación") else None,
-                "vat_rate": int(r.get("IVA %") or 10),
-                "stock": int(r.get("Stock") or 0),
-                "low_stock_threshold": int(r.get("Umbral stock bajo") or 5),
-                "weight_grams": int(r.get("Peso (g)")) if r.get("Peso (g)") else None,
-                "category_id": cat_id,
-                "provider_id": prov_id,
-                "origin": str(r.get("Origen") or ""),
-                "curing_months": int(r.get("Curación (meses)")) if r.get("Curación (meses)") else None,
-                "breed": str(r.get("Raza") or ""),
-                "feed": str(r.get("Alimentación") or ""),
-                "tags": tags,
-                "is_active": _bool(r.get("Activo (SI/NO)")) if r.get("Activo (SI/NO)") is not None else True,
-                "is_featured": _bool(r.get("Destacado (SI/NO)")),
-                "updated_at": now,
-            }
-            existing = await db.products.find_one({"sku": sku})
-            if existing:
-                await db.products.update_one({"sku": sku}, {"$set": doc})
+            sku = _norm_sku(r.get("SKU"))
+            if not sku:
+                continue
+            fields = {}
+            if _has(r.get("Nombre")): fields["name"] = str(r["Nombre"]).strip()
+            if _has(r.get("Descripción corta")): fields["description"] = str(r["Descripción corta"])
+            if _has(r.get("Descripción larga")): fields["long_description"] = str(r["Descripción larga"])
+            if _has(r.get("Precio (IVA incl.)")): fields["price"] = float(r["Precio (IVA incl.)"])
+            if _has(r.get("Precio comparación")): fields["compare_at_price"] = float(r["Precio comparación"])
+            if _has(r.get("IVA %")): fields["vat_rate"] = int(float(r["IVA %"]))
+            if _has(r.get("Stock")): fields["stock"] = int(float(r["Stock"]))
+            if _has(r.get("Umbral stock bajo")): fields["low_stock_threshold"] = int(float(r["Umbral stock bajo"]))
+            if _has(r.get("Peso (g)")): fields["weight_grams"] = int(float(r["Peso (g)"]))
+            if _has(r.get("Categoría (nombre)")):
+                cat_id = cats.get(str(r["Categoría (nombre)"]).strip().lower())
+                if not cat_id:
+                    errors.append(f"Fila {idx} ({sku}): categoría '{r['Categoría (nombre)']}' no existe, se mantiene la actual")
+                else:
+                    fields["category_id"] = cat_id
+            if _has(r.get("Proveedor (nombre)")):
+                prov_id = provs.get(str(r["Proveedor (nombre)"]).strip().lower())
+                if prov_id:
+                    fields["provider_id"] = prov_id
+            if _has(r.get("Origen")): fields["origin"] = str(r["Origen"])
+            if _has(r.get("Curación (meses)")): fields["curing_months"] = int(float(r["Curación (meses)"]))
+            if _has(r.get("Raza")): fields["breed"] = str(r["Raza"])
+            if _has(r.get("Alimentación")): fields["feed"] = str(r["Alimentación"])
+            if _has(r.get("Tags (coma)")):
+                fields["tags"] = [t.strip() for t in str(r["Tags (coma)"]).split(",") if t.strip()]
+            if _has(r.get("Activo (SI/NO)")): fields["is_active"] = _bool(r["Activo (SI/NO)"])
+            if _has(r.get("Destacado (SI/NO)")): fields["is_featured"] = _bool(r["Destacado (SI/NO)"])
+            fields["updated_at"] = now
+
+            existing_id = existing_by_sku.get(sku.lower())
+            if existing_id:
+                await db.products.update_one({"id": existing_id}, {"$set": fields})
                 updated += 1
+                updated_skus.append(sku)
             else:
-                doc["id"] = str(uuid.uuid4())
-                doc["sku"] = sku
-                doc["images"] = []
-                doc["created_at"] = now
+                doc = {
+                    "name": sku, "description": "", "long_description": "", "price": 0.0,
+                    "compare_at_price": None, "vat_rate": 10, "stock": 0, "low_stock_threshold": 5,
+                    "weight_grams": None, "category_id": None, "provider_id": None, "origin": "",
+                    "curing_months": None, "breed": "", "feed": "", "tags": [],
+                    "is_active": True, "is_featured": False,
+                }
+                doc.update(fields)
+                doc.update({"id": str(uuid.uuid4()), "sku": sku, "images": [], "created_at": now})
                 await db.products.insert_one(doc)
+                existing_by_sku[sku.lower()] = doc["id"]
                 imported += 1
+                created_skus.append(sku)
         except Exception as e:
             errors.append(f"Fila {idx}: {e}")
-    return {"imported": imported, "updated": updated, "errors": errors}
+    return {"imported": imported, "updated": updated, "errors": errors,
+            "created_skus": created_skus[:50], "updated_skus": updated_skus[:50]}
 
 
 # ============ PROVIDERS ============
