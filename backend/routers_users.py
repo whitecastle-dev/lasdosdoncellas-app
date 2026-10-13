@@ -104,7 +104,7 @@ async def get_web_user_by_email(email: str, _=Depends(require_permission("custom
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     for k in WEB_PROJECTION:
         c.pop(k, None)
-    return _normalize_web_user(c, "users" if coll is db.users else "customers")
+    return _normalize_web_user(c, "users" if coll.name == "users" else "customers")
 
 
 @router.get("/web/{customer_id}")
@@ -114,7 +114,7 @@ async def get_web_user(customer_id: str, _=Depends(require_permission("customers
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     for k in WEB_PROJECTION:
         c.pop(k, None)
-    return _normalize_web_user(c, "users" if coll is db.users else "customers")
+    return _normalize_web_user(c, "users" if coll.name == "users" else "customers")
 
 
 class WebUserUpdate(BaseModel):
@@ -189,7 +189,7 @@ async def update_web_user(customer_id: str, payload: WebUserUpdate,
 
     await coll.update_one({"id": customer_id}, {"$set": updates})
     updated = await coll.find_one({"id": customer_id}, WEB_PROJECTION)
-    return _normalize_web_user(updated, "users" if coll is db.users else "customers")
+    return _normalize_web_user(updated, "users" if coll.name == "users" else "customers")
 
 
 @router.delete("/web/{customer_id}")
