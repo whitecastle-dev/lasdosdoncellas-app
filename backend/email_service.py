@@ -1,9 +1,12 @@
 """Servicio de email transaccional.
 
 Proveedores (por orden de prioridad según variables de entorno):
-  1. SMTP del hosting (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD,
-     SMTP_FROM_EMAIL, SMTP_FROM_NAME) — p. ej. el correo de cPanel/LucusHost.
-  2. Brevo (BREVO_API_KEY).
+  1. Relé HTTPS en el hosting (MAIL_RELAY_URL + MAIL_RELAY_SECRET): el backend
+     construye el MIME y lo entrega a frontend/public/mailer/send.php, que lo
+     envía por SMTP local. Necesario en Render free (bloquea puertos SMTP).
+  2. SMTP directo (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD).
+  3. Brevo (BREVO_API_KEY).
+Remitente: SMTP_FROM_EMAIL / SMTP_FROM_NAME / SMTP_REPLY_TO.
 Si no hay ninguno configurado, los envíos se registran en el log y no fallan.
 """
 import asyncio
@@ -22,24 +25,30 @@ logger = logging.getLogger(__name__)
 BREVO_URL = "https://api.brevo.com/v3/smtp/email"
 
 
+def _relay_enabled() -> bool:
+    return bool(os.environ.get("MAIL_RELAY_URL") and os.environ.get("MAIL_RELAY_SECRET"))
+
+
 def _smtp_enabled() -> bool:
     return all(os.environ.get(k) for k in ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"))
 
 
 def _enabled() -> bool:
-    return _smtp_enabled() or bool(os.environ.get("BREVO_API_KEY"))
+    return _relay_enabled() or _smtp_enabled() or bool(os.environ.get("BREVO_API_KEY"))
 
 
 def provider_name() -> str:
+    if _relay_enabled():
+        return "relay"
     return "smtp" if _smtp_enabled() else ("brevo" if os.environ.get("BREVO_API_KEY") else "none")
 
 
-def _smtp_send_sync(subject: str, html: str, text: str, to_email: str, to_name: str, attachments: list | None):
-    host = os.environ["SMTP_HOST"]
-    port = int(os.environ.get("SMTP_PORT", "465"))
-    user = os.environ["SMTP_USER"]
-    password = os.environ["SMTP_PASSWORD"]
-    from_email = os.environ.get("SMTP_FROM_EMAIL", user)
+def _from_email() -> str:
+    return os.environ.get("SMTP_FROM_EMAIL") or os.environ.get("SMTP_USER") or "pedidos@lasdosdoncellasibericos.es"
+
+
+def _build_message(subject: str, html: str, text: str, to_email: str, to_name: str, attachments: list | None) -> EmailMessage:
+    from_email = _from_email()
     from_name = os.environ.get("SMTP_FROM_NAME", "Las Dos Doncellas")
     msg = EmailMessage()
     msg["Subject"] = subject
@@ -55,6 +64,28 @@ def _smtp_send_sync(subject: str, html: str, text: str, to_email: str, to_name: 
         name = att.get("name", "adjunto")
         maintype, subtype = ("application", "pdf") if name.lower().endswith(".pdf") else ("application", "octet-stream")
         msg.add_attachment(data, maintype=maintype, subtype=subtype, filename=name)
+    return msg
+
+
+async def _relay_send(msg: EmailMessage, to_email: str) -> bool:
+    payload = {
+        "from": _from_email(),
+        "to": [to_email],
+        "raw": base64.b64encode(msg.as_bytes()).decode(),
+    }
+    async with httpx.AsyncClient(timeout=40.0) as client:
+        r = await client.post(os.environ["MAIL_RELAY_URL"], json=payload,
+                              headers={"X-Mail-Secret": os.environ["MAIL_RELAY_SECRET"]})
+    if r.status_code != 200:
+        raise RuntimeError(f"relay {r.status_code}: {r.text[:200]}")
+    return True
+
+
+def _smtp_send_sync(msg: EmailMessage):
+    host = os.environ["SMTP_HOST"]
+    port = int(os.environ.get("SMTP_PORT", "465"))
+    user = os.environ["SMTP_USER"]
+    password = os.environ["SMTP_PASSWORD"]
     ctx = ssl.create_default_context()
     if port == 465:
         with smtplib.SMTP_SSL(host, port, timeout=30, context=ctx) as s:
@@ -72,12 +103,16 @@ async def _send(subject: str, html: str, text: str, to_email: str, to_name: str 
     if not _enabled():
         logger.info(f"[email:disabled] would send '{subject}' to {to_email}")
         return False
-    if _smtp_enabled():
+    if _relay_enabled() or _smtp_enabled():
         try:
-            await asyncio.to_thread(_smtp_send_sync, subject, html, text, to_email, to_name, attachments)
+            msg = _build_message(subject, html, text, to_email, to_name, attachments)
+            if _relay_enabled():
+                await _relay_send(msg, to_email)
+            else:
+                await asyncio.to_thread(_smtp_send_sync, msg)
             return True
         except Exception as e:
-            logger.exception(f"SMTP send failed: {e}")
+            logger.exception(f"{provider_name()} send failed: {e}")
             return False
     api_key = os.environ["BREVO_API_KEY"]
     sender_email = os.environ.get("BREVO_SENDER_EMAIL", "no-reply@lasdosdoncellasibericos.es")
