@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { MessageCircle, Save, ExternalLink, Star, CreditCard } from "lucide-react";
+import { MessageCircle, Save, ExternalLink, Star, CreditCard, Mail, Send } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -304,7 +304,65 @@ export default function Configuracion() {
           )}
         </section>
       )}
+
+      <EmailSection />
     </div>
+  );
+}
+
+const PROVIDER_LABEL = {
+  relay: "Correo del hosting (relé seguro)",
+  smtp: "SMTP del hosting",
+  brevo: "Brevo",
+  none: "No configurado",
+};
+
+function EmailSection() {
+  const [status, setStatus] = useState(null);
+  const [to, setTo] = useState("");
+  const [sending, setSending] = useState(false);
+  useEffect(() => {
+    api.get("/settings/email").then((r) => setStatus(r.data)).catch(() => setStatus(null));
+  }, []);
+  const sendTest = async (e) => {
+    e.preventDefault();
+    if (!to) return;
+    setSending(true);
+    try {
+      const { data } = await api.post("/settings/email/test", { to });
+      if (data.sent) toast.success(`Correo de prueba enviado a ${to}`);
+      else toast.error(data.reason || "No se pudo enviar el correo de prueba");
+    } catch (err) { toast.error(formatApiError(err)); } finally { setSending(false); }
+  };
+  if (!status) return null;
+  const ok = status.provider !== "none";
+  return (
+    <section className="bg-white border border-gray-200 mt-6" data-testid="config-email">
+      <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
+        <Mail size={18} className="text-blue-600" />
+        <div>
+          <div className="font-serif text-lg">Correo transaccional</div>
+          <div className="text-xs text-gray-500">
+            Confirmaciones de pedido, verificación de cuenta, recuperación de contraseña y avisos a tienda.
+          </div>
+        </div>
+      </div>
+      <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <InfoRow label="Estado" value={ok ? "Activo" : "Inactivo"} badge={ok ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"} />
+        <InfoRow label="Proveedor" value={PROVIDER_LABEL[status.provider] || status.provider} />
+        <InfoRow label="Remitente" value={status.from_email || "—"} mono />
+      </div>
+      <form onSubmit={sendTest} className="px-6 pb-6 flex flex-col sm:flex-row gap-3 sm:items-end">
+        <div className="flex-1">
+          <label className="label-eyebrow text-gray-500 text-[10px] block mb-1">Enviar correo de prueba a</label>
+          <input type="email" required value={to} onChange={(e) => setTo(e.target.value)} placeholder="tu@email.com"
+                 className="w-full border border-gray-300 px-3 py-2 text-sm" data-testid="email-test-to" />
+        </div>
+        <button disabled={sending || !ok} className="px-4 py-2 bg-black text-white text-xs uppercase tracking-widest disabled:opacity-50 flex items-center gap-2" data-testid="email-test-send">
+          <Send size={12} /> {sending ? "Enviando…" : "Enviar prueba"}
+        </button>
+      </form>
+    </section>
   );
 }
 
