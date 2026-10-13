@@ -44,67 +44,77 @@ async def list_users(_=Depends(require_permission("users.read"))):
     return users
 
 
+WEB_PROJECTION = {"_id": 0, "password_hash": 0, "verification_token": 0, "reset_token": 0,
+                  "reset_token_expires": 0, "verification_expires": 0}
+# Los clientes de la tienda viven en `db.users` (role=customer, registro unificado)
+# y, por compatibilidad, los antiguos en `db.customers`.
+WEB_USERS_FILTER = {"role": "customer", "is_superadmin": {"$ne": True}}
+
+
+def _normalize_web_user(c: dict, source: str) -> dict:
+    full_name = (c.get("name") or f"{c.get('first_name', '') or ''} {c.get('last_name', '') or ''}").strip()
+    if not c.get("first_name"):
+        parts = full_name.split(" ", 1)
+        c["first_name"] = parts[0] if parts else ""
+        c["last_name"] = parts[1] if len(parts) > 1 else ""
+    c["name"] = full_name
+    c["is_verified"] = bool(c.get("is_verified", c.get("verified", False)))
+    c["source"] = source
+    addrs = c.get("addresses") or []
+    default = next((a for a in addrs if a.get("is_default_shipping")), None) or \
+              next((a for a in addrs if a.get("is_default_billing")), None) or \
+              (addrs[0] if addrs else {})
+    c["address"] = default.get("address", "")
+    c["city"] = default.get("city", "")
+    c["postal_code"] = default.get("postal_code", "")
+    c["country"] = default.get("country", "España")
+    return c
+
+
+async def _find_web_user(query: dict):
+    """Devuelve (doc, colección) buscando primero en users y luego en customers."""
+    doc = await db.users.find_one({**query, **WEB_USERS_FILTER})
+    if doc:
+        return doc, db.users
+    doc = await db.customers.find_one(query)
+    return doc, (db.customers if doc else None)
+
+
 @router.get("/web")
 async def list_web_users(_=Depends(require_permission("customers.read"))):
-    """Usuarios de la tienda (clientes registrados via storefront).
-    Viven en `db.customers` — colección separada de los usuarios CMS."""
-    cursor = db.customers.find(
-        {},
-        {"_id": 0, "password_hash": 0, "verification_token": 0, "reset_token": 0,
-         "reset_token_expires": 0, "verification_expires": 0}
-    ).sort("created_at", -1)
-    items = []
-    async for c in cursor:
-        # Normaliza campos para la UI (el modelo guarda 'name', la UI espera
-        # first_name/last_name — partimos del 'name' completo)
-        full_name = c.get("name") or ""
-        if " " in full_name and not c.get("first_name"):
-            parts = full_name.split(" ", 1)
-            c.setdefault("first_name", parts[0])
-            c.setdefault("last_name", parts[1] if len(parts) > 1 else "")
-        else:
-            c.setdefault("first_name", full_name)
-            c.setdefault("last_name", "")
-        c.setdefault("is_verified", bool(c.get("verified", False)))
-        # Aplana la dirección por defecto (envío, o billing, o la primera)
-        addrs = c.get("addresses") or []
-        default = next((a for a in addrs if a.get("is_default_shipping")), None) or \
-                  next((a for a in addrs if a.get("is_default_billing")), None) or \
-                  (addrs[0] if addrs else {})
-        c["address"] = default.get("address", "")
-        c["city"] = default.get("city", "")
-        c["postal_code"] = default.get("postal_code", "")
-        c["country"] = default.get("country", "España")
-        items.append(c)
+    items, seen = [], set()
+    async for c in db.users.find(WEB_USERS_FILTER, WEB_PROJECTION).sort("created_at", -1):
+        seen.add((c.get("email") or "").lower())
+        items.append(_normalize_web_user(c, "users"))
+    async for c in db.customers.find({}, WEB_PROJECTION).sort("created_at", -1):
+        if (c.get("email") or "").lower() in seen:
+            continue
+        items.append(_normalize_web_user(c, "customers"))
+    items.sort(key=lambda x: x.get("created_at") or "", reverse=True)
     return items
 
 
 @router.get("/web/by-email/{email}")
 async def get_web_user_by_email(email: str, _=Depends(require_permission("customers.read"))):
-    """Lookup web customer by email (lowercase, case-insensitive)."""
     import re as _re
     em = email.strip().lower()
-    c = await db.customers.find_one(
-        {"email": {"$regex": f"^{_re.escape(em)}$", "$options": "i"}},
-        {"_id": 0, "password_hash": 0, "verification_token": 0, "reset_token": 0,
-         "reset_token_expires": 0, "verification_expires": 0},
-    )
+    q = {"email": {"$regex": f"^{_re.escape(em)}$", "$options": "i"}}
+    c, coll = await _find_web_user(q)
     if not c:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
-    return c
+    for k in WEB_PROJECTION:
+        c.pop(k, None)
+    return _normalize_web_user(c, "users" if coll is db.users else "customers")
 
 
 @router.get("/web/{customer_id}")
 async def get_web_user(customer_id: str, _=Depends(require_permission("customers.read"))):
-    """Fetch single web customer by id — used by relational modals from Orders."""
-    c = await db.customers.find_one(
-        {"id": customer_id},
-        {"_id": 0, "password_hash": 0, "verification_token": 0, "reset_token": 0,
-         "reset_token_expires": 0, "verification_expires": 0},
-    )
+    c, coll = await _find_web_user({"id": customer_id})
     if not c:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
-    return c
+    for k in WEB_PROJECTION:
+        c.pop(k, None)
+    return _normalize_web_user(c, "users" if coll is db.users else "customers")
 
 
 class WebUserUpdate(BaseModel):
@@ -124,7 +134,7 @@ class WebUserUpdate(BaseModel):
 @router.patch("/web/{customer_id}")
 async def update_web_user(customer_id: str, payload: WebUserUpdate,
                           _=Depends(require_permission("customers.write"))):
-    customer = await db.customers.find_one({"id": customer_id})
+    customer, coll = await _find_web_user({"id": customer_id})
     if not customer:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
@@ -136,7 +146,10 @@ async def update_web_user(customer_id: str, payload: WebUserUpdate,
         updates["last_name"] = ln
         updates["name"] = (fn + " " + ln).strip() or (payload.name or customer.get("name", ""))
     elif payload.name is not None:
-        updates["name"] = payload.name
+        parts = payload.name.strip().split(" ", 1)
+        updates["name"] = payload.name.strip()
+        updates["first_name"] = parts[0]
+        updates["last_name"] = parts[1] if len(parts) > 1 else ""
     if payload.phone is not None:
         updates["phone"] = payload.phone
     if payload.is_active is not None:
@@ -149,7 +162,6 @@ async def update_web_user(customer_id: str, payload: WebUserUpdate,
             raise HTTPException(status_code=400, detail=PASSWORD_RULES_MSG)
         updates["password_hash"] = hash_password(payload.password)
 
-    # Actualiza/crea la dirección por defecto si llega algún campo de dirección
     addr_keys = ("address", "city", "postal_code", "country")
     addr_payload = {k: getattr(payload, k) for k in addr_keys}
     if any(v is not None for v in addr_payload.values()):
@@ -157,13 +169,15 @@ async def update_web_user(customer_id: str, payload: WebUserUpdate,
         idx = next((i for i, a in enumerate(addresses) if a.get("is_default_shipping")), -1)
         cur = addresses[idx] if idx >= 0 else {}
         new_addr = {
+            **cur,
+            "id": cur.get("id") or str(__import__("uuid").uuid4()),
             "label": cur.get("label", "Principal"),
-            "full_name": updates.get("name") or customer.get("name", ""),
+            "full_name": updates.get("name") or customer.get("name") or f"{customer.get('first_name', '')} {customer.get('last_name', '')}".strip(),
             "address": addr_payload["address"] if addr_payload["address"] is not None else cur.get("address", ""),
             "city": addr_payload["city"] if addr_payload["city"] is not None else cur.get("city", ""),
             "postal_code": addr_payload["postal_code"] if addr_payload["postal_code"] is not None else cur.get("postal_code", ""),
             "country": addr_payload["country"] if addr_payload["country"] is not None else cur.get("country", "España"),
-            "phone": customer.get("phone", ""),
+            "phone": cur.get("phone") or customer.get("phone", ""),
             "is_default_billing": True,
             "is_default_shipping": True,
         }
@@ -173,21 +187,18 @@ async def update_web_user(customer_id: str, payload: WebUserUpdate,
             addresses.insert(0, new_addr)
         updates["addresses"] = addresses
 
-    await db.customers.update_one({"id": customer_id}, {"$set": updates})
-    updated = await db.customers.find_one(
-        {"id": customer_id},
-        {"_id": 0, "password_hash": 0, "verification_token": 0, "reset_token": 0}
-    )
-    return updated
+    await coll.update_one({"id": customer_id}, {"$set": updates})
+    updated = await coll.find_one({"id": customer_id}, WEB_PROJECTION)
+    return _normalize_web_user(updated, "users" if coll is db.users else "customers")
 
 
 @router.delete("/web/{customer_id}")
 async def delete_web_user(customer_id: str,
                           _=Depends(require_permission("customers.delete"))):
-    customer = await db.customers.find_one({"id": customer_id})
+    customer, coll = await _find_web_user({"id": customer_id})
     if not customer:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
-    await db.customers.delete_one({"id": customer_id})
+    await coll.delete_one({"id": customer_id})
     return {"ok": True}
 
 
