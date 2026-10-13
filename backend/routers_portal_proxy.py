@@ -129,7 +129,11 @@ async def portal_health(_=Depends(require_permission(PERM_READ))):
     url = (os.environ.get("SUPABASE_URL") or "").rstrip("/")
     key = os.environ.get("SUPABASE_SERVICE_KEY") or ""
     role = None
-    if key.count(".") == 2:
+    if key.startswith("sb_secret_"):
+        role = "service_role"
+    elif key.startswith("sb_publishable_"):
+        role = "anon (publishable)"
+    elif key.count(".") == 2:
         try:
             seg = key.split(".")[1]
             seg += "=" * (-len(seg) % 4)
