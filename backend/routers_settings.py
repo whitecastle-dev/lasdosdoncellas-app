@@ -119,3 +119,34 @@ async def update_settings(payload: SiteSettingsIn, _=Depends(require_permission(
         upsert=True,
     )
     return await _load()
+
+
+# ---------- Email: estado y prueba de envío ----------
+class EmailTestIn(BaseModel):
+    to: str
+
+
+@router.get("/email")
+async def email_status(_=Depends(require_permission("settings.write"))):
+    import os as _os
+    from email_service import provider_name
+    return {
+        "provider": provider_name(),
+        "smtp_host": _os.environ.get("SMTP_HOST", ""),
+        "smtp_port": _os.environ.get("SMTP_PORT", ""),
+        "from_email": _os.environ.get("SMTP_FROM_EMAIL") or _os.environ.get("SMTP_USER") or _os.environ.get("BREVO_SENDER_EMAIL", ""),
+    }
+
+
+@router.post("/email/test")
+async def email_test(payload: EmailTestIn, _=Depends(require_permission("settings.write"))):
+    from email_service import _send, provider_name
+    if provider_name() == "none":
+        return {"sent": False, "reason": "Email no configurado (SMTP_* o BREVO_API_KEY)."}
+    ok = await _send(
+        "Prueba de correo · Las Dos Doncellas",
+        "<p>Este es un correo de prueba enviado desde el CMS de <strong>Las Dos Doncellas</strong>.</p><p>Si lo recibes, el envío de emails funciona correctamente.</p>",
+        "Correo de prueba enviado desde el CMS de Las Dos Doncellas.",
+        payload.to,
+    )
+    return {"sent": ok, "provider": provider_name()}

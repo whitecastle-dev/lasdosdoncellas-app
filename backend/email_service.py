@@ -1,10 +1,19 @@
-"""Brevo transactional email service.
+"""Servicio de email transaccional.
 
-If BREVO_API_KEY is not set, calls are logged and silently no-op
-(useful in dev). All HTML emails use the Las Dos Doncellas brand.
+Proveedores (por orden de prioridad según variables de entorno):
+  1. SMTP del hosting (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD,
+     SMTP_FROM_EMAIL, SMTP_FROM_NAME) — p. ej. el correo de cPanel/LucusHost.
+  2. Brevo (BREVO_API_KEY).
+Si no hay ninguno configurado, los envíos se registran en el log y no fallan.
 """
+import asyncio
+import base64
 import os
 import logging
+import smtplib
+import ssl
+from email.message import EmailMessage
+from email.utils import formataddr
 import httpx
 from company_info import get_company
 
@@ -13,14 +22,63 @@ logger = logging.getLogger(__name__)
 BREVO_URL = "https://api.brevo.com/v3/smtp/email"
 
 
+def _smtp_enabled() -> bool:
+    return all(os.environ.get(k) for k in ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"))
+
+
 def _enabled() -> bool:
-    return bool(os.environ.get("BREVO_API_KEY"))
+    return _smtp_enabled() or bool(os.environ.get("BREVO_API_KEY"))
+
+
+def provider_name() -> str:
+    return "smtp" if _smtp_enabled() else ("brevo" if os.environ.get("BREVO_API_KEY") else "none")
+
+
+def _smtp_send_sync(subject: str, html: str, text: str, to_email: str, to_name: str, attachments: list | None):
+    host = os.environ["SMTP_HOST"]
+    port = int(os.environ.get("SMTP_PORT", "465"))
+    user = os.environ["SMTP_USER"]
+    password = os.environ["SMTP_PASSWORD"]
+    from_email = os.environ.get("SMTP_FROM_EMAIL", user)
+    from_name = os.environ.get("SMTP_FROM_NAME", "Las Dos Doncellas")
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = formataddr((from_name, from_email))
+    msg["To"] = formataddr((to_name, to_email)) if to_name else to_email
+    reply_to = os.environ.get("SMTP_REPLY_TO")
+    if reply_to:
+        msg["Reply-To"] = reply_to
+    msg.set_content(text or " ")
+    msg.add_alternative(html, subtype="html")
+    for att in attachments or []:
+        data = base64.b64decode(att.get("content", ""))
+        name = att.get("name", "adjunto")
+        maintype, subtype = ("application", "pdf") if name.lower().endswith(".pdf") else ("application", "octet-stream")
+        msg.add_attachment(data, maintype=maintype, subtype=subtype, filename=name)
+    ctx = ssl.create_default_context()
+    if port == 465:
+        with smtplib.SMTP_SSL(host, port, timeout=30, context=ctx) as s:
+            s.login(user, password)
+            s.send_message(msg)
+    else:
+        with smtplib.SMTP(host, port, timeout=30) as s:
+            s.ehlo()
+            s.starttls(context=ctx)
+            s.login(user, password)
+            s.send_message(msg)
 
 
 async def _send(subject: str, html: str, text: str, to_email: str, to_name: str = "", attachments: list | None = None) -> bool:
     if not _enabled():
-        logger.info(f"[brevo:disabled] would send '{subject}' to {to_email}")
+        logger.info(f"[email:disabled] would send '{subject}' to {to_email}")
         return False
+    if _smtp_enabled():
+        try:
+            await asyncio.to_thread(_smtp_send_sync, subject, html, text, to_email, to_name, attachments)
+            return True
+        except Exception as e:
+            logger.exception(f"SMTP send failed: {e}")
+            return False
     api_key = os.environ["BREVO_API_KEY"]
     sender_email = os.environ.get("BREVO_SENDER_EMAIL", "no-reply@lasdosdoncellasibericos.es")
     sender_name = os.environ.get("BREVO_SENDER_NAME", "Las Dos Doncellas")

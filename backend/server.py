@@ -88,7 +88,6 @@ async def api_health():
 
 # --- CORS: incluye SIEMPRE los dominios conocidos del front + custom domain ---
 _default_origins = [
-    "https://lasdosdoncellas-web.onrender.com",
     "https://lasdosdoncellasibericos.es",
     "https://www.lasdosdoncellasibericos.es",
     "http://localhost:3000",

@@ -109,7 +109,7 @@ async def reset_password(payload: ResetPasswordIn):
 
 @router.get("/verify")
 async def verify_email(token: str):
-    front = os.environ.get("FRONTEND_URL", "https://lasdosdoncellas-web.onrender.com")
+    front = os.environ.get("FRONTEND_URL", "https://www.lasdosdoncellasibericos.es")
     user = await db.users.find_one({"verification_token": token})
     if not user:
         return RedirectResponse(url=f"{front}/cuenta/login?verified=invalid", status_code=302)

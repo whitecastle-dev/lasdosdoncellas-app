@@ -5,15 +5,11 @@ import uuid
 import bcrypt
 import jwt
 import secrets
-import resend
 from datetime import datetime, timezone, timedelta
 from fastapi import HTTPException, Request, Depends
 from db import db
 
 JWT_ALGORITHM = "HS256"
-
-# Configuración de Resend
-resend.api_key = os.environ.get("RESEND_API_KEY")
 
 # Permission catalog
 ALL_PERMISSIONS = [
@@ -48,49 +44,35 @@ def create_refresh_token(user_id: str) -> str:
     }
     return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
 
+def _auth_mail(title: str, intro: str, cta: str, url: str, footer: str) -> tuple[str, str]:
+    html = (
+        "<div style='font-family:Georgia,serif;max-width:560px;margin:0 auto;padding:24px;background:#FAF8F5;'>"
+        "<h2 style='font-weight:normal;color:#0A0A0A;'>Las Dos Doncellas</h2>"
+        f"<p style='color:#3B2B20;'>{intro}</p>"
+        f"<p style='margin:24px 0;'><a href='{url}' style='background:#C5A059;color:#0A0A0A;padding:12px 24px;text-decoration:none;letter-spacing:0.1em;'>{cta}</a></p>"
+        f"<p style='color:#666;font-size:12px;'>{footer}</p>"
+        "</div>"
+    )
+    text = f"{title}\n\n{intro}\n{url}\n\n{footer}"
+    return html, text
+
+
 async def send_verification_email(email_to: str, token: str):
+    from email_service import _send
     api_base = os.environ.get("API_BASE_URL", "https://lasdosdoncellas-api.onrender.com")
-    sender = os.environ.get("RESEND_FROM_EMAIL", "Las Dos Doncellas <onboarding@resend.dev>")
     verify_url = f"{api_base}/api/auth/verify?token={token}"
-    params = {
-        "from": sender,
-        "to": [email_to],
-        "subject": "Verifica tu cuenta en Las Dos Doncellas",
-        "html": (
-            "<div style='font-family:Georgia,serif;max-width:560px;margin:0 auto;padding:24px;background:#FAF8F5;'>"
-            "<h2 style='font-weight:normal;color:#0A0A0A;'>Las Dos Doncellas</h2>"
-            "<p style='color:#3B2B20;'>Gracias por registrarte. Pulsa el botón para verificar tu cuenta:</p>"
-            f"<p style='margin:24px 0;'><a href='{verify_url}' style='background:#C5A059;color:#0A0A0A;padding:12px 24px;text-decoration:none;letter-spacing:0.1em;'>VERIFICAR CUENTA</a></p>"
-            f"<p style='color:#666;font-size:12px;'>O copia este enlace: {verify_url}</p>"
-            "</div>"
-        ),
-    }
-    try:
-        resend.Emails.send(params)
-    except Exception as e:
-        print(f"Error enviando correo de verificación: {e}")
+    html, text = _auth_mail("Verifica tu cuenta", "Gracias por registrarte. Pulsa el botón para verificar tu cuenta:",
+                            "VERIFICAR CUENTA", verify_url, f"O copia este enlace: {verify_url}")
+    await _send("Verifica tu cuenta en Las Dos Doncellas", html, text, email_to)
+
 
 async def send_password_reset_email(email_to: str, token: str):
-    front = os.environ.get("FRONTEND_URL", "https://lasdosdoncellas-web.onrender.com")
-    sender = os.environ.get("RESEND_FROM_EMAIL", "Las Dos Doncellas <onboarding@resend.dev>")
+    from email_service import _send
+    front = os.environ.get("FRONTEND_URL", "https://www.lasdosdoncellasibericos.es")
     reset_url = f"{front}/cuenta/restablecer?token={token}"
-    params = {
-        "from": sender,
-        "to": [email_to],
-        "subject": "Restablece tu contraseña - Las Dos Doncellas",
-        "html": (
-            "<div style='font-family:Georgia,serif;max-width:560px;margin:0 auto;padding:24px;background:#FAF8F5;'>"
-            "<h2 style='font-weight:normal;color:#0A0A0A;'>Las Dos Doncellas</h2>"
-            "<p style='color:#3B2B20;'>Has solicitado restablecer tu contraseña. Pulsa el botón para crear una nueva:</p>"
-            f"<p style='margin:24px 0;'><a href='{reset_url}' style='background:#C5A059;color:#0A0A0A;padding:12px 24px;text-decoration:none;letter-spacing:0.1em;'>RESTABLECER CONTRASEÑA</a></p>"
-            "<p style='color:#666;font-size:12px;'>Si no lo solicitaste, ignora este correo.</p>"
-            "</div>"
-        ),
-    }
-    try:
-        resend.Emails.send(params)
-    except Exception as e:
-        print(f"Error enviando correo de reseteo: {e}")
+    html, text = _auth_mail("Restablece tu contraseña", "Has solicitado restablecer tu contraseña. Pulsa el botón para crear una nueva:",
+                            "RESTABLECER CONTRASEÑA", reset_url, "Si no lo solicitaste, ignora este correo.")
+    await _send("Restablece tu contraseña - Las Dos Doncellas", html, text, email_to)
 
 PASSWORD_RULES_MSG = "La contraseña debe tener mínimo 8 caracteres y contener al menos una mayúscula, una minúscula y un número."
 
