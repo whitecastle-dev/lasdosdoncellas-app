@@ -271,10 +271,10 @@ function BrandStrip() {
           </p>
           <Link to="/nosotros" className="ldd-btn-gold mt-8 inline-flex" data-testid="home-about-cta">Conoce nuestra historia</Link>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <img src="https://images.unsplash.com/photo-1656423739016-5de747b2c4fb?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200" alt="" className="row-span-2 w-full h-full object-cover aspect-[3/4]" />
-          <img src="https://images.unsplash.com/photo-1695606392727-d8b959879721?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200" alt="" className="w-full h-full object-cover aspect-square" />
-          <img src="https://images.unsplash.com/photo-1732565432358-a8c95bc24ea3?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200" alt="" className="w-full h-full object-cover aspect-square" />
+        <div className="grid grid-cols-2 gap-4" data-testid="home-about-gallery">
+          <DehesaPicture name="dehesa-2" pos="62% 78%" className="row-span-2 aspect-[3/4]" alt="Cerdo ibérico entre flores en la dehesa" />
+          <DehesaPicture name="dehesa-1" pos="50% 66%" className="aspect-square" alt="Cerdo ibérico entre encinas" />
+          <DehesaPicture name="dehesa-4" pos="46% 68%" className="aspect-square" alt="Cerdo ibérico pastando en la dehesa" />
         </div>
       </div>
     </section>
@@ -320,15 +320,24 @@ function TestimonialsSection({ reviews }) {
   );
 }
 
+/** Foto de la dehesa (mismas imágenes optimizadas del hero) con encuadre sobre los animales. */
+function DehesaPicture({ name, pos = "50% 50%", className = "", alt = "", imgStyle = {} }) {
+  return (
+    <picture className={`block w-full h-full overflow-hidden ${className}`}>
+      <source type="image/avif" srcSet={`/brand/hero/${name}-mobile.avif 900w, /brand/hero/${name}-desktop.avif 1920w`} sizes="(max-width: 1024px) 100vw, 50vw" />
+      <source type="image/webp" srcSet={`/brand/hero/${name}-mobile.webp 900w, /brand/hero/${name}-desktop.webp 1920w`} sizes="(max-width: 1024px) 100vw, 50vw" />
+      <img src={`/brand/hero/${name}-desktop.webp`} alt={alt} loading="lazy" decoding="async"
+           className="w-full h-full object-cover" style={{ objectPosition: pos, ...imgStyle }} />
+    </picture>
+  );
+}
+
 function ClosingCTA() {
   return (
     <section className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #1a0f0b 0%, #0A0A0A 100%)" }}>
-      <div className="absolute inset-0 opacity-30" style={{
-        backgroundImage: "url(https://images.unsplash.com/photo-1534655882117-f9eff36a1574?crop=entropy&cs=srgb&fm=jpg&q=85&w=2400)",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        filter: "grayscale(40%) brightness(0.45)",
-      }} />
+      <div className="absolute inset-0 opacity-40">
+        <DehesaPicture name="dehesa-3" pos="50% 80%" className="w-full h-full" alt="" imgStyle={{ filter: "grayscale(30%) brightness(0.5)" }} />
+      </div>
       <div className="relative max-w-[900px] mx-auto px-6 lg:px-12 py-28 text-center">
         <Award size={32} className="mx-auto mb-6" style={{ color: "#C5A059" }} />
         <h2 className="font-serif text-4xl md:text-6xl tracking-tighter" style={{ color: "#FAF8F5" }}>
