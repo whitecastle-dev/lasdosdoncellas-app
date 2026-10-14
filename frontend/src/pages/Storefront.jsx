@@ -118,8 +118,8 @@ function HeroSlider() {
   );
 }
 
-function CategoryTiles({ categories, loading }) {
-  if (!categories.length && !loading) return null;
+function CategoryTiles({ categories, loading, error, onRetry }) {
+  if (!categories.length && !loading && !error) return null;
   const tiles = categories;
   // Grid: 2 columnas en móvil, 4 en desktop (más pequeñas y más por fila para
   // que se vean varias categorías sin scroll excesivo).
@@ -135,8 +135,19 @@ function CategoryTiles({ categories, loading }) {
         </div>
         <Link to="/catalogo" className="ldd-btn-ghost" data-testid="home-tiles-all">Ver todo</Link>
       </div>
+      {error && !tiles.length && (
+        <div className="border border-[rgba(197,160,89,0.25)] p-8 text-center" data-testid="home-tiles-error">
+          <p className="text-sm mb-5" style={{ color: "rgba(250,248,245,0.7)" }}>
+            No hemos podido cargar las categorías en este momento.
+          </p>
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <button onClick={onRetry} className="ldd-btn-gold" data-testid="home-tiles-retry">Reintentar</button>
+            <Link to="/catalogo" className="ldd-btn-ghost" data-testid="home-tiles-catalog-link">Ir al catálogo</Link>
+          </div>
+        </div>
+      )}
       <div className={`grid ${cols} gap-3 sm:gap-6 lg:gap-8`}>
-        {!tiles.length && Array.from({ length: 8 }).map((_, i) => (
+        {!tiles.length && loading && Array.from({ length: 8 }).map((_, i) => (
           <div
             key={`sk-${i}`}
             data-testid="home-tile-skeleton"
@@ -437,31 +448,48 @@ export default function Storefront() {
   const [cartOpen, setCartOpen] = useState(false);
   const revealRef = useReveal();
 
+  const [homeError, setHomeError] = useState(false);
+  const [homeAttempt, setHomeAttempt] = useState(0);
+
   useEffect(() => {
     // Una sola llamada agregada (categorías + productos por categoría +
     // destacados + reseñas). La última respuesta buena se cachea en
-    // localStorage para que, en visitas posteriores, el home pinte al
-    // instante aunque el backend esté arrancando en frío.
+    // localStorage para que el home pinte al instante en visitas posteriores.
+    // El backend (plan gratuito) puede tardar en despertar: reintentamos con
+    // espera creciente en vez de dejar los esqueletos para siempre.
+    let cancelled = false;
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     (async () => {
-      try {
-        const { data } = await api.get("/storefront/home", { params: { per_category: 6 } });
-        setCategories(data.categories || []);
-        setProductsBySlug(data.by_slug || {});
-        setFeatured(data.featured || []);
-        setReviews(data.reviews || []);
-        try { localStorage.setItem(HOME_CACHE_KEY, JSON.stringify(data)); } catch { /* quota */ }
-      } catch { /* mantener caché si la hay */ } finally {
+      setHomeError(false);
+      const delays = [0, 4000, 8000, 15000];
+      for (let i = 0; i < delays.length && !cancelled; i++) {
+        if (delays[i]) await sleep(delays[i]);
+        try {
+          const { data } = await api.get("/storefront/home", { params: { per_category: 6 }, timeout: 90000 });
+          if (cancelled) return;
+          setCategories(data.categories || []);
+          setProductsBySlug(data.by_slug || {});
+          setFeatured(data.featured || []);
+          setReviews(data.reviews || []);
+          try { localStorage.setItem(HOME_CACHE_KEY, JSON.stringify(data)); } catch { /* quota */ }
+          setHomeLoading(false);
+          return;
+        } catch { /* reintentar */ }
+      }
+      if (!cancelled) {
         setHomeLoading(false);
+        setHomeError(true);
       }
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [homeAttempt]);
 
   return (
     <div className="ldd-storefront min-h-screen relative" ref={revealRef}>
       <StoreHeader onOpenCart={() => setCartOpen(true)} />
       <HeroSlider />
       <CategoriesBar />
-      <CategoryTiles categories={categories} loading={homeLoading} />
+      <CategoryTiles categories={categories} loading={homeLoading} error={homeError} onRetry={() => { setHomeLoading(true); setHomeAttempt((n) => n + 1); }} />
 
       {/* Mini-secciones por categoría — dinámicas: una por cada categoría activa */}
       {categories.map((cat, i) => {
